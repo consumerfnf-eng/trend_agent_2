@@ -1,0 +1,2265 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TREND AGENT — 관리자</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#faf7f2; --ink:#1d1d1b; --sub:#8a8578; --hair:#e4ded2;
+  --accent:#0f4c81; --accent-soft:#e4edf5;
+  --rising:#c8451f; --ok:#1a7a4a; --ok-soft:#e5f3ec;
+  --warn:#b45309; --warn-soft:#fef3e2; --sticky:#ffe98a;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--paper); color:var(--ink); font-family:'Noto Sans KR',sans-serif; font-size:14px; line-height:1.55}
+a{color:var(--accent)}
+header{display:flex; align-items:center; gap:20px; padding:12px 24px; border-bottom:1px solid var(--ink);
+  position:sticky; top:0; background:var(--paper); z-index:30; flex-wrap:wrap}
+header h1{font-family:'Playfair Display',serif; font-size:21px; letter-spacing:.02em}
+header h1 em{font-style:normal; color:var(--rising)}
+.tabs{display:flex; flex-wrap:wrap; gap:-1px}
+.tabs button{border:1px solid var(--ink); background:transparent; padding:6px 14px; font-size:11px;
+  letter-spacing:.12em; cursor:pointer; font-weight:700; font-family:inherit; margin-left:-1px}
+.tabs button:first-child{margin-left:0}
+.tabs button.on{background:var(--ink); color:#fff}
+.who{margin-left:auto; font-size:11px; color:var(--sub); display:flex; align-items:center; gap:10px}
+main{max-width:1180px; margin:0 auto; padding:22px 24px 90px}
+.view{display:none} .view.on{display:block}
+h2.sec{font-family:'Playfair Display',serif; font-size:24px; border-bottom:1px solid var(--ink);
+  padding-bottom:7px; margin:0 0 16px}
+h2.sec span{font-family:'Noto Sans KR'; font-size:12px; color:var(--sub); font-weight:400}
+h3.sub{font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:var(--sub);
+  border-top:1px solid var(--hair); padding-top:10px; margin:22px 0 10px}
+
+label.f{display:block; font-size:10px; letter-spacing:.1em; color:var(--sub); margin-bottom:3px; text-transform:uppercase}
+input,select,textarea{border:1px solid var(--hair); background:#fff; border-radius:2px; padding:7px 9px;
+  font:inherit; font-size:13px; width:100%; font-family:inherit}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--accent); outline-offset:-1px}
+textarea{resize:vertical; min-height:62px}
+.row{display:flex; gap:12px; flex-wrap:wrap; margin-bottom:12px}
+.row > div{flex:1; min-width:150px}
+.btn{border:1px solid var(--ink); background:var(--ink); color:#fff; padding:8px 16px; font-size:12px;
+  font-weight:700; letter-spacing:.08em; cursor:pointer; font-family:inherit; border-radius:2px}
+.btn:hover{opacity:.85}
+.btn.ghost{background:transparent; color:var(--ink)}
+.btn.danger{background:var(--rising); border-color:var(--rising)}
+.btn.sm{padding:4px 10px; font-size:11px; letter-spacing:.04em}
+.btn:disabled{opacity:.4; cursor:not-allowed}
+
+.drop{border:1.5px dashed var(--sub); border-radius:4px; background:#fff; padding:34px; text-align:center;
+  color:var(--sub); cursor:pointer; transition:.15s}
+.drop.over{border-color:var(--accent); background:var(--accent-soft); color:var(--accent)}
+.drop b{color:var(--ink)}
+
+.cards{display:grid; grid-template-columns:repeat(auto-fill,minmax(226px,1fr)); gap:12px; margin-top:14px}
+.bar{display:flex; gap:8px; align-items:center; flex-wrap:wrap; background:#fff;
+     border:1px solid var(--hair); border-radius:4px; padding:8px 10px; margin-top:14px}
+.bar .sp{flex:1}
+#mCanvas{position:relative; margin-top:12px; height:560px; overflow:auto; border:1px solid var(--hair);
+  background:#f3f1ec; background-image:radial-gradient(#d8d5cd 1px, transparent 1px); background-size:22px 22px}
+#mStage{position:relative; width:2100px; height:1150px}
+#mEdges{position:absolute; inset:0; width:100%; height:100%; pointer-events:none}
+#mEdges .edge{fill:none; stroke:#9a968c; stroke-width:2}
+#mEdges .edge.key{stroke:var(--rising); stroke-width:2.5}
+#mEdges .lb{font-size:10px; fill:var(--sub)}
+.mn{position:absolute; cursor:grab; user-select:none; background:#fff; border:1px solid var(--hair);
+  padding:7px 9px; font-size:11px; max-width:170px; box-shadow:2px 3px 0 #00000012; line-height:1.35}
+.mn:active{cursor:grabbing}
+.mn.sel{outline:2px solid var(--rising); outline-offset:1px}
+.mn.k-key{background:var(--ink); color:#fff; border-color:var(--ink)}
+.mn.k-mv{background:#c8451f; color:#fff; border-color:#c8451f}
+.mn.k-sticky{background:#ffe08a; border-color:#e8ca6a}
+.mn.k-brand{border:2px solid var(--ink); text-align:center}
+.mn.k-bundle{box-shadow:3px 3px 0 #00000012, 5px 5px 0 #0000000a}
+.mn img{width:100%; display:block; margin-bottom:4px}
+.mn .kd{font-size:8px; letter-spacing:.14em; opacity:.6; text-transform:uppercase}
+.mn .tm{position:absolute; top:-14px; left:0; font-size:9px; color:var(--sub); font-weight:700}
+#mPanel{margin-top:12px; border:1px solid var(--hair); background:#fff; padding:12px 14px; border-radius:4px}
+#mCanvas.linking .mn{cursor:crosshair}
+.fit{display:flex; gap:5px; flex-wrap:wrap; padding-top:2px}
+.fit label{display:inline-flex; align-items:center; gap:4px; border:1px solid var(--hair); border-radius:3px;
+  padding:5px 9px; font-size:11px; cursor:pointer; background:#fff; user-select:none}
+.fit label.on{background:var(--ink); color:var(--paper); border-color:var(--ink); font-weight:700}
+.fit input{display:none}
+.modes{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px}
+.modes button{border:1px solid var(--hair); background:#fff; border-radius:3px; padding:7px 12px;
+  font:inherit; font-size:12px; cursor:pointer; color:var(--sub)}
+.modes button.on{background:var(--ink); color:var(--paper); border-color:var(--ink); font-weight:700}
+.tsv{width:100%; min-height:120px; font-family:ui-monospace,Menlo,monospace; font-size:12px}
+.pv table{width:100%; border-collapse:collapse; font-size:12px; background:#fff}
+.pv th,.pv td{border:1px solid var(--hair); padding:4px 6px; text-align:left}
+.pv th{background:#f4efe6; font-size:10px; letter-spacing:.05em}
+.sess{background:#fff; border:1px solid var(--hair); border-radius:4px; padding:12px 14px}
+.sess h3{margin:0 0 10px; font-size:13px; letter-spacing:.02em}
+.link-n{font-size:11px; font-weight:700; letter-spacing:.04em}
+.link-n b{color:#1a7a4a} .link-n i{color:#c8451f; font-style:normal}
+.card{background:#fff; border:1px solid var(--hair); border-radius:4px; padding:8px;
+      display:flex; flex-direction:column; gap:6px; position:relative}
+.card.sel{outline:2px solid var(--ink); outline-offset:-1px}
+.card .pick{position:absolute; top:12px; left:12px; z-index:2; width:17px; height:17px; cursor:pointer}
+.card .f{margin-bottom:2px}
+.card input,.card select,.card textarea{padding:5px 6px; font-size:12px}
+.card .row{gap:6px; margin-bottom:0 !important}
+.card .thumb{width:100%; height:190px; object-fit:cover; border:1px solid var(--hair);
+  background:#f0ece4; border-radius:2px}
+.card .x{position:absolute; top:8px; right:8px; z-index:2; border:0; border-radius:50%; width:22px; height:22px;
+         background:rgba(255,255,255,.9); box-shadow:0 0 0 1px var(--hair); cursor:pointer; color:var(--sub);
+         font-size:14px; line-height:1}
+.card .ai{position:absolute; top:36px; right:8px; z-index:2; padding:2px 6px; font-size:10px}
+
+table{width:100%; border-collapse:collapse; background:#fff; font-size:12.5px}
+th,td{border:1px solid var(--hair); padding:6px 8px; text-align:left; vertical-align:top}
+th{background:#f2eee6; font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--sub); font-weight:700}
+tbody tr:hover{background:#fdfcf9}
+.tw{overflow-x:auto; border:1px solid var(--hair)}
+
+.chip{display:inline-block; font-size:10px; font-weight:700; letter-spacing:.06em; padding:2px 7px;
+  border-radius:2px; margin:2px 3px 2px 0; background:var(--accent-soft); color:var(--accent)}
+.chip.rm{cursor:pointer}
+.chip.rm:after{content:' ×'; opacity:.6}
+.badge{display:inline-block; font-size:9px; font-weight:800; letter-spacing:.1em; padding:3px 7px; color:#fff}
+.badge.MAIN{background:var(--rising)} .badge.FEED{background:#9a938a} .badge.NEW{background:var(--ok)}
+.pill{font-size:10px; font-weight:800; letter-spacing:.1em; padding:4px 9px; color:#fff; background:var(--rising)}
+.pill.WATCH{background:#cfc9bd; color:var(--ink)}
+
+#toast{position:fixed; left:50%; bottom:26px; transform:translateX(-50%) translateY(20px); background:var(--ink);
+  color:#fff; padding:10px 18px; border-radius:3px; font-size:13px; opacity:0; pointer-events:none;
+  transition:.22s; z-index:60; max-width:80vw}
+#toast.show{opacity:1; transform:translateX(-50%) translateY(0)}
+#busy{position:fixed; inset:0; background:#faf7f2cc; display:none; align-items:center; justify-content:center;
+  z-index:50; flex-direction:column; gap:10px; font-size:13px; letter-spacing:.06em}
+#busy.show{display:flex}
+.spin{width:26px; height:26px; border:2px solid var(--hair); border-top-color:var(--ink); border-radius:50%;
+  animation:sp .7s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important; transition:none!important}}
+
+#gate{max-width:380px; margin:14vh auto; background:#fff; border:1px solid var(--ink); padding:28px 26px}
+#gate h1{font-family:'Playfair Display',serif; font-size:26px; margin-bottom:6px}
+#gate p{font-size:12px; color:var(--sub); margin-bottom:18px}
+.hint{font-size:11px; color:var(--sub); margin-top:5px}
+.note{background:var(--sticky); padding:9px 12px; font-size:12px; line-height:1.6; margin-bottom:14px}
+.warn{background:var(--warn-soft); border-left:3px solid var(--warn); padding:9px 12px; font-size:12px; margin-bottom:14px}
+.empty{padding:32px; text-align:center; color:var(--sub); font-size:13px; background:#fff; border:1px dashed var(--hair)}
+.mini{font-size:11px; color:var(--sub)}
+.grid2{display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:14px}
+</style>
+</head>
+<body>
+
+<!-- ═══ 로그인 ═══ -->
+<div id="gate" hidden>
+  <h1>TREND AGENT</h1>
+  <p>관리자 로그인 — 등록된 계정만 수집·수정할 수 있습니다.</p>
+  <div class="row"><div>
+    <label class="f">이메일</label>
+    <input id="gEmail" type="email" placeholder="you@fnf.co.kr" autocomplete="username">
+  </div></div>
+  <div class="row"><div>
+    <label class="f">비밀번호</label>
+    <input id="gPw" type="password" autocomplete="current-password">
+  </div></div>
+  <button class="btn" id="gLogin" style="width:100%">로그인</button>
+  <div class="hint" id="gMsg"></div>
+</div>
+
+<!-- ═══ 앱 ═══ -->
+<div id="app" hidden>
+<header>
+  <h1>TREND <em>AGENT</em></h1>
+  <div class="tabs" id="tabs">
+    <button data-v="intake" class="on">수집</button>
+    <button data-v="feed">피드</button>
+    <button data-v="dict">사전</button>
+    <button data-v="brand">브랜드</button>
+    <button data-v="celeb">셀럽</button>
+    <button data-v="map">맵</button>
+    <button data-v="queue">미매핑 큐</button>
+    <button data-v="conf">설정</button>
+  </div>
+  <div class="who"><span id="whoTxt"></span><button class="btn ghost sm" id="logout">로그아웃</button></div>
+</header>
+
+<main>
+
+<!-- ── 수집 ── -->
+<section id="intakeView" class="view on">
+  <h2 class="sec">수집 <span>— 이미지는 업로드할 때 자동으로 중하 화질(긴 변 1280px)로 줄이고, 썸네일을 따로 만듭니다</span></h2>
+
+  <div class="modes" id="modes">
+    <button data-mode="image" class="on">📷 사진 · 캡처 (SNS · 셀럽)</button>
+    <button data-mode="doc">📰 기사 · 리포트</button>
+    <button data-mode="rank">📊 랭킹</button>
+    <button data-mode="text">📝 텍스트</button>
+    <button data-mode="postit">📌 POST-IT</button>
+  </div>
+
+  <div class="sess">
+    <h3>트렌드 수집 세션 <span class="mini" style="font-weight:400">— 여기서 정한 값이 아래 사진 전부에 붙습니다</span></h3>
+    <div class="row">
+      <div style="max-width:130px"><label class="f">귀속 월</label><input id="ym" type="month"></div>
+      <div style="max-width:180px"><label class="f">소스</label><select id="source"></select></div>
+      <div style="max-width:100px"><label class="f">시장</label>
+        <select id="region"><option>KR</option><option>GL</option><option>CN</option></select></div>
+      <div><label class="f">관찰 브랜드</label>
+        <div style="display:flex; gap:6px">
+          <select id="sessBrand" style="flex:1"><option value="">브랜드 선택</option></select>
+          <button class="btn ghost sm" id="addBrand" title="새 브랜드 등록">+</button>
+        </div>
+      </div>
+      <div><label class="f">MOVEMENT — 이 세션이 어떤 흐름인지</label>
+        <div style="display:flex; gap:6px">
+          <select id="sessMv" style="flex:1"><option value="">— 관련 없음 —</option></select>
+          <button class="btn ghost sm" id="addMv" title="새 MOVEMENT 등록">+</button>
+        </div>
+      </div>
+      <div><label class="f">브랜드 적합 — 복수 선택</label><div class="fit" id="brandFit"></div></div>
+
+    </div>
+  </div>
+
+  <!-- 이미지 -->
+  <div id="imgMode">
+    <div class="drop" id="drop">
+      <b>사진을 끌어다 놓거나 클릭해서 고르세요</b><br>
+      <span class="mini">JPG · PNG · WEBP · 여러 장 한 번에</span>
+      <input id="file" type="file" accept="image/*" multiple hidden>
+    </div>
+    <div class="bar" id="bulkBar" hidden>
+      <button class="btn ghost sm" id="selAll">전체선택</button>
+      <button class="btn ghost sm" id="selNone">해제</button>
+      <span class="mini" id="selCount">0장 선택</span>
+      <input id="bulkKw" list="entList" placeholder="TREND KEYWORD 일괄 적용 (예: barrel leg, 메탈릭 로고)"
+             style="max-width:300px; margin:0">
+      <button class="btn ghost sm" id="bulkApply">선택 적용</button>
+      <span class="sp"></span>
+      <span class="link-n" id="linkStat"></span>
+      <button class="btn ghost sm" id="aiAll" disabled>AI로 채우기</button>
+      <button class="btn sm" id="saveImgs" disabled>선택 등록 (0/0)</button>
+    </div>
+    <div class="cards" id="imgCards"></div>
+    <div style="margin-top:10px"><span class="mini" id="imgCount"></span></div>
+  </div>
+
+  <!-- 문서 -->
+  <div id="docMode" hidden>
+    <div class="row">
+      <div><label class="f">제목</label><input id="dTitle" placeholder="13 trends AW26/27 runway"></div>
+      <div style="max-width:190px"><label class="f">발행처</label><input id="dPub" placeholder="Vogue Australia"></div>
+      <div style="max-width:150px"><label class="f">발행일</label><input id="dDate" type="date"></div>
+    </div>
+    <div class="row">
+      <div><label class="f">원문 링크</label><input id="dUrl" type="url" placeholder="https://…"></div>
+      <div style="max-width:150px"><label class="f">문서 유형</label>
+        <select id="dType"><option>capture</option><option>pdf</option><option>link</option><option>text</option></select></div>
+      <div style="max-width:130px"><label class="f">시즌</label><input id="dSeason" placeholder="26/27FW"></div>
+    </div>
+    <div class="row"><div>
+      <label class="f">요약 — 3~5줄</label>
+      <textarea id="dSum" placeholder="이 문서가 말하는 방향성"></textarea>
+    </div></div>
+    <div class="row">
+      <div><label class="f">TREND KEYWORD</label>
+        <input id="dEnt" list="entList" placeholder="이름 입력 후 Enter">
+        <div id="dEntChips" style="margin-top:6px"></div></div>
+      <div style="max-width:230px"><label class="f">MOVEMENT — 이 기사가 어떤 흐름인지</label>
+        <select id="dMv" class="mvSel"></select></div>
+    </div>
+    <div class="row"><div>
+      <label class="f">첨부 파일 — PDF 또는 캡처 · 올리면 AI가 여기서 읽습니다</label>
+      <input id="dFile" type="file" accept="image/*,application/pdf">
+    </div></div>
+    <div class="row"><div>
+      <label class="f">또는 본문 붙여넣기 — 첨부가 없을 때</label>
+      <textarea id="dRaw" placeholder="기사 본문을 붙여넣으면 AI가 제목·발행처·요약·키워드를 채웁니다"></textarea>
+    </div></div>
+    <div style="display:flex; gap:8px; align-items:center">
+      <button class="btn" id="saveDoc">저장</button>
+      <button class="btn ghost" id="dAi">AI로 요약</button>
+      <span class="mini">첨부(PDF·캡처)나 본문 중 아무거나 있으면 됩니다</span>
+    </div>
+  </div>
+
+  <!-- ── 랭킹 ── -->
+  <div id="rankMode" hidden>
+    <div class="row">
+      <div style="max-width:170px"><label class="f">플랫폼</label>
+        <input id="rPlat" placeholder="무신사 / 티몰 / 29CM"></div>
+      <div style="max-width:190px"><label class="f">랭킹 카테고리</label>
+        <input id="rCat" placeholder="여성 아우터"></div>
+      <div style="max-width:150px"><label class="f">기준일 *</label><input id="rDate" type="date"></div>
+      <div style="max-width:130px"><label class="f">기간</label>
+        <select id="rPeriod"><option>daily</option><option>weekly</option><option>monthly</option></select></div>
+    </div>
+    <label class="f">표를 그대로 붙여넣으세요 — 엑셀 · 구글시트에서 복사(Ctrl+C) → 여기 붙여넣기(Ctrl+V)</label>
+    <textarea id="rTsv" class="tsv" placeholder="순위	상품명	브랜드	가격
+1	와이드 카고 팬츠	Brand A	89000
+2	발레리나 플랫	Brand B	129000"></textarea>
+    <div style="display:flex; gap:8px; align-items:center; margin-top:8px; flex-wrap:wrap">
+      <button class="btn ghost sm" id="rParse">표 읽기</button>
+      <input id="rFile" type="file" accept=".xlsx,.csv,.tsv" style="max-width:200px; margin:0" title="엑셀 · CSV">
+      <label class="btn ghost sm" style="cursor:pointer">📷 캡처로 넣기
+        <input id="rShot" type="file" accept="image/*" multiple hidden></label>
+      <button class="btn ghost sm" id="rAi">AI로 키워드 뽑기</button>
+      <span class="mini" id="rStat"></span>
+    </div>
+    <div class="pv" id="rPreview" style="margin-top:10px; max-height:340px; overflow:auto"></div>
+    <button class="btn" id="saveRank" style="margin-top:12px" disabled>저장</button>
+  </div>
+
+  <!-- ── 텍스트 ── -->
+  <div id="textMode" hidden>
+    <label class="f">뉴스레터 · 리포트 본문을 붙여넣으세요</label>
+    <textarea id="tRaw" class="tsv" style="min-height:200px"
+      placeholder="WGSN 뉴스레터, 기사 본문, 시즌 리포트 …"></textarea>
+    <div style="display:flex; gap:8px; align-items:center; margin-top:8px">
+      <button class="btn ghost sm" id="tParse">AI로 키워드 뽑기</button>
+      <span class="mini">사전에 있으면 엔티티로 연결, 없으면 미매핑 큐로</span>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <div><label class="f">제목</label><input id="tTitle" placeholder="자동 제안됨"></div>
+      <div style="max-width:190px"><label class="f">출처</label><input id="tPub" placeholder="WGSN"></div>
+    </div>
+    <div class="row"><div><label class="f">요약</label><textarea id="tSum"></textarea></div></div>
+    <div class="row"><div>
+      <label class="f">TREND KEYWORD</label>
+      <input id="tEnt" list="entList" placeholder="이름 입력 후 Enter">
+      <div id="tEntChips" style="margin-top:6px"></div>
+    </div></div>
+    <button class="btn" id="saveText">저장</button>
+  </div>
+
+  <!-- ── POST-IT ── -->
+  <div id="postitMode" hidden style="max-width:580px">
+    <div><label class="f">메모 — 포스트잇에 보일 한 줄</label>
+      <input id="pText" placeholder="90년대 젤리슈즈, 커스텀 문화가 소비 이유가 되는 중"></div>
+    <div style="margin-top:8px"><label class="f">관련 키워드 — 쉼표로 여러 개 (같은 키워드끼리 같은 색으로 묶입니다)</label>
+      <input id="pKw" list="entList" placeholder="#jelly_shoes_charm, #customizing"></div>
+    <div style="margin-top:8px"><label class="f">부가 설명 (선택)</label><textarea id="pDetail" rows="2"></textarea></div>
+    <div class="row" style="margin-top:8px">
+      <div style="max-width:150px"><label class="f">DATE *</label><input id="pYm" type="month"></div>
+      <div><label class="f">출처 * — 포스트잇 아래 작게 표시</label>
+        <input id="pSrc" placeholder="CARREET / @heavenlyjelly / WGSN"></div>
+    </div>
+    <button class="btn" id="savePostit" style="margin-top:12px">POST-IT 추가</button>
+  </div>
+</section>
+
+<!-- ── 피드 ── -->
+<section id="feedView" class="view">
+  <h2 class="sec">피드 <span>— 대시보드에 그대로 나가는 목록. 출처 3개+ 연결이면 MAIN BOARD로 자동 승격</span></h2>
+  <div class="row">
+    <div style="max-width:190px"><label class="f">뱃지</label>
+      <select id="fBadge"><option value="">전체</option><option>MAIN</option><option>NEW</option><option>FEED</option></select></div>
+    <div style="max-width:190px"><label class="f">MOVEMENT</label>
+      <select id="fMv"><option value="">전체</option><option value="__none">— 흐름 없음 —</option></select></div>
+    <div style="max-width:190px"><label class="f">시장</label>
+      <select id="fRegion"><option value="">전체</option><option>KR</option><option>GL</option><option>CN</option></select></div>
+    <div><label class="f">검색</label><input id="fQ" placeholder="제목 · 메모"></div>
+    <div style="max-width:100px; align-self:flex-end"><button class="btn ghost" id="fReload">새로고침</button></div>
+  </div>
+  <div class="tw"><table>
+    <thead><tr><th style="width:74px">사진</th><th>제목</th><th style="width:88px">뱃지</th>
+      <th style="width:56px">시장</th><th style="width:92px">날짜</th><th style="width:64px">출처수</th><th style="width:70px"></th></tr></thead>
+    <tbody id="fBody"></tbody>
+  </table></div>
+</section>
+
+<!-- ── 사전 ── -->
+<section id="dictView" class="view">
+  <h2 class="sec">사전 <span>— 엔티티와 별칭. 모든 집계의 기준</span></h2>
+  <div class="row">
+    <div style="max-width:180px"><label class="f">축</label>
+      <select id="eAxis"><option value="">전체</option><option>movement</option><option>runway_theme</option>
+      <option>style</option><option>silhouette</option><option>pattern_graphic</option><option>color</option>
+      <option>fabric</option><option>detail</option></select></div>
+    <div><label class="f">검색</label><input id="eQ" placeholder="한글명 · 영문명"></div>
+    <div style="max-width:140px; align-self:flex-end"><button class="btn" id="eNew">+ 새 엔티티</button></div>
+  </div>
+  <div class="tw"><table>
+    <thead><tr><th style="width:70px">ID</th><th>한글명</th><th>영문명</th><th style="width:110px">축</th>
+      <th style="width:120px">카테고리</th><th style="width:78px">최초</th><th style="width:74px">상태</th>
+      <th style="width:120px">별칭</th><th style="width:70px"></th></tr></thead>
+    <tbody id="eBody"></tbody>
+  </table></div>
+
+  <h3 class="sub">엔티티 편집</h3>
+  <div id="eForm" style="background:#fff; border:1px solid var(--hair); padding:16px; border-radius:4px">
+    <div class="row">
+      <div style="max-width:90px"><label class="f">ID</label><input id="e_id" disabled></div>
+      <div><label class="f">한글명</label><input id="e_kr"></div>
+      <div><label class="f">영문명</label><input id="e_en"></div>
+      <div style="max-width:150px"><label class="f">축</label><select id="e_axis">
+        <option>movement</option><option>runway_theme</option><option>style</option><option>silhouette</option>
+        <option>pattern_graphic</option><option>color</option><option>fabric</option><option>detail</option></select></div>
+    </div>
+    <div class="row">
+      <div><label class="f">대분류</label><input id="e_l1" placeholder="가방"></div>
+      <div><label class="f">중분류</label><input id="e_l2" placeholder="숄더백"></div>
+      <div><label class="f">소분류</label><input id="e_l3" placeholder="호보"></div>
+      <div style="max-width:100px"><label class="f">시즌</label>
+        <select id="e_season"><option>ALL</option><option>FW</option><option>SS</option></select></div>
+      <div style="max-width:120px"><label class="f">최초 감지</label><input id="e_first" placeholder="2026-05"></div>
+      <div style="max-width:190px"><label class="f">상위 MOVEMENT</label><select id="e_mv" class="mvSel"></select></div>
+    </div>
+    <div class="row">
+      <div><label class="f">브랜드 적합 — 복수 선택</label><div class="fit" id="e_fit"></div></div>
+      <div style="max-width:130px"><label class="f">상태</label>
+        <select id="e_status"><option>Active</option><option>Watch</option><option>Archived</option></select></div>
+      <div style="max-width:130px"><label class="f">고정</label>
+        <select id="e_pinned"><option value="false">FALSE</option><option value="true">TRUE</option></select></div>
+      <div><label class="f">적용 제안</label><input id="e_proposal"></div>
+    </div>
+    <div class="row"><div><label class="f">메모</label><textarea id="e_notes"></textarea></div></div>
+    <div class="row"><div>
+      <label class="f">별칭 — 해시태그·다른 표기</label>
+      <input id="e_alias" placeholder="크로와상백 입력 후 Enter">
+      <div id="e_aliasChips" style="margin-top:6px"></div>
+    </div></div>
+    <div style="display:flex; gap:8px">
+      <button class="btn" id="eSave">저장</button>
+      <button class="btn ghost" id="eClear">새로 쓰기</button>
+    </div>
+  </div>
+</section>
+
+<!-- ── 브랜드 ── -->
+<section id="brandView" class="view">
+  <h2 class="sec">브랜드 <span>— 대시보드 KEY BRAND 카드에 그대로 나갑니다</span></h2>
+  <div class="row">
+    <div><label class="f">검색</label><input id="bQ" placeholder="브랜드명"></div>
+    <div style="max-width:140px; align-self:flex-end"><button class="btn" id="bNew">+ 새 브랜드</button></div>
+  </div>
+  <div class="grid2" id="bList"></div>
+
+  <h3 class="sub">브랜드 편집</h3>
+  <div style="background:#fff; border:1px solid var(--hair); padding:16px; border-radius:4px">
+    <div class="row">
+      <div style="max-width:90px"><label class="f">ID</label><input id="b_id" disabled></div>
+      <div><label class="f">브랜드명</label><input id="b_name"></div>
+      <div style="max-width:130px"><label class="f">티어</label>
+        <select id="b_tier"><option>niche</option><option>luxury</option><option>mass</option><option>competitor</option></select></div>
+      <div style="max-width:100px"><label class="f">국가</label><input id="b_origin" placeholder="KR"></div>
+      <div style="max-width:120px"><label class="f">최초 등장</label><input id="b_first" placeholder="2026-05"></div>
+    </div>
+    <div class="row">
+      <div style="max-width:130px"><label class="f">신호</label>
+        <select id="b_signal"><option>RISING</option><option>WATCH</option></select></div>
+      <div style="max-width:120px"><label class="f">증감</label><input id="b_pct" placeholder="+230%"></div>
+      <div style="max-width:130px"><label class="f">상태</label>
+        <select id="b_status"><option>Active</option><option>Watch</option><option>Archived</option></select></div>
+      <div style="max-width:110px"><label class="f">고정</label>
+        <select id="b_pinned"><option value="false">FALSE</option><option value="true">TRUE</option></select></div>
+      <div><label class="f">별칭 — 쉼표 구분</label><input id="b_aliases" placeholder="오소이, #osoi"></div>
+    </div>
+    <div class="row"><div>
+      <label class="f">카드 본문</label>
+      <textarea id="b_headline" placeholder="Linked to &lt;b&gt;Croissant Hobo&lt;/b&gt; + Balletcore — 2 rising trends"></textarea>
+      <div class="hint">줄바꿈은 그대로 나갑니다. 굵게는 &lt;b&gt;…&lt;/b&gt;</div>
+    </div></div>
+    <div class="row"><div>
+      <label class="f">검증 노트 — 카드 클릭하면 나오는 노란 메모</label>
+      <textarea id="b_verify" placeholder="인스타 팔로워 8.2만, 성수 팝업 2회 완판, 무신사 입점 확인."></textarea>
+    </div></div>
+    <div class="row"><div>
+      <label class="f">링크 — 한 줄에 하나, "표시이름 | URL"</label>
+      <textarea id="b_links" placeholder="공식몰 | https://osoi.co.kr&#10;인스타그램 | https://instagram.com/osoi"></textarea>
+    </div></div>
+    <div class="row"><div>
+      <label class="f">TREND KEYWORD</label>
+      <input id="b_ent" list="entList" placeholder="이름 입력 후 Enter">
+      <div id="b_entChips" style="margin-top:6px"></div>
+    </div></div>
+    <div style="display:flex; gap:8px">
+      <button class="btn" id="bSave">저장</button>
+      <button class="btn ghost" id="bClear">새로 쓰기</button>
+    </div>
+  </div>
+</section>
+
+<!-- ── 셀럽 ── -->
+<section id="celebView" class="view">
+  <h2 class="sec">셀럽 <span>— 계정명이 일치하면 수집할 때 자동으로 셀럽 체크됩니다</span></h2>
+  <div class="row">
+    <div><label class="f">셀럽명</label><input id="c_name"></div>
+    <div><label class="f">계정 — 쉼표 구분</label><input id="c_acc" placeholder="@kissoflife_s2"></div>
+    <div style="max-width:150px"><label class="f">소속</label><input id="c_grp"></div>
+    <div style="max-width:100px"><label class="f">가중치</label><input id="c_w" type="number" step="0.1" value="1.5"></div>
+    <div style="max-width:90px"><label class="f">시장</label>
+      <select id="c_region"><option>KR</option><option>CN</option><option>GLOBAL</option></select></div>
+    <div style="max-width:100px; align-self:flex-end"><button class="btn" id="cAdd">추가</button></div>
+  </div>
+  <div class="tw"><table>
+    <thead><tr><th style="width:64px">ID</th><th>셀럽명</th><th>계정</th><th style="width:130px">소속</th>
+      <th style="width:70px">가중치</th><th style="width:70px">시장</th><th style="width:60px"></th></tr></thead>
+    <tbody id="cBody"></tbody>
+  </table></div>
+</section>
+
+<!-- ── 미매핑 큐 ── -->
+<section id="mapView" class="view">
+  <h2 class="sec">맵 <span>— 노드를 끌어다 놓으면 좌표가 저장됩니다. 대시보드 Trend Map 에 그대로 나갑니다</span></h2>
+
+  <div class="row">
+    <div style="max-width:200px"><label class="f">뷰</label><select id="mView"></select></div>
+    <div style="max-width:150px"><label class="f">종류</label>
+      <select id="mKind">
+        <option value="key">KEY TREND</option><option value="mv">MOVEMENT</option>
+        <option value="photo">사진</option><option value="doc">문서 · 기사</option>
+        <option value="sticky">POST-IT</option><option value="brand">브랜드</option>
+        <option value="bundle">묶음</option>
+      </select></div>
+    <div><label class="f">연결할 원장 항목</label><select id="mRef"></select></div>
+    <div style="max-width:130px"><label class="f">등장 월</label><input id="mT" type="month"></div>
+    <button class="btn" id="mAdd" style="align-self:flex-end">노드 추가</button>
+  </div>
+
+  <div class="bar">
+    <button class="btn ghost sm" id="mLink">연결 그리기</button>
+    <span class="mini" id="mHint">노드를 끌어다 배치하세요 · 노드 클릭 = 선택</span>
+    <span class="sp"></span>
+    <span class="mini" id="mStat"></span>
+    <a class="btn ghost sm" href="map.html" target="_blank" style="text-decoration:none">대시보드에서 보기 ↗</a>
+  </div>
+
+  <div id="mCanvas"><div id="mStage"><svg id="mEdges"></svg><div id="mNodes"></div></div></div>
+
+  <div id="mPanel" hidden>
+    <div class="row">
+      <div style="max-width:130px"><label class="f">등장 월</label><input id="mpT" type="month"></div>
+      <div><label class="f">활동 월 — 쉼표로. 비우면 만료 없음 (3개월 무활동 시 맵에서 사라짐)</label>
+        <input id="mpActive" placeholder="2026-04, 2026-05, 2026-06"></div>
+      <div><label class="f">태그 — 쉼표로</label><input id="mpTags" placeholder="KR, MLB"></div>
+    </div>
+    <div class="row">
+      <div><label class="f">제목 덮어쓰기 — 비우면 원장 값</label><input id="mpHead"></div>
+      <div><label class="f">부제 · 메모</label><input id="mpMeta"></div>
+      <div style="max-width:120px"><label class="f">뱃지</label>
+        <select id="mpBadge"><option value="">원장 값</option><option>RISING</option><option>NEW</option><option>WATCH</option></select></div>
+    </div>
+    <div class="row" id="mBundleRow" hidden>
+      <div style="max-width:110px"><label class="f">개수</label><input id="mpCnt" placeholder="×12"></div>
+      <div><label class="f">묶음 설명</label><input id="mpLbl" placeholder="INSTA 묶음 — #jelly_shoes 계열 12건"></div>
+    </div>
+    <div style="display:flex; gap:8px; margin-top:10px">
+      <button class="btn" id="mSave">저장</button>
+      <button class="btn ghost" id="mDel">노드 삭제</button>
+      <button class="btn ghost" id="mClose">닫기</button>
+    </div>
+  </div>
+</section>
+
+<section id="queueView" class="view">
+  <h2 class="sec">미매핑 큐 <span>— 사전에 없던 표현. 등장 횟수가 높으면 새 엔티티 후보</span></h2>
+  <div class="tw"><table>
+    <thead><tr><th>원문</th><th style="width:110px">소스</th><th style="width:78px">월</th><th style="width:60px">횟수</th>
+      <th style="width:100px">예시</th><th style="width:220px">처리</th></tr></thead>
+    <tbody id="qBody"></tbody>
+  </table></div>
+</section>
+
+<!-- ── 설정 ── -->
+<section id="confView" class="view">
+  <h2 class="sec">설정</h2>
+
+  <h3 class="sub">연결</h3>
+  <div class="tw"><table><tbody>
+    <tr><th style="width:170px">Supabase 프로젝트</th><td id="cfUrl" class="mini"></td></tr>
+    <tr><th>로그인 계정</th><td id="cfWho" class="mini"></td></tr>
+    <tr><th>관리자 권한</th><td id="cfAdmin" class="mini"></td></tr>
+  </tbody></table></div>
+
+  <h3 class="sub">이미지 화질</h3>
+  <div class="note">
+    업로드하면 브라우저에서 바로 두 장을 만듭니다 —
+    <b>원본용</b> 긴 변 <b id="cfFull">1280</b>px / 품질 <b id="cfFullQ">70</b>,
+    <b>썸네일</b> 긴 변 <b id="cfThumb">420</b>px / 품질 <b id="cfThumbQ">62</b>.
+    목록·카드는 썸네일만 불러오므로 캐시가 크게 늘지 않습니다.
+  </div>
+  <div class="row">
+    <div style="max-width:150px"><label class="f">원본 긴 변 (px)</label><input id="setFull" type="number" value="1280"></div>
+    <div style="max-width:150px"><label class="f">원본 품질 (1~100)</label><input id="setFullQ" type="number" value="70"></div>
+    <div style="max-width:150px"><label class="f">썸네일 긴 변</label><input id="setThumb" type="number" value="420"></div>
+    <div style="max-width:150px"><label class="f">썸네일 품질</label><input id="setThumbQ" type="number" value="62"></div>
+    <div style="max-width:110px; align-self:flex-end"><button class="btn" id="setSave">저장</button></div>
+  </div>
+
+  <h3 class="sub">AI 자동 태깅 (선택)</h3>
+  <div class="warn">
+    키는 이 브라우저에만 저장됩니다. 공용 PC에서는 넣지 마세요.
+    비워두면 자동 태깅 없이 수동 입력으로 동작합니다.
+  </div>
+  <div class="row">
+    <div><label class="f">Gemini API 키</label><input id="setGem" type="password" placeholder="AIza…"></div>
+    <div style="max-width:200px"><label class="f">모델</label><input id="setGemModel" value="gemini-2.5-flash"></div>
+    <div style="max-width:110px; align-self:flex-end"><button class="btn" id="gemSave">저장</button></div>
+  </div>
+
+  <h3 class="sub">관리자</h3>
+  <div class="row">
+    <div><label class="f">이메일 추가</label><input id="adEmail" type="email" placeholder="name@fnf.co.kr"></div>
+    <div style="max-width:150px"><label class="f">이름</label><input id="adName"></div>
+    <div style="max-width:100px; align-self:flex-end"><button class="btn" id="adAdd">추가</button></div>
+  </div>
+  <div class="hint">Supabase Dashboard → Authentication → Users 에서 계정을 먼저 만들어야 로그인됩니다.</div>
+  <div class="tw" style="margin-top:10px"><table>
+    <thead><tr><th>이메일</th><th style="width:150px">이름</th><th style="width:60px"></th></tr></thead>
+    <tbody id="adBody"></tbody>
+  </table></div>
+</section>
+
+</main>
+</div>
+
+<datalist id="entList"></datalist>
+<datalist id="brandList"></datalist>
+<div id="toast"></div>
+<div id="busy"><div class="spin"></div><span id="busyMsg">저장 중…</span></div>
+
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+/* ═══════════ 설정 — 여기 두 줄만 바꾸면 됩니다 ═══════════ */
+const SUPABASE_URL  = 'https://piifytwflubdtkzaiisi.supabase.co';
+const SUPABASE_ANON  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBpaWZ5dHdmbHViZHRremFpaXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQwODI5NDcsImV4cCI6MjA5OTY1ODk0N30.cVrgt7YQ99R-slePt8U2r_GmtDxetejZdqHcnqJmwhc';
+/* ════════════════════════════════════════════════════════ */
+
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
+const $  = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+
+/* ── 유틸 ── */
+const toast = m => { const t=$('#toast'); t.textContent=m; t.classList.add('show');
+  clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),3200); };
+const busy = (on,m) => { $('#busy').classList.toggle('show',!!on); if(m) $('#busyMsg').textContent=m; };
+const esc  = s => String(s??'').replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const norm = s => String(s??'').toLowerCase().replace(/[\s#_-]/g,'');
+const ymNow= () => new Date().toISOString().slice(0,7);
+const csv  = s => String(s??'').split(',').map(x=>x.trim()).filter(Boolean);
+const die  = (e,ctx) => { console.error(ctx,e); busy(false); toast((ctx?ctx+' — ':'')+(e?.message||e)); };
+
+const SET = Object.assign(
+  { full:1280, fullQ:70, thumb:420, thumbQ:62 },
+  JSON.parse(localStorage.getItem('ta_img') || '{}')
+);
+
+/* ── 상태 ── */
+let ME = null, IS_ADMIN = false;
+let ENTITIES = [], SOURCES = [], BRANDS = [], CELEBS = [];
+let entById = {}, entByName = {}, aliasIdx = {}, celebIdx = {}, aliasByEnt = {};
+let QUEUE_IMGS = [];
+
+/* ═══════════ 로그인 ═══════════ */
+async function boot(){
+  const { data:{ session } } = await sb.auth.getSession();
+  if(!session){ $('#gate').hidden=false; return; }
+  ME = session.user.email;
+  const { data:ad } = await sb.from('admins').select('email').eq('email', ME).maybeSingle();
+  IS_ADMIN = !!ad;
+  $('#gate').hidden = true;
+  $('#app').hidden  = false;
+  $('#whoTxt').textContent = ME + (IS_ADMIN ? '' : ' — 읽기 전용');
+  await loadAll();
+}
+
+$('#gLogin').onclick = async () => {
+  const email = $('#gEmail').value.trim(), password = $('#gPw').value;
+  if(!email || !password){ $('#gMsg').textContent = '이메일과 비밀번호를 넣어주세요.'; return; }
+  $('#gMsg').textContent = '확인 중…';
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  if(error){ $('#gMsg').textContent = '로그인 실패 — ' + error.message; return; }
+  location.reload();
+};
+$('#gPw').addEventListener('keydown', e => { if(e.key==='Enter') $('#gLogin').click(); });
+$('#logout').onclick = async () => { await sb.auth.signOut(); location.reload(); };
+
+/* ═══════════ 공통 로딩 ═══════════ */
+async function loadAll(){
+  busy(true,'사전 불러오는 중…');
+  try{
+    const [se,ss,sb2,sc,sa] = await Promise.all([
+      sb.from('entities').select('*').order('entity_id'),
+      sb.from('sources').select('*').eq('active',true).order('sort_order'),
+      sb.from('brands').select('*').order('brand_name'),
+      sb.from('celebs').select('*').order('celeb_name'),
+      sb.from('aliases').select('alias_text,entity_id,normalized_alias').eq('active',true)
+    ]);
+    for(const r of [se,ss,sb2,sc,sa]) if(r.error) throw r.error;
+    ENTITIES = se.data; SOURCES = ss.data; BRANDS = sb2.data; CELEBS = sc.data;
+
+    entById={}; entByName={}; aliasIdx={}; celebIdx={}; aliasByEnt={};
+    const dl = $('#entList'); dl.innerHTML='';
+    for(const e of ENTITIES){
+      entById[e.entity_id]=e;
+      entByName[norm(e.name_kr)]=e.entity_id;
+      if(e.name_en) entByName[norm(e.name_en)]=e.entity_id;
+      const o=document.createElement('option'); o.value = e.name_en || e.name_kr; dl.appendChild(o);
+    }
+    for(const a of sa.data){
+      aliasIdx[a.normalized_alias]=a.entity_id;
+      (aliasByEnt[a.entity_id] ||= []).push(a.alias_text);
+    }
+    for(const c of CELEBS) for(const acc of (c.accounts||[])) celebIdx[norm(acc)]=c.celeb_name;
+
+    $('#source').innerHTML = SOURCES.map(s=>`<option value="${s.source_id}">${esc(s.name_kr||s.source_id)}</option>`).join('');
+    $('#brandList').innerHTML = BRANDS.map(b=>`<option value="${esc(b.brand_name)}"></option>`).join('');
+    const keepFMv = $('#fMv').value;
+    $('#fMv').innerHTML = '<option value="">전체</option><option value="__none">— 흐름 없음 —</option>' +
+      MOVEMENTS().map(m => `<option value="${esc(m.name_kr)}">${esc(m.name_kr)}</option>`).join('');
+    $('#fMv').value = keepFMv;
+
+    const keepMv = $('#sessMv').value;
+    $('#sessMv').innerHTML = mvOptions();
+    $('#sessMv').value = keepMv;
+    const keepDMv = $('#dMv').value;
+    $('#dMv').innerHTML = mvOptions();
+    $('#dMv').value = keepDMv;
+
+    const keep = $('#sessBrand').value;
+    $('#sessBrand').innerHTML = '<option value="">브랜드 선택</option>' +
+      BRANDS.map(b=>`<option>${esc(b.brand_name)}</option>`).join('');
+    $('#sessBrand').value = keep;
+    $('#ym').value = ymNow();
+
+    renderEntities(); renderBrands(); renderCelebs();
+    $('#cfUrl').textContent   = SUPABASE_URL;
+    $('#cfWho').textContent   = ME;
+    $('#cfAdmin').textContent = IS_ADMIN ? '있음 — 수집·수정 가능' : '없음 — 설정 탭에서 이메일을 등록하세요';
+    ['full','fullQ','thumb','thumbQ'].forEach(k=>{
+      const el=$('#set'+k[0].toUpperCase()+k.slice(1)); if(el) el.value=SET[k];
+      const lbl=$('#cf'+k[0].toUpperCase()+k.slice(1)); if(lbl) lbl.textContent=SET[k];
+    });
+    $('#setGem').value = localStorage.getItem('ta_gem') || '';
+    $('#setGemModel').value = localStorage.getItem('ta_gem_model') || 'gemini-2.5-flash';
+    buildScan();
+    toast(`사전 로드 — 엔티티 ${ENTITIES.length} · 별칭 ${sa.data.length}`);
+  }catch(e){ die(e,'사전 로드'); }
+  busy(false);
+}
+
+const matchEntity = t => aliasIdx[norm(t)] || entByName[norm(t)] || null;
+
+/* 상품명 안에 사전 표현이 "들어 있으면" 잡습니다.
+   "와이드 카고 팬츠" 는 완전일치로는 절대 안 걸립니다 — 사전엔 "카고 팬츠" 로 있으니까요.
+   긴 표현부터 봅니다 ("카고 팬츠" 가 "팬츠" 보다 먼저 걸리게). */
+let SCAN = [];
+function buildScan(){
+  const seen = new Set();
+  SCAN = [];
+  for(const [n, id] of [...Object.entries(entByName), ...Object.entries(aliasIdx)]){
+    if(n.length < 2) continue;                    // 한 글자는 아무 데나 걸립니다
+    const k = n + '|' + id; if(seen.has(k)) continue; seen.add(k);
+    SCAN.push({ n, id });
+  }
+  SCAN.sort((a, b) => b.n.length - a.n.length);
+}
+function scanEntities(text, max = 3){
+  const t = norm(text); if(!t) return [];
+  const out = [];
+  for(const { n, id } of SCAN){
+    if(out.includes(id)) continue;
+    if(t.includes(n)){ out.push(id); if(out.length >= max) break; }
+  }
+  return out;
+}
+const label = id => { const e=entById[id]; return e ? (e.name_en || e.name_kr) : id; };
+
+/* ── 칩 입력 위젯 ── */
+function chipInput(inputSel, chipSel, store, resolve){
+  const inp=$(inputSel), box=$(chipSel);
+  const draw = () => box.innerHTML = store.map((v,i)=>
+    `<span class="chip rm" data-i="${i}">${esc(resolve?resolve(v):v)}</span>`).join('');
+  box.onclick = e => { const c=e.target.closest('.chip'); if(!c) return;
+    store.splice(+c.dataset.i,1); draw(); };
+  inp.addEventListener('keydown', e => {
+    if(e.key!=='Enter') return; e.preventDefault();
+    const raw=inp.value.trim(); if(!raw) return;
+    const v = resolve ? (matchEntity(raw) || null) : raw;
+    if(resolve && !v){ toast(`사전에 없는 표현 — "${raw}" 는 미매핑 큐로 보냅니다`); addToQueue(raw); inp.value=''; return; }
+    if(!store.includes(v)) store.push(v);
+    inp.value=''; draw();
+  });
+  return { draw, clear(){ store.length=0; draw(); } };
+}
+
+async function addToQueue(raw, srcId){
+  if(!IS_ADMIN) return;
+  const source_id = srcId || $('#source').value;
+  const { data:hit } = await sb.from('unmapped_queue').select('id,count')
+    .eq('normalized_text', norm(raw)).eq('source_id', source_id).maybeSingle();
+  if(hit) await sb.from('unmapped_queue').update({ count: hit.count+1, last_seen: ymNow() }).eq('id', hit.id);
+  else    await sb.from('unmapped_queue').insert({ raw_text: raw, source_id, year_month: ymNow(),
+            count: 1, first_seen: ymNow(), last_seen: ymNow() });
+}
+
+/* ═══════════ 이미지 처리 ═══════════ */
+async function resize(file, maxEdge, quality){
+  const bmp = await createImageBitmap(file);
+  const scale = Math.min(1, maxEdge / Math.max(bmp.width, bmp.height));
+  const w = Math.max(1, Math.round(bmp.width*scale)), h = Math.max(1, Math.round(bmp.height*scale));
+  const c = document.createElement('canvas'); c.width=w; c.height=h;
+  const ctx = c.getContext('2d');
+  ctx.imageSmoothingQuality = 'high';
+  ctx.fillStyle = '#fff'; ctx.fillRect(0,0,w,h);
+  ctx.drawImage(bmp, 0, 0, w, h);
+  bmp.close();
+  const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', quality/100));
+  return { blob, w, h };
+}
+
+async function sha256(blob){
+  const buf = await crypto.subtle.digest('SHA-256', await blob.arrayBuffer());
+  return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+const kb = n => (n/1024).toFixed(0) + 'KB';
+const FITS = ['ALL','MLB','DISCOVERY','SERGIO TACCHINI','DUVETICA'];
+
+function drawFits(host, sel){
+  host.innerHTML = FITS.map(f =>
+    `<label class="${sel.includes(f)?'on':''}"><input type="checkbox" value="${f}" ${sel.includes(f)?'checked':''}>${f}</label>`).join('');
+}
+/* ALL = 전 브랜드. ALL 과 개별 브랜드는 같이 못 켭니다 — 둘 다 켜면 의미가 모호해집니다. */
+function bindFits(hostSel, sel, after){
+  const host = $(hostSel);
+  drawFits(host, sel);
+  host.onclick = e => {
+    const inp = e.target.closest('input'); if(!inp) return;
+    const v = inp.value;
+    if(v === 'ALL'){ sel.length = 0; sel.push('ALL'); }
+    else {
+      const i = sel.indexOf('ALL'); if(i >= 0) sel.splice(i, 1);
+      const j = sel.indexOf(v);
+      if(j >= 0) sel.splice(j, 1); else sel.push(v);
+      if(!sel.length) sel.push('ALL');
+    }
+    drawFits(host, sel);
+    after && after();
+  };
+}
+
+/* 속성 태그 표기를 하나로 강제합니다 — "Barrel Leg" / "barrel-leg" / "#Barrel leg" 가
+   전부 #barrel_leg 로 모여야 나중에 사전 승격이 됩니다. */
+const hashTag = v => {
+  const t = String(v).trim().toLowerCase()
+    .replace(/^#+/, '')
+    .replace(/[\s·,./\\-]+/g, '_')
+    .replace(/[^0-9a-z가-힣_]/g, '')
+    .replace(/_+/g, '_')
+    .replace(/^_|_$/g, '');
+  return t ? '#' + t : '';
+};
+
+/* 원래 index.html 과 글자 하나까지 같아야 기존 데이터와 맞습니다 */
+/* MOVEMENT = 사전에서 axis 가 'movement' 인 엔티티. 별도 테이블이 아닙니다. */
+const MOVEMENTS = () => ENTITIES.filter(e => e.axis === 'movement' && e.status !== 'Archived');
+const mvOptions = (sel) => '<option value="">— 관련 없음 —</option>' +
+  MOVEMENTS().map(m => `<option value="${esc(m.entity_id)}" ${sel===m.entity_id?'selected':''}>${esc(m.name_kr || m.name_en)}</option>`).join('');
+
+const CATEGORIES = ['아우터','상의','하의','원피스·스커트','신발','가방','모자','ACC','기타'];
+
+/* ── AI 자동 채우기 (Gemini · 설정 탭에서 키를 넣으면 켜집니다) ── */
+const blobB64 = blob => new Promise((res, rej) => {
+  const r = new FileReader();
+  r.onload = () => res(String(r.result).split(',')[1]);
+  r.onerror = rej;
+  r.readAsDataURL(blob);
+});
+
+const AI_PROMPT = `당신은 패션 트렌드 리서처입니다. 이 이미지는 SNS 게시물 캡처이거나 착장 사진입니다.
+보이는 것만 근거로 채우고, 확실하지 않으면 빈 문자열이나 빈 배열로 두세요. 추측하지 마세요.
+- account: 화면에 보이는 계정명 (@ 포함). 없으면 ""
+- likes: 화면에 보이는 좋아요 수를 숫자만. "1.2만"이면 12000. 없으면 ""
+- brand: 확실히 식별되는 브랜드명. 로고나 텍스트로 확인될 때만. 없으면 ""
+- category: 아우터 / 상의 / 하의 / 원피스·스커트 / 신발 / 가방 / 모자 / ACC / 기타 중 주된 아이템 하나. 정확히 이 표기로.
+- tags: 눈에 보이는 디자인 속성을 영어 소문자로 3~6개 (예: barrel leg, metallic logo, drop waist)
+JSON만 출력하세요.`;
+
+async function gemini(parts, schema, label){
+  const key = (localStorage.getItem('ta_gem') || '').trim();
+  if(!key) throw new Error('설정 탭에서 Gemini API 키를 먼저 넣어주세요');
+  const model = localStorage.getItem('ta_gem_model') || 'gemini-2.5-flash';
+  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`,
+    { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({
+      contents:[{ parts }],
+      generationConfig:{ responseMimeType:'application/json', responseSchema: schema }
+    })});
+  if(!r.ok) throw new Error(`Gemini ${r.status} — ${(await r.text()).slice(0,140)}`);
+  const t = (await r.json())?.candidates?.[0]?.content?.parts?.[0]?.text;
+  if(!t) throw new Error(`${label}: Gemini 응답이 비어 있습니다`);
+  return JSON.parse(t);
+}
+const filePart = async f => ({ inline_data:{ mime_type: f.type || 'image/jpeg', data: await blobB64(f) } });
+
+async function aiTag(it){
+  const key = (localStorage.getItem('ta_gem') || '').trim();
+  if(!key) throw new Error('설정 탭에서 Gemini API 키를 먼저 넣어주세요');
+  const model = localStorage.getItem('ta_gem_model') || 'gemini-2.5-flash';
+  const r = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`,
+    { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({
+      contents:[{ parts:[
+        { inline_data:{ mime_type:'image/jpeg', data: await blobB64(it.full.blob) } },
+        { text: AI_PROMPT }
+      ]}],
+      generationConfig:{
+        responseMimeType:'application/json',
+        responseSchema:{ type:'OBJECT', properties:{
+          account:{type:'STRING'}, likes:{type:'STRING'}, brand:{type:'STRING'},
+          category:{type:'STRING'}, tags:{type:'ARRAY', items:{type:'STRING'}}
+        }, required:['account','likes','brand','category','tags'] }
+      }
+    })});
+  if(!r.ok) throw new Error(`Gemini ${r.status} — ${(await r.text()).slice(0,140)}`);
+  const j = await r.json();
+  const txt = j?.candidates?.[0]?.content?.parts?.[0]?.text;
+  if(!txt) throw new Error('Gemini 응답이 비어 있습니다');
+  const out = JSON.parse(txt);
+
+  // 빈 칸만 채웁니다 — 사람이 넣은 값은 건드리지 않습니다
+  for(const k of ['account','likes','brand','category'])
+    if(!it.meta[k] && out[k]) it.meta[k] = String(out[k]).trim();
+  if(it.meta.account && !it.meta.celeb_name){
+    const cn = celebIdx[norm(it.meta.account)];
+    if(cn){ it.meta.is_celeb = true; it.meta.celeb_name = cn; }
+  }
+  for(const t of (out.tags || [])){
+    const v = String(t).trim(); if(!v) continue;
+    const eid = matchEntity(v);
+    if(eid){ if(!it.meta.entities.includes(eid)) it.meta.entities.push(eid); }
+    else { const h = hashTag(v); if(h && !it.meta.tags.includes(h)) it.meta.tags.push(h); }
+  }
+  return out;
+}
+
+/* ── 드롭존 ── */
+const drop = $('#drop'), fileInp = $('#file');
+drop.onclick = () => fileInp.click();
+drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('over'); });
+drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('over'); intake(e.dataTransfer.files); });
+fileInp.addEventListener('change', e => intake(e.target.files));
+
+async function intake(files){
+  const list = [...files].filter(f => f.type.startsWith('image/'));
+  if(!list.length) return;
+  busy(true, `사진 ${list.length}장 줄이는 중…`);
+  for(const f of list){
+    try{
+      const full  = await resize(f, SET.full,  SET.fullQ);
+      const thumb = await resize(f, SET.thumb, SET.thumbQ);
+      const hash  = await sha256(full.blob);
+      if(QUEUE_IMGS.some(x => x.hash === hash)){ toast(`같은 사진 건너뜀 — ${f.name}`); continue; }
+      QUEUE_IMGS.push({
+        name: f.name, hash, full, thumb,
+        preview: URL.createObjectURL(thumb.blob),
+        orig: f.size,
+        sel: true,
+        meta: { account:'', likes:'', brand: $('#sessBrand').value || '', movement: $('#sessMv').value || '', category:'', note:'', source_url:'',
+                is_celeb:false, celeb_name:'', is_main:false, entities:[], tags:[] }
+      });
+    }catch(e){ die(e, f.name); }
+  }
+  busy(false);
+  renderImgCards();
+}
+
+function renderImgCards(){
+  const box = $('#imgCards');
+  box.innerHTML = '';
+  QUEUE_IMGS.forEach((it, i) => {
+    const c = document.createElement('div'); c.className='card';
+    if(it.sel) c.classList.add('sel');
+    c.innerHTML = `
+      <input type="checkbox" class="pick" ${it.sel?'checked':''} title="선택">
+      <button class="x" title="빼기">×</button>
+      <button class="btn ghost ai" title="이 사진만 AI로">AI</button>
+      <img class="thumb" src="${it.preview}" alt="">
+      <input data-k="source_url" type="url" placeholder="출처 URL (선택)">
+      <div class="row">
+        <div><label class="f">계정</label><input data-k="account" placeholder="@handle"></div>
+        <div style="max-width:74px"><label class="f">좋아요</label><input data-k="likes" placeholder="12000"></div>
+      </div>
+      <div class="row">
+        <div><label class="f">브랜드</label><input data-k="brand" list="brandList"></div>
+        <div style="max-width:96px"><label class="f">아이템군</label>
+          <select data-k="category"><option value="">선택</option>
+            ${CATEGORIES.map(v=>`<option>${v}</option>`).join('')}</select></div>
+      </div>
+      <div>
+        <label class="f">MOVEMENT</label>
+        <select data-k="movement" class="mvSel">${mvOptions()}</select>
+      </div>
+      <div>
+        <label class="f">TREND KEYWORD — 사전에 있으면 자동 연결</label>
+        <input class="kwIn" list="entList" placeholder="입력 후 Enter">
+        <div class="kwChips" style="margin-top:4px"></div>
+      </div>
+      <div>
+        <label class="f">속성 태그 — 사전에 없는 새 표현</label>
+        <input class="tagIn" placeholder="barrel leg → #barrel_leg">
+        <div class="tagChips" style="margin-top:4px"></div>
+      </div>
+      <div class="row">
+        <div><label class="f">셀럽</label><input data-k="celeb_name" placeholder="자동 감지"></div>
+        <div style="max-width:74px"><label class="f">대표</label>
+          <select data-k="is_main"><option value="false">—</option><option value="true">★</option></select></div>
+      </div>
+      <input data-k="note" placeholder="메모 — 왜 트렌드인지">
+      <div class="mini">${esc(it.name)} · ${kb(it.orig)} → ${kb(it.full.blob.size)} + ${kb(it.thumb.blob.size)}</div>`;
+
+    c.querySelectorAll('[data-k]').forEach(el => {
+      const k = el.dataset.k;
+      el.value = String(it.meta[k] ?? '');
+      el.addEventListener('input', () => {
+        it.meta[k] = el.value;
+        if(k === 'account'){
+          const cn = celebIdx[norm(el.value)];
+          if(cn){ it.meta.is_celeb = true; it.meta.celeb_name = cn;
+            c.querySelector('[data-k="celeb_name"]').value = cn; }
+        }
+      });
+    });
+    c.querySelector('[data-k="celeb_name"]').addEventListener('input', e => {
+      it.meta.is_celeb = !!e.target.value.trim();
+    });
+
+    const drawKw = () => c.querySelector('.kwChips').innerHTML =
+      it.meta.entities.map((v,j)=>`<span class="chip rm" data-j="${j}">${esc(label(v))}</span>`).join('');
+    const drawTag = () => c.querySelector('.tagChips').innerHTML =
+      it.meta.tags.map((v,j)=>`<span class="chip rm" data-j="${j}">${esc(v)}</span>`).join('');
+
+    c.querySelector('.kwIn').addEventListener('keydown', async e => {
+      if(e.key!=='Enter') return; e.preventDefault();
+      const raw = e.target.value.trim(); if(!raw) return;
+      const id = matchEntity(raw);
+      if(!id){ toast(`사전에 없는 표현 — "${raw}" 는 미매핑 큐로`); await addToQueue(raw); e.target.value=''; return; }
+      if(!it.meta.entities.includes(id)) it.meta.entities.push(id);
+      e.target.value=''; drawKw(); linkStat();
+    });
+    c.querySelector('.tagIn').addEventListener('keydown', e => {
+      if(e.key!=='Enter') return; e.preventDefault();
+      const v = hashTag(e.target.value); if(!v) return;
+      if(!it.meta.tags.includes(v)) it.meta.tags.push(v);
+      e.target.value=''; drawTag(); linkStat();
+    });
+    c.querySelector('.kwChips').onclick = e => { const x=e.target.closest('.chip'); if(!x) return;
+      it.meta.entities.splice(+x.dataset.j,1); drawKw(); linkStat(); };
+    c.querySelector('.tagChips').onclick = e => { const x=e.target.closest('.chip'); if(!x) return;
+      it.meta.tags.splice(+x.dataset.j,1); drawTag(); linkStat(); };
+    drawKw(); drawTag();
+    c.querySelector('.pick').onchange = e => {
+      it.sel = e.target.checked; c.classList.toggle('sel', it.sel); selStat();
+    };
+    c.querySelector('.x').onclick = () => {
+      URL.revokeObjectURL(it.preview); QUEUE_IMGS.splice(i,1); renderImgCards();
+    };
+    c.querySelector('.ai').onclick = async () => {
+      busy(true,'AI가 읽는 중…');
+      try{ await aiTag(it); renderImgCards(); toast('AI가 빈 칸을 채웠습니다 — 확인하고 고쳐주세요'); }
+      catch(e){ die(e,'AI 자동 채우기'); }
+      busy(false);
+    };
+    box.appendChild(c);
+  });
+
+  const total = QUEUE_IMGS.reduce((a,x)=>a+x.full.blob.size+x.thumb.blob.size, 0);
+  const orig  = QUEUE_IMGS.reduce((a,x)=>a+x.orig, 0);
+  $('#imgCount').textContent = QUEUE_IMGS.length
+    ? `${QUEUE_IMGS.length}장 · 원본 ${kb(orig)} → 업로드 ${kb(total)} (${(100-total/orig*100).toFixed(0)}% 절감)`
+    : '';
+  $('#bulkBar').hidden = !QUEUE_IMGS.length;
+  selStat(); linkStat();
+}
+
+const picked = () => QUEUE_IMGS.filter(x => x.sel);
+const SESS_FIT = ['ALL'];
+bindFits('#brandFit', SESS_FIT);
+const ENT_FIT = ['ALL'];
+bindFits('#e_fit', ENT_FIT);
+const setFit = v => { ENT_FIT.length = 0; (v && v.length ? v : ['ALL']).forEach(x => ENT_FIT.push(x)); drawFits($('#e_fit'), ENT_FIT); };
+
+function selStat(){
+  const n = picked().length, m = QUEUE_IMGS.length;
+  $('#selCount').textContent = `${n}장 선택`;
+  $('#saveImgs').textContent = `선택 등록 (${n}/${m})`;
+  $('#saveImgs').disabled = !n || !IS_ADMIN;
+  $('#aiAll').disabled    = !n || !localStorage.getItem('ta_gem');
+}
+
+/* 연결 현황 — 몇 개가 사전에 붙었고 몇 개가 미매핑인지 바로 보이게 */
+function linkStat(){
+  const ent = new Set(), tag = new Set();
+  for(const it of QUEUE_IMGS){
+    it.meta.entities.forEach(v => ent.add(v));
+    it.meta.tags.forEach(v => tag.add(v.toLowerCase()));
+  }
+  const none = QUEUE_IMGS.filter(x => !x.meta.entities.length).length;
+  $('#linkStat').innerHTML = QUEUE_IMGS.length
+    ? `연결 <b>${ent.size}</b> · 미매핑 <i>${tag.size}</i>` + (none ? ` · 키워드 없는 사진 <i>${none}</i>장` : '')
+    : '';
+}
+
+/* ── 일괄 적용 ── */
+$('#selAll').onclick  = () => { QUEUE_IMGS.forEach(x=>x.sel=true);  renderImgCards(); };
+$('#selNone').onclick = () => { QUEUE_IMGS.forEach(x=>x.sel=false); renderImgCards(); };
+
+$('#bulkApply').onclick = async () => {
+  const tgt = picked();
+  if(!tgt.length) return toast('먼저 사진을 선택하세요');
+  const raw = $('#bulkKw').value.trim();
+  if(!raw) return toast('적용할 키워드를 입력하세요');
+
+  let linked = 0, queued = 0;
+  for(const term of raw.split(',').map(t=>t.trim()).filter(Boolean)){
+    const id = matchEntity(term);
+    if(id){
+      tgt.forEach(it => { if(!it.meta.entities.includes(id)) it.meta.entities.push(id); });
+      linked++;
+    }else{
+      const h = hashTag(term);
+      if(h) tgt.forEach(it => { if(!it.meta.tags.includes(h)) it.meta.tags.push(h); });
+      await addToQueue(term);
+      queued++;
+    }
+  }
+  $('#bulkKw').value=''; renderImgCards();
+  toast(`${tgt.length}장에 적용 — 연결 ${linked}건` + (queued ? ` · 미매핑 ${queued}건은 큐로` : ''));
+};
+
+/* 세션 브랜드를 바꾸면 아직 비어 있는 카드에 채워줍니다 */
+$('#sessBrand').onchange = () => {
+  const b = $('#sessBrand').value; if(!b) return;
+  let n = 0;
+  QUEUE_IMGS.forEach(it => { if(!it.meta.brand){ it.meta.brand = b; n++; } });
+  if(n) { renderImgCards(); toast(`브랜드 비어 있던 ${n}장에 ${b} 적용`); }
+};
+
+$('#sessMv').onchange = () => {
+  const m = $('#sessMv').value; if(!m) return;
+  let n = 0;
+  QUEUE_IMGS.forEach(it => { if(!it.meta.movement){ it.meta.movement = m; n++; } });
+  if(n){ renderImgCards(); toast(`MOVEMENT 비어 있던 ${n}장에 적용`); }
+};
+
+/* MOVEMENT 는 사전의 엔티티라, 여기서 등록하면 사전에도 바로 생깁니다 */
+$('#addMv').onclick = async () => {
+  const name = prompt('새 MOVEMENT 이름 (예: Customizing)'); if(!name || !name.trim()) return;
+  try{
+    const { data, error } = await sb.from('entities').insert({
+      name_kr: name.trim(), name_en: name.trim(), axis: 'movement',
+      first_seen: ymNow(), status: 'Active', created_by: ME
+    }).select('entity_id').single();
+    if(error) throw error;
+    await loadAll();
+    $('#sessMv').value = data.entity_id;
+    $('#sessMv').onchange();
+    toast(`${name.trim()} 등록 — 사전에도 들어갔습니다`);
+  }catch(e){ die(e, 'MOVEMENT 등록'); }
+};
+
+$('#addBrand').onclick = async () => {
+  const name = prompt('새 브랜드명'); if(!name || !name.trim()) return;
+  try{
+    const { error } = await sb.from('brands').insert({ brand_name: name.trim() });
+    if(error) throw error;
+    await loadAll();
+    $('#sessBrand').value = name.trim();
+    toast(`${name.trim()} 등록`);
+  }catch(e){ die(e,'브랜드 등록'); }
+};
+
+$('#aiAll').onclick = async () => {
+  const tgt = picked(); if(!tgt.length) return toast('먼저 사진을 선택하세요');
+  let n = 0, bad = 0;
+  for(const it of tgt){
+    busy(true, `AI가 읽는 중… ${n+bad+1}/${tgt.length}`);
+    try{ await aiTag(it); n++; }catch(e){ console.error(e); bad++; }
+  }
+  busy(false); renderImgCards();
+  toast(bad ? `${n}장 채움 · ${bad}장 실패 — 콘솔을 확인하세요` : `${n}장 채웠습니다. 확인하고 고쳐주세요`);
+};
+
+/* ── 이미지 저장 ── */
+$('#saveImgs').onclick = async () => {
+  const tgt = picked();
+  if(!tgt.length) return toast('먼저 사진을 선택하세요');
+
+  const noKw = tgt.filter(x => !x.meta.entities.length).length;
+  if(noKw && !confirm(`키워드가 하나도 안 붙은 사진이 ${noKw}장 있습니다.\n대시보드에서 안 잡힙니다. 그래도 등록할까요?`)) return;
+
+  const ym = $('#ym').value || ymNow();
+  const base = { year_month: ym, source_id: $('#source').value, region: $('#region').value,
+                 brand_fit: [...SESS_FIT], uploaded_by: ME,
+                 platform_id: (SOURCES.find(s=>s.source_id===$('#source').value)||{}).platform_id || null };
+  let done = 0, failed = [];
+
+  for(const it of tgt){
+    try{
+      busy(true, `저장 중… ${done+1}/${tgt.length}`);
+
+      // 1) 중복 확인
+      const { data:dup } = await sb.from('images').select('image_id').eq('file_hash', it.hash).maybeSingle();
+      if(dup){ toast(`이미 있는 사진 — ${dup.image_id}`); URL.revokeObjectURL(it.preview);
+               QUEUE_IMGS.splice(QUEUE_IMGS.indexOf(it),1); done++; continue; }
+
+      // 2) 행 먼저 생성 → image_id 확보
+      const { data:row, error:e1 } = await sb.from('images').insert({
+        ...base,
+        account:     it.meta.account || null,
+        likes:       it.meta.likes ? parseInt(String(it.meta.likes).replace(/[^0-9]/g,''),10) : null,
+        brand:       it.meta.brand || $('#sessBrand').value || null,
+        category:    it.meta.category || null,
+        note:        it.meta.note || null,
+        source_url:  it.meta.source_url || null,
+        is_celeb:    !!it.meta.celeb_name,
+        celeb_name:  it.meta.celeb_name || null,
+        is_main:     String(it.meta.is_main) === 'true',
+        file_hash:   it.hash,
+        mime_type:   'image/jpeg',
+        file_size:   it.full.blob.size,
+        width:       it.full.w,
+        height:      it.full.h,
+        upload_status: 'pending'
+      }).select('image_id').single();
+      if(e1) throw e1;
+      const id = row.image_id;
+
+      // 3) 업로드
+      const p  = `images/${ym}/${id}.jpg`;
+      const pt = `thumbs/${ym}/${id}.jpg`;
+      const up = { contentType:'image/jpeg', cacheControl:'604800', upsert:true };
+      const [u1,u2] = await Promise.all([
+        sb.storage.from('media').upload(p,  it.full.blob,  up),
+        sb.storage.from('media').upload(pt, it.thumb.blob, up)
+      ]);
+      if(u1.error) throw u1.error;
+      if(u2.error) throw u2.error;
+
+      // 4) URL 채우기
+      const { error:e2 } = await sb.from('images').update({
+        storage_path: p, thumb_path: pt,
+        file_url:  sb.storage.from('media').getPublicUrl(p).data.publicUrl,
+        thumb_url: sb.storage.from('media').getPublicUrl(pt).data.publicUrl,
+        upload_status: 'complete'
+      }).eq('image_id', id);
+      if(e2) throw e2;
+
+      // 5) 연결
+      const links = it.meta.entities.map((eid,ix)=>({ image_id:id, entity_id:eid, sort_order:ix,
+        role: ix===0 ? 'cover' : 'evidence', mapping_method:'manual', created_by:ME }));
+      /* MOVEMENT 를 골랐으면 role='movement' 로 같이 붙입니다 — 흐름 추적은 이걸로 합니다 */
+      if(it.meta.movement && !it.meta.entities.includes(it.meta.movement))
+        links.push({ image_id:id, entity_id:it.meta.movement, sort_order:99,
+                     role:'movement', mapping_method:'manual', created_by:ME });
+      if(links.length){
+        const { error:e3 } = await sb.from('asset_entities').upsert(links);
+        if(e3) throw e3;
+      }
+      if(it.meta.tags.length){
+        const { error:e4 } = await sb.from('asset_tags').insert(
+          it.meta.tags.map(t=>({ image_id:id, tag_type:'attribute', tag_value:t })));
+        if(e4) throw e4;
+      }
+      const bn = it.meta.brand || $('#sessBrand').value;
+      if(bn) await ensureBrand(bn, ym);
+      if(it.meta.celeb_name) await ensureCeleb(it.meta.celeb_name, it.meta.account);
+
+      URL.revokeObjectURL(it.preview);
+      QUEUE_IMGS.splice(QUEUE_IMGS.indexOf(it),1);
+      done++;
+    }catch(e){ console.error(e); failed.push(`${it.name}: ${e.message}`); }
+  }
+  busy(false);
+  renderImgCards();
+  toast(failed.length ? `${done}장 저장 · ${failed.length}장 실패 — ${failed[0]}` : `${done}장 저장했습니다`);
+  if(failed.length) console.table(failed);
+  await loadAll();
+};
+
+async function ensureBrand(name, ym){
+  const hit = BRANDS.find(b => norm(b.brand_name)===norm(name) ||
+                               (b.brand_aliases||[]).some(a=>norm(a)===norm(name)));
+  if(hit) return hit.brand_id;
+  const { data } = await sb.from('brands').insert({ brand_name:name, first_seen:ym, status:'Watch',
+    tier:'niche', signal:'WATCH' }).select('brand_id').single();
+  return data?.brand_id;
+}
+async function ensureCeleb(name, account){
+  if(CELEBS.some(c => norm(c.celeb_name)===norm(name))) return;
+  await sb.from('celebs').insert({ celeb_name:name, accounts: account?[account]:[], region:'KR' });
+}
+
+/* ── 문서 저장 ── */
+const docEnts = [];
+const docChips = chipInput('#dEnt', '#dEntChips', docEnts, label);
+
+/* ── 모드 전환 ── */
+const PANES = { image:'#imgMode', doc:'#docMode', rank:'#rankMode', text:'#textMode', postit:'#postitMode' };
+$('#modes').onclick = e => {
+  const b = e.target.closest('button[data-mode]'); if(!b) return;
+  [...$('#modes').children].forEach(x => x.classList.toggle('on', x === b));
+  for(const [m, sel] of Object.entries(PANES)) $(sel).hidden = (m !== b.dataset.mode);
+};
+
+/* ── 링크 붙여넣으면 자동 채우기 ──
+   YouTube 는 oEmbed 가 CORS 를 열어둬서 브라우저에서 바로 됩니다.
+   일반 기사는 CORS 때문에 브라우저에서 못 읽습니다 (Apps Script 는 서버라 됐던 것) — 수동 입력입니다. */
+$('#dUrl').addEventListener('change', async () => {
+  const u = $('#dUrl').value.trim();
+  if(!/youtu\.be|youtube\.com/.test(u)) return;
+  try{
+    const r = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(u)}&format=json`);
+    if(!r.ok) throw new Error('oEmbed ' + r.status);
+    const j = await r.json();
+    if(!$('#dTitle').value) $('#dTitle').value = j.title || '';
+    if(!$('#dPub').value)   $('#dPub').value   = j.author_name || '';
+    $('#dType').value = 'link';
+    toast(`YouTube 자동 인식 — ${j.author_name}`);
+  }catch(err){ console.warn(err); toast('YouTube 정보를 못 읽었습니다. 직접 입력해주세요'); }
+});
+
+/* ── 랭킹: 표 붙여넣기 ── */
+let RANK_ROWS = [];
+
+function parseTable(txt){
+  const lines = txt.trim().split(/\r?\n/).filter(l => l.trim());
+  if(!lines.length) return [];
+  const sep = lines[0].includes('\t') ? '\t' : ',';
+  const cells = lines.map(l => l.split(sep).map(c => c.trim().replace(/^"|"$/g,'')));
+
+  // 첫 줄이 헤더인지: 숫자로 시작하면 데이터로 봅니다
+  const hasHdr = !/^\d+$/.test(cells[0][0]);
+  const hdr = hasHdr ? cells[0].map(h=>h.toLowerCase()) : [];
+  const body = hasHdr ? cells.slice(1) : cells;
+
+  const find = (...keys) => hdr.findIndex(h => keys.some(k => h.includes(k)));
+  let iRank = find('순위','rank'), iName = find('상품','제품','name','product','title'),
+      iBrand = find('브랜드','brand'), iPrice = find('가격','price');
+  if(iRank  < 0) iRank  = 0;
+  if(iName  < 0) iName  = 1;
+  if(iBrand < 0) iBrand = 2;
+  if(iPrice < 0) iPrice = 3;
+
+  return body.map((r, i) => ({
+    rank:         parseInt(String(r[iRank]||'').replace(/[^0-9]/g,''), 10) || (i+1),
+    product_name: r[iName]  || '',
+    brand:        r[iBrand] || '',
+    price:        parseFloat(String(r[iPrice]||'').replace(/[^0-9.]/g,'')) || null
+  })).filter(x => x.product_name);
+}
+
+function drawRank(){
+  const box = $('#rPreview');
+  if(!RANK_ROWS.length){ box.innerHTML=''; $('#rStat').textContent=''; $('#saveRank').disabled=true; return; }
+  box.innerHTML = `<table><thead><tr><th style="width:44px">순위</th><th>아이템명</th><th style="width:110px">브랜드</th>
+    <th style="width:74px">가격</th><th style="width:38%">#키워드</th></tr></thead>
+    <tbody>${RANK_ROWS.map(r=>`<tr>
+      <td><b>${r.rank}</b></td><td>${esc(r.product_name)}</td><td>${esc(r.brand)}</td>
+      <td>${r.price ? r.price.toLocaleString() : '—'}</td>
+      <td>${
+        (r.entities||[]).map(e=>`<span class="chip">${esc(label(e))}</span>`).join('') +
+        (r.keywords||[]).map(k=>`<span class="chip" style="background:#f4efe6;color:var(--sub)">${esc(k)}</span>`).join('')
+        || '<span class="mini" style="color:#c8451f">— 없음</span>'
+      }</td>
+    </tr>`).join('')}</tbody></table>`;
+  const enough = RANK_ROWS.filter(r => kwCount(r) >= 2).length;
+  const some   = RANK_ROWS.filter(r => kwCount(r) >= 1).length;
+  $('#rStat').innerHTML = `${RANK_ROWS.length}행 · 키워드 2개+ <b>${enough}</b>` +
+    (some > enough ? ` · 1개 <i style="color:#8a8578;font-style:normal">${some-enough}</i>` : '') +
+    (RANK_ROWS.length > some ? ` · 없음 <i style="color:#c8451f;font-style:normal">${RANK_ROWS.length-some}</i>` : '');
+  $('#saveRank').disabled = !IS_ADMIN;
+}
+
+/* 1차: 상품명·브랜드를 사전에 스캔. 2차(AI): 스캔에서 못 잡은 행만 */
+function matchRows(){
+  for(const r of RANK_ROWS){
+    r.entities = scanEntities(`${r.product_name} ${r.brand||''}`, 3);
+    r.entity_id = r.entities[0] || null;
+    r.keywords = r.keywords || [];
+  }
+}
+
+const kwCount = r => (r.entities||[]).length + (r.keywords||[]).length;
+
+/* 행마다 키워드가 2개는 되게 채웁니다. 스캔으로 모자란 행만 AI 에 보냅니다. */
+async function aiRankKeywords(silent){
+  const need = RANK_ROWS.filter(r => kwCount(r) < 2);
+  if(!need.length){ if(!silent) toast('이미 전부 2개 이상 붙어 있습니다'); return; }
+  if(!localStorage.getItem('ta_gem')){
+    if(!silent) toast('설정 탭에서 Gemini API 키를 넣으면 나머지도 자동으로 채워집니다');
+    return;
+  }
+  busy(true, `AI가 ${need.length}행 읽는 중…`);
+  try{
+    const out = await gemini(
+      [{ text:
+`패션 랭킹 상품 목록입니다. 각 행마다 **키워드 2~3개**를 반드시 뽑아주세요.
+- 실루엣 · 디테일 · 소재 · 무드만. 색상 · 사이즈 · 브랜드명은 키워드가 아닙니다.
+- 상품명에 없는 건 지어내지 마세요. 그래도 2개는 채우세요 — 아이템 종류(예: 후드, 팬츠)도 키워드로 칩니다.
+- brand: 상품명 앞에 브랜드가 붙어 있으면 뽑아주세요. 없으면 ""
+
+${need.map((r,i) => `${i}. ${r.product_name}${r.brand ? ` [브랜드: ${r.brand}]` : ''}`).join('\n')}` }],
+      { type:'ARRAY', items:{ type:'OBJECT', properties:{
+          i:{type:'INTEGER'},
+          brand:{type:'STRING'},
+          keywords:{ type:'ARRAY', items:{type:'STRING'} }
+        }, required:['i','brand','keywords'] } },
+      '랭킹 키워드');
+
+    let linked = 0, tagged = 0, brands = 0;
+    for(const o of out){
+      const r = need[o.i]; if(!r) continue;
+      r.entities = r.entities || []; r.keywords = r.keywords || [];
+      if(!r.brand && o.brand){ r.brand = String(o.brand).trim(); brands++; }
+      for(const k of (o.keywords||[]).slice(0, 3)){
+        if(kwCount(r) >= 3) break;
+        const hit = scanEntities(k, 1)[0] || matchEntity(k);
+        if(hit){ if(!r.entities.includes(hit)){ r.entities.push(hit); linked++; } }
+        else { const h = hashTag(k); if(h && !r.keywords.includes(h)){ r.keywords.push(h); tagged++; await addToQueue(k); } }
+      }
+      r.entity_id = r.entities[0] || null;
+    }
+    drawRank();
+    const still = RANK_ROWS.filter(r => kwCount(r) < 2).length;
+    toast(`사전 연결 ${linked} · 새 키워드 ${tagged}` + (brands ? ` · 브랜드 ${brands}` : '') +
+          (still ? ` · 아직 부족한 행 ${still}` : ''));
+  }catch(e){ die(e, '랭킹 AI 키워드'); }
+  busy(false);
+}
+
+$('#rParse').onclick = async () => {
+  RANK_ROWS = parseTable($('#rTsv').value);
+  if(!RANK_ROWS.length) return toast('읽을 표가 없습니다. 헤더 + 데이터를 붙여넣어 주세요');
+  matchRows(); drawRank();
+  toast(`${RANK_ROWS.length}행 읽음`);
+  await aiRankKeywords(true);      // 모자란 행은 바로 AI 로 — 버튼 안 눌러도 됩니다
+};
+$('#rTsv').addEventListener('paste', () => setTimeout(() => $('#rParse').click(), 30));
+
+$('#rFile').addEventListener('change', async e => {
+  const f = e.target.files[0]; if(!f) return;
+  busy(true, '파일 읽는 중…');
+  try{
+    if(/\.(csv|tsv)$/i.test(f.name)){
+      RANK_ROWS = parseTable(await f.text());
+    }else{
+      const XLSX = await import('https://esm.sh/xlsx@0.18.5');
+      const wb = XLSX.read(await f.arrayBuffer(), { type:'array' });
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header:1, defval:'' });
+      RANK_ROWS = parseTable(rows.map(r => r.join('\t')).join('\n'));
+    }
+    matchRows(); drawRank();
+    busy(false);
+    toast(`${RANK_ROWS.length}행 읽음`);
+    await aiRankKeywords(true);
+    return;
+  }catch(err){ die(err, '파일 읽기'); }
+  busy(false);
+});
+
+$('#rAi').onclick = () => RANK_ROWS.length ? aiRankKeywords(false) : toast('먼저 표를 읽어주세요');
+
+/* 무신사 같은 랭킹 캡처를 AI 가 읽습니다 — 시트에 복사할 수 없는 화면용 */
+$('#rShot').addEventListener('change', async e => {
+  const files = [...e.target.files]; if(!files.length) return;
+  busy(true, `캡처 ${files.length}장 읽는 중…`);
+  try{
+    const parts = [];
+    for(const f of files) parts.push(await filePart(f));
+    parts.push({ text: `랭킹 화면 캡처입니다. 보이는 것만 읽으세요. 안 보이면 넣지 마세요.
+- rank: 순위 숫자
+- product_name: 상품명 그대로
+- brand: 브랜드명. 없으면 ""
+- price: 숫자만. 없으면 ""
+- platform: 화면 상단의 플랫폼명 (무신사 / 29CM …). 없으면 ""
+- category: 랭킹 카테고리 (여성 아우터 …). 없으면 ""
+순위 오름차순으로 전부 뽑아주세요.` });
+
+    const out = await gemini(parts, { type:'OBJECT', properties:{
+      platform:{type:'STRING'}, category:{type:'STRING'},
+      rows:{ type:'ARRAY', items:{ type:'OBJECT', properties:{
+        rank:{type:'INTEGER'}, product_name:{type:'STRING'},
+        brand:{type:'STRING'}, price:{type:'STRING'} }, required:['rank','product_name','brand','price'] } }
+    }, required:['platform','category','rows'] }, '랭킹 캡처');
+
+    if(!$('#rPlat').value && out.platform) $('#rPlat').value = out.platform;
+    if(!$('#rCat').value  && out.category) $('#rCat').value  = out.category;
+
+    RANK_ROWS = (out.rows||[])
+      .map(r => ({ rank: r.rank, product_name: (r.product_name||'').trim(), brand: (r.brand||'').trim(),
+                   price: parseFloat(String(r.price||'').replace(/[^0-9.]/g,'')) || null }))
+      .filter(r => r.product_name)
+      .sort((a,b) => a.rank - b.rank);
+
+    if(!RANK_ROWS.length) throw new Error('캡처에서 순위를 못 읽었습니다');
+    matchRows(); drawRank();
+    busy(false);
+    toast(`${RANK_ROWS.length}행 읽음 — 확인하고 고쳐주세요`);
+    await aiRankKeywords(true);
+    return;
+  }catch(err){ die(err, '랭킹 캡처'); }
+  busy(false);
+  e.target.value = '';
+});
+
+$('#saveRank').onclick = async () => {
+  if(!RANK_ROWS.length) return;
+  const d = $('#rDate').value;
+  if(!d){ $('#rDate').focus(); return toast('기준일을 넣어주세요'); }
+  const plat = $('#rPlat').value.trim(), cat = $('#rCat').value.trim();
+  const ym = d.slice(0,7);
+  busy(true, '랭킹 저장 중…');
+  try{
+    const rows = RANK_ROWS.map(r => ({
+      year_month: ym, entity_id: r.entity_id, platform: plat || null,
+      source_id: $('#source').value, keywords: (r.keywords||[]).length ? r.keywords : null,
+      rank: r.rank, prev_rank: null, rank_category: cat || null,
+      period_type: $('#rPeriod').value, product_name: r.product_name,
+      brand: r.brand || null, price: r.price, currency: 'KRW',
+      period_start: d, period_end: d, captured_at: new Date().toISOString(),
+      dedupe_key: [plat, cat, d, r.rank, r.product_name].join('|')
+    }));
+    const { data: saved, error } = await sb.from('rankings')
+      .upsert(rows, { onConflict:'dedupe_key' }).select('id,dedupe_key');
+    if(error) throw error;
+
+    /* 행마다 붙은 키워드를 연결 — 이게 있어야 랭킹이 승격 계산에 들어갑니다 */
+    const byKey = Object.fromEntries((saved||[]).map(x => [x.dedupe_key, x.id]));
+    const links = [];
+    RANK_ROWS.forEach((r, i) => {
+      const id = byKey[rows[i].dedupe_key]; if(!id) return;
+      (r.entities||[]).forEach(eid => links.push({ ranking_id: id, entity_id: eid }));
+    });
+    if(links.length){
+      const { error: e2 } = await sb.from('ranking_entities')
+        .upsert(links, { onConflict:'ranking_id,entity_id' });
+      if(e2) throw e2;
+    }
+    for(const r of RANK_ROWS) if(r.brand) await ensureBrand(r.brand, ym);
+    RANK_ROWS = []; $('#rTsv').value=''; $('#rFile').value=''; drawRank();
+    toast(`${rows.length}행 저장 · 키워드 연결 ${links.length}건`);
+  }catch(e){ die(e, '랭킹 저장'); }
+  busy(false);
+};
+
+/* ── 텍스트: AI 키워드 추출 ── */
+const textEnts = [];
+const textChips = chipInput('#tEnt', '#tEntChips', textEnts, label);
+
+$('#tParse').onclick = async () => {
+  const raw = $('#tRaw').value.trim();
+  if(!raw) return toast('본문을 붙여넣어 주세요');
+  const key = (localStorage.getItem('ta_gem')||'').trim();
+  if(!key) return toast('설정 탭에서 Gemini API 키를 먼저 넣어주세요');
+  busy(true, 'AI가 읽는 중…');
+  try{
+    const model = localStorage.getItem('ta_gem_model') || 'gemini-2.5-flash';
+    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`,
+      { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({
+        contents:[{ parts:[{ text:
+          `다음 패션 트렌드 글에서 뽑아주세요. 본문에 있는 것만, 추측 금지.\n` +
+          `- title: 이 글의 제목 한 줄\n- publisher: 매체명. 없으면 ""\n` +
+          `- summary: 3~5줄 요약\n- keywords: 트렌드 키워드 5~12개 (본문 표현 그대로)\n\n` + raw.slice(0, 24000) }]}],
+        generationConfig:{ responseMimeType:'application/json', responseSchema:{ type:'OBJECT', properties:{
+          title:{type:'STRING'}, publisher:{type:'STRING'}, summary:{type:'STRING'},
+          keywords:{type:'ARRAY', items:{type:'STRING'}} }, required:['title','publisher','summary','keywords'] } }
+      })});
+    if(!r.ok) throw new Error(`Gemini ${r.status} — ${(await r.text()).slice(0,140)}`);
+    const out = JSON.parse((await r.json()).candidates[0].content.parts[0].text);
+    if(!$('#tTitle').value) $('#tTitle').value = out.title || '';
+    if(!$('#tPub').value)   $('#tPub').value   = out.publisher || '';
+    if(!$('#tSum').value)   $('#tSum').value   = out.summary || '';
+    let linked = 0, queued = 0;
+    for(const k of (out.keywords||[])){
+      const id = matchEntity(k);
+      if(id){ if(!textEnts.includes(id)){ textEnts.push(id); linked++; } }
+      else { await addToQueue(k); queued++; }
+    }
+    textChips.draw();
+    toast(`연결 ${linked}건` + (queued ? ` · 사전에 없는 ${queued}건은 미매핑 큐로` : ''));
+  }catch(e){ die(e, '텍스트 파싱'); }
+  busy(false);
+};
+
+$('#saveText').onclick = async () => {
+  const title = $('#tTitle').value.trim();
+  if(!title){ $('#tTitle').focus(); return toast('제목을 넣어주세요'); }
+  busy(true, '저장 중…');
+  try{
+    const ym = $('#ym').value || ymNow();
+    const { data, error } = await sb.from('documents').insert({
+      title, publisher: $('#tPub').value.trim() || null,
+      source_id: $('#source').value, doc_type: 'text', year_month: ym,
+      region: $('#region').value,
+      summary: $('#tSum').value.trim() || null, created_by: ME
+    }).select('doc_id').single();
+    if(error) throw error;
+    if(textEnts.length){
+      const { error:e2 } = await sb.from('document_entities').upsert(
+        textEnts.map((eid,i) => ({ doc_id:data.doc_id, entity_id:eid, sort_order:i })));
+      if(e2) throw e2;
+    }
+    $('#tRaw').value=''; $('#tTitle').value=''; $('#tPub').value=''; $('#tSum').value='';
+    textEnts.length=0; textChips.draw();
+    toast(`저장했습니다 — ${data.doc_id}`);
+    await loadAll();
+  }catch(e){ die(e, '텍스트 저장'); }
+  busy(false);
+};
+
+/* ── POST-IT ── */
+$('#savePostit').onclick = async () => {
+  const t = $('#pText').value.trim();
+  if(!t){ $('#pText').focus(); return toast('메모를 입력하세요'); }
+  const ym = $('#pYm').value || $('#ym').value;
+  if(!ym){ $('#pYm').focus(); return toast('DATE를 선택하세요'); }
+  const src = $('#pSrc').value.trim();
+  if(!src){ $('#pSrc').focus(); return toast('출처를 입력하세요'); }
+
+  busy(true, 'POST-IT 저장 중…');
+  try{
+    const eids = [], queued = [];
+    for(const k of $('#pKw').value.split(',').map(x=>x.trim().replace(/^#/,'')).filter(Boolean)){
+      const id = matchEntity(k);
+      if(id){ if(!eids.includes(id)) eids.push(id); }
+      else { await addToQueue(k); queued.push(k); }
+    }
+    const { data, error } = await sb.from('notes').insert({
+      year_month: ym, note_text: t, detail: $('#pDetail').value.trim() || null,
+      source_label: src, region: $('#region').value, created_by: ME
+    }).select('note_id').single();
+    if(error) throw error;
+    if(eids.length){
+      const { error:e2 } = await sb.from('note_entities').upsert(
+        eids.map(eid => ({ note_id: data.note_id, entity_id: eid })));
+      if(e2) throw e2;
+    }
+    $('#pText').value=''; $('#pKw').value=''; $('#pDetail').value=''; $('#pSrc').value='';
+    toast(`POST-IT 추가 — 연결 ${eids.length}건` + (queued.length ? ` · ${queued.length}건은 미매핑 큐로` : ''));
+  }catch(e){ die(e, 'POST-IT'); }
+  busy(false);
+};
+
+/* 기사·리포트 자동 요약 — 첨부(PDF·캡처)를 우선 읽고, 없으면 붙여넣은 본문을 읽습니다.
+   URL 만으로는 못 합니다 (브라우저 CORS). 그래서 첨부나 본문이 필요합니다. */
+$('#dAi').onclick = async () => {
+  const f = $('#dFile').files[0];
+  const raw = $('#dRaw').value.trim();
+  if(!f && !raw) return toast('첨부 파일이나 본문 중 하나는 있어야 합니다');
+
+  busy(true, 'AI가 읽는 중…');
+  try{
+    const parts = [];
+    if(f) parts.push(await filePart(f));
+    parts.push({ text:
+`패션 트렌드 기사·리포트입니다. 보이는 내용만 근거로 채우세요. 추측 금지, 없으면 "".
+- title: 기사 제목 그대로
+- publisher: 매체명 (Vogue, WGSN, CARREET …)
+- doc_date: 발행일 YYYY-MM-DD. 없으면 ""
+- season: 다루는 시즌 (26/27FW …). 없으면 ""
+- summary: 3~5줄 요약. 이 문서가 말하는 방향성 위주로
+- keywords: 트렌드 키워드 5~12개, 본문 표현 그대로` +
+      (raw ? `\n\n[본문]\n` + raw.slice(0, 24000) : '') });
+
+    const out = await gemini(parts, { type:'OBJECT', properties:{
+      title:{type:'STRING'}, publisher:{type:'STRING'}, doc_date:{type:'STRING'},
+      season:{type:'STRING'}, summary:{type:'STRING'},
+      keywords:{ type:'ARRAY', items:{type:'STRING'} }
+    }, required:['title','publisher','doc_date','season','summary','keywords'] }, '기사 요약');
+
+    /* 빈 칸만 채웁니다 — 손으로 넣은 값은 안 건드립니다 */
+    if(!$('#dTitle').value  && out.title)     $('#dTitle').value  = out.title;
+    if(!$('#dPub').value    && out.publisher) $('#dPub').value    = out.publisher;
+    if(!$('#dDate').value   && /^\d{4}-\d{2}-\d{2}$/.test(out.doc_date)) $('#dDate').value = out.doc_date;
+    if(!$('#dSeason').value && out.season)    $('#dSeason').value = out.season;
+    if(!$('#dSum').value    && out.summary)   $('#dSum').value    = out.summary;
+    if(f) $('#dType').value = f.type === 'application/pdf' ? 'pdf' : 'capture';
+
+    let linked = 0, queued = 0;
+    for(const k of (out.keywords || [])){
+      const id = scanEntities(k, 1)[0] || matchEntity(k);
+      if(id){ if(!docEnts.includes(id)){ docEnts.push(id); linked++; } }
+      else { await addToQueue(k); queued++; }
+    }
+    docChips.draw();
+    toast(`요약 완료 — 사전 연결 ${linked}건` + (queued ? ` · 새 표현 ${queued}건은 미매핑 큐로` : ''));
+  }catch(e){ die(e, '기사 AI 요약'); }
+  busy(false);
+};
+
+/* 첨부를 고르면 바로 요약을 겁니다 — 버튼 한 번 덜 누르게 */
+$('#dFile').addEventListener('change', () => {
+  if($('#dFile').files[0] && localStorage.getItem('ta_gem')) $('#dAi').click();
+});
+
+$('#saveDoc').onclick = async () => {
+  const title = $('#dTitle').value.trim();
+  if(!title){ toast('제목을 넣어주세요'); return; }
+  busy(true,'저장 중…');
+  try{
+    const ym = $('#ym').value || ymNow();
+    const { data:row, error } = await sb.from('documents').insert({
+      title, source_id: $('#source').value, publisher: $('#dPub').value.trim() || null,
+      doc_date: $('#dDate').value || null, year_month: ym, doc_type: $('#dType').value,
+      season: $('#dSeason').value.trim() || null, region: $('#region').value,
+      summary: $('#dSum').value.trim() || null, editor_summary: $('#dSum').value.trim() || null,
+      published_summary: $('#dSum').value.trim() || null,
+      source_url: $('#dUrl').value.trim() || null, uploaded_by: ME
+    }).select('doc_id').single();
+    if(error) throw error;
+    const id = row.doc_id;
+
+    const f = $('#dFile').files[0];
+    if(f){
+      const isImg = f.type.startsWith('image/');
+      const ext   = isImg ? 'jpg' : (f.name.split('.').pop() || 'bin');
+      const body  = isImg ? (await resize(f, SET.full, SET.fullQ)).blob : f;
+      const p     = `docs/${ym}/${id}.${ext}`;
+      const u = await sb.storage.from('media').upload(p, body,
+        { contentType: isImg ? 'image/jpeg' : f.type, cacheControl:'604800', upsert:true });
+      if(u.error) throw u.error;
+      const patch = { storage_path:p, mime_type: isImg?'image/jpeg':f.type,
+                      file_url: sb.storage.from('media').getPublicUrl(p).data.publicUrl };
+      if(isImg){
+        const t = await resize(f, SET.thumb, SET.thumbQ);
+        const pt = `thumbs/${ym}/${id}.jpg`;
+        const ut = await sb.storage.from('media').upload(pt, t.blob,
+          { contentType:'image/jpeg', cacheControl:'604800', upsert:true });
+        if(!ut.error){ patch.thumb_path=pt;
+          patch.thumb_url = sb.storage.from('media').getPublicUrl(pt).data.publicUrl; }
+      }
+      const { error:e2 } = await sb.from('documents').update(patch).eq('doc_id', id);
+      if(e2) throw e2;
+    }
+
+    const dLinks = docEnts.map((eid,i)=>({ doc_id:id, entity_id:eid,
+      relation_type: i===0?'primary':'mentioned', mapping_method:'manual', approved:true, created_by:ME }));
+    const dmv = $('#dMv').value;
+    if(dmv && !docEnts.includes(dmv))
+      dLinks.push({ doc_id:id, entity_id:dmv, relation_type:'movement',
+                    mapping_method:'manual', approved:true, created_by:ME });
+    if(dLinks.length){
+      const { error:e3 } = await sb.from('document_entities').upsert(dLinks);
+      if(e3) throw e3;
+    }
+    busy(false);
+    toast(`저장했습니다 — ${id}`);
+    ['#dTitle','#dPub','#dDate','#dUrl','#dSeason','#dSum'].forEach(s=>$(s).value='');
+    $('#dFile').value=''; docChips.clear();
+  }catch(e){ die(e,'문서 저장'); }
+};
+
+/* ═══════════ 피드 ═══════════ */
+async function renderFeed(){
+  busy(true,'피드 불러오는 중…');
+  try{
+    let q = sb.from('v_feed').select('*').limit(300);
+    if($('#fBadge').value)  q = q.eq('badge',  $('#fBadge').value);
+    if($('#fRegion').value) q = q.eq('region', $('#fRegion').value);
+    if($('#fMv').value === '__none') q = q.is('movement', null);
+    else if($('#fMv').value) q = q.eq('movement', $('#fMv').value);
+    if($('#fQ').value.trim()) q = q.ilike('title', `%${$('#fQ').value.trim()}%`);
+    const { data, error } = await q;
+    if(error) throw error;
+    $('#fBody').innerHTML = data.length ? data.map(r=>`
+      <tr>
+        <td>${r.thumb_url ? `<img src="${esc(r.thumb_url)}" loading="lazy" style="width:56px;height:56px;object-fit:cover;border:1px solid var(--hair)">` : '<span class="mini">—</span>'}</td>
+        <td><b>${esc(r.title)}</b>
+            ${r.movement ? `<span class="chip" style="background:#c8451f;color:#fff;margin-left:5px">↗ ${esc(r.movement)}</span>` : ''}
+            <div class="mini">${esc(r.meta||'')}</div>
+            ${r.url?`<a href="${esc(r.url)}" target="_blank" rel="noopener" class="mini">원문 ↗</a>`:''}</td>
+        <td><span class="badge ${r.badge}">${r.badge}</span></td>
+        <td>${esc(r.region||'')}</td>
+        <td class="mini">${esc(r.content_date||'')}</td>
+        <td>${r.src_cnt}</td>
+        <td><button class="btn danger sm" data-del="${r.kind}:${r.id}">삭제</button></td>
+      </tr>`).join('')
+      : '<tr><td colspan="7"><div class="empty">아직 수집된 자료가 없습니다. 수집 탭에서 사진이나 문서를 올려보세요.</div></td></tr>';
+  }catch(e){ die(e,'피드'); }
+  busy(false);
+}
+$('#fBody').onclick = async e => {
+  const b = e.target.closest('[data-del]'); if(!b) return;
+  const [kind,id] = b.dataset.del.split(':');
+  if(!confirm(`${id} 를 삭제합니다. 되돌릴 수 없습니다.`)) return;
+  busy(true,'삭제 중…');
+  try{
+    const tbl = kind==='image' ? 'images' : 'documents';
+    const key = kind==='image' ? 'image_id' : 'doc_id';
+    const { data:row } = await sb.from(tbl).select('storage_path,thumb_path').eq(key,id).maybeSingle();
+    const paths = [row?.storage_path, row?.thumb_path].filter(Boolean);
+    if(paths.length) await sb.storage.from('media').remove(paths);
+    const { error } = await sb.from(tbl).delete().eq(key,id);
+    if(error) throw error;
+    busy(false); toast(`${id} 삭제했습니다`); renderFeed();
+  }catch(err){ die(err,'삭제'); }
+};
+$('#fReload').onclick = renderFeed;
+['#fBadge','#fRegion'].forEach(s=>$(s).onchange = renderFeed);
+$('#fQ').addEventListener('keydown', e=>{ if(e.key==='Enter') renderFeed(); });
+
+/* ═══════════ 사전 ═══════════ */
+const eAliases = [];
+const eAliasChips = chipInput('#e_alias', '#e_aliasChips', eAliases);
+
+function renderEntities(){
+  const ax = $('#eAxis').value, q = norm($('#eQ').value);
+  const rows = ENTITIES.filter(e =>
+    (!ax || e.axis===ax) &&
+    (!q || norm(e.name_kr).includes(q) || norm(e.name_en).includes(q)));
+  $('#eBody').innerHTML = rows.length ? rows.map(e=>`
+    <tr>
+      <td class="mini">${e.entity_id}</td>
+      <td><b>${esc(e.name_kr)}</b></td>
+      <td>${esc(e.name_en||'')}</td>
+      <td class="mini">${esc(e.axis)}</td>
+      <td class="mini">${esc([e.category_l1,e.category_l2,e.category_l3].filter(Boolean).join(' › '))}</td>
+      <td class="mini">${esc(e.first_seen||'')}</td>
+      <td>${e.pinned?'📌 ':''}${esc(e.status)}</td>
+      <td class="mini">${esc((aliasByEnt[e.entity_id]||[]).join(', '))}</td>
+      <td><button class="btn ghost sm" data-edit="${e.entity_id}">편집</button></td>
+    </tr>`).join('')
+    : '<tr><td colspan="9"><div class="empty">해당하는 엔티티가 없습니다.</div></td></tr>';
+}
+$('#eAxis').onchange = renderEntities;
+$('#eQ').addEventListener('input', renderEntities);
+
+$('#eBody').onclick = async e => {
+  const b = e.target.closest('[data-edit]'); if(!b) return;
+  const en = entById[b.dataset.edit];
+  $('#e_id').value=en.entity_id; $('#e_kr').value=en.name_kr||''; $('#e_en').value=en.name_en||'';
+  $('#e_axis').value=en.axis; $('#e_l1').value=en.category_l1||''; $('#e_l2').value=en.category_l2||'';
+  $('#e_l3').value=en.category_l3||''; $('#e_season').value=en.season_attr||'ALL';
+  $('#e_first').value=en.first_seen||''; setFit(en.brand_fit);
+  $('#e_mv').innerHTML=mvOptions(en.parent_movement); 
+  $('#e_status').value=en.status||'Active'; $('#e_pinned').value=String(!!en.pinned);
+  $('#e_proposal').value=en.proposal||''; $('#e_notes').value=en.notes||'';
+  eAliases.length=0; (aliasByEnt[en.entity_id]||[]).forEach(a=>eAliases.push(a)); eAliasChips.draw();
+  $('#eForm').scrollIntoView({behavior:'smooth', block:'center'});
+};
+
+$('#eNew').onclick = $('#eClear').onclick = () => {
+  ['e_id','e_kr','e_en','e_l1','e_l2','e_l3','e_first','e_proposal','e_notes'].forEach(k=>$('#'+k).value='');
+  $('#e_axis').value='silhouette'; $('#e_season').value='ALL'; setFit(['ALL']); $('#e_mv').innerHTML=mvOptions();
+  $('#e_status').value='Active'; $('#e_pinned').value='false';
+  eAliasChips.clear();
+};
+
+$('#eSave').onclick = async () => {
+  const kr = $('#e_kr').value.trim();
+  if(!kr){ toast('한글명을 넣어주세요'); return; }
+  busy(true,'저장 중…');
+  try{
+    const payload = {
+      name_kr:kr, name_en:$('#e_en').value.trim()||null, axis:$('#e_axis').value,
+      category_l1:$('#e_l1').value.trim()||null, category_l2:$('#e_l2').value.trim()||null,
+      category_l3:$('#e_l3').value.trim()||null, season_attr:$('#e_season').value,
+      first_seen:$('#e_first').value.trim()||ymNow(), brand_fit:[...ENT_FIT],
+      parent_movement:$('#e_mv').value||null,
+      status:$('#e_status').value, pinned:$('#e_pinned').value==='true',
+      proposal:$('#e_proposal').value.trim()||null, notes:$('#e_notes').value.trim()||null,
+      updated_by:ME
+    };
+    let id = $('#e_id').value;
+    if(id){
+      const { error } = await sb.from('entities').update(payload).eq('entity_id', id);
+      if(error) throw error;
+    } else {
+      const { data, error } = await sb.from('entities').insert(payload).select('entity_id').single();
+      if(error) throw error;
+      id = data.entity_id;
+    }
+    await sb.from('aliases').delete().eq('entity_id', id).eq('added_by','manual');
+    if(eAliases.length){
+      const { error } = await sb.from('aliases').upsert(
+        eAliases.map(a=>({ alias_text:a, entity_id:id, source_scope:'all', added_by:'manual', active:true })),
+        { onConflict:'normalized_alias,source_scope' });
+      if(error) throw error;
+    }
+    busy(false); toast(`저장했습니다 — ${id}`); await loadAll(); $('#eClear').click();
+  }catch(e){ die(e,'엔티티 저장'); }
+};
+
+/* ═══════════ 브랜드 ═══════════ */
+const bEnts = [];
+const bEntChips = chipInput('#b_ent', '#b_entChips', bEnts, label);
+const linksToText = ls => (ls||[]).map(l=>`${l.label} | ${l.url}`).join('\n');
+const textToLinks = t => String(t||'').split('\n').map(l=>l.trim()).filter(Boolean)
+  .map(l => { const [label, ...u] = l.split('|'); return { label:(label||'').trim(), url:u.join('|').trim() }; })
+  .filter(l=>l.url);
+
+function renderBrands(){
+  const q = norm($('#bQ').value);
+  const rows = BRANDS.filter(b => !q || norm(b.brand_name).includes(q));
+  $('#bList').innerHTML = rows.length ? rows.map(b=>`
+    <div style="background:#fff;border:1px solid var(--hair);padding:14px 16px;border-radius:4px">
+      <div class="mini" style="letter-spacing:.15em;text-transform:uppercase">${esc(b.tier||'')} · ${esc(b.origin||'')}</div>
+      <div style="font-family:'Playfair Display',serif;font-size:22px;margin:4px 0 8px">${esc(b.brand_name)}</div>
+      <div style="font-size:12.5px;line-height:1.6">${b.headline||'<span class="mini">카드 본문 없음</span>'}</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--hair);margin-top:12px;padding-top:10px">
+        <span class="pill ${b.signal}">${esc(b.signal)}</span>
+        <span style="font-family:'Playfair Display',serif;font-size:20px;color:var(--rising)">${esc(b.growth_pct||'')}</span>
+        <button class="btn ghost sm" data-bedit="${b.brand_id}">편집</button>
+      </div>
+    </div>`).join('')
+    : '<div class="empty" style="grid-column:1/-1">브랜드가 없습니다. 사진에 브랜드명을 넣으면 자동으로 여기 쌓입니다.</div>';
+}
+$('#bQ').addEventListener('input', renderBrands);
+$('#bList').onclick = e => {
+  const btn = e.target.closest('[data-bedit]'); if(!btn) return;
+  const b = BRANDS.find(x=>x.brand_id===btn.dataset.bedit);
+  $('#b_id').value=b.brand_id; $('#b_name').value=b.brand_name; $('#b_tier').value=b.tier||'niche';
+  $('#b_origin').value=b.origin||''; $('#b_first').value=b.first_seen||'';
+  $('#b_signal').value=b.signal||'WATCH'; $('#b_pct').value=b.growth_pct||'';
+  $('#b_status').value=b.status||'Active'; $('#b_pinned').value=String(!!b.pinned);
+  $('#b_aliases').value=(b.brand_aliases||[]).join(', ');
+  $('#b_headline').value=b.headline||''; $('#b_verify').value=b.verify_note||'';
+  $('#b_links').value=linksToText(b.links);
+  bEnts.length=0; (b.linked_entities||[]).forEach(x=>bEnts.push(x)); bEntChips.draw();
+  $('#b_name').scrollIntoView({behavior:'smooth', block:'center'});
+};
+$('#bNew').onclick = $('#bClear').onclick = () => {
+  ['b_id','b_name','b_origin','b_first','b_pct','b_aliases','b_headline','b_verify','b_links'].forEach(k=>$('#'+k).value='');
+  $('#b_tier').value='niche'; $('#b_signal').value='WATCH'; $('#b_status').value='Active'; $('#b_pinned').value='false';
+  bEntChips.clear();
+};
+$('#bSave').onclick = async () => {
+  const name = $('#b_name').value.trim();
+  if(!name){ toast('브랜드명을 넣어주세요'); return; }
+  busy(true,'저장 중…');
+  try{
+    const payload = {
+      brand_name:name, brand_aliases:csv($('#b_aliases').value), tier:$('#b_tier').value,
+      origin:$('#b_origin').value.trim()||null, first_seen:$('#b_first').value.trim()||ymNow(),
+      status:$('#b_status').value, pinned:$('#b_pinned').value==='true',
+      linked_entities:[...bEnts], headline:$('#b_headline').value.trim()||null,
+      verify_note:$('#b_verify').value.trim()||null, links:textToLinks($('#b_links').value),
+      growth_pct:$('#b_pct').value.trim()||null, signal:$('#b_signal').value
+    };
+    const id = $('#b_id').value;
+    const { error } = id
+      ? await sb.from('brands').update(payload).eq('brand_id', id)
+      : await sb.from('brands').insert(payload);
+    if(error) throw error;
+    busy(false); toast('저장했습니다'); await loadAll(); $('#bClear').click();
+  }catch(e){ die(e,'브랜드 저장'); }
+};
+
+/* ═══════════ 셀럽 ═══════════ */
+function renderCelebs(){
+  $('#cBody').innerHTML = CELEBS.length ? CELEBS.map(c=>`
+    <tr><td class="mini">${c.celeb_id}</td><td><b>${esc(c.celeb_name)}</b></td>
+      <td class="mini">${esc((c.accounts||[]).join(', '))}</td><td>${esc(c.group_affil||'')}</td>
+      <td>${c.tier_weight}</td><td>${esc(c.region||'')}</td>
+      <td><button class="btn danger sm" data-cdel="${c.celeb_id}">삭제</button></td></tr>`).join('')
+    : '<tr><td colspan="7"><div class="empty">등록된 셀럽이 없습니다.</div></td></tr>';
+}
+$('#cAdd').onclick = async () => {
+  const n = $('#c_name').value.trim(); if(!n){ toast('셀럽명을 넣어주세요'); return; }
+  const { error } = await sb.from('celebs').insert({ celeb_name:n, accounts:csv($('#c_acc').value),
+    group_affil:$('#c_grp').value.trim()||null, tier_weight:parseFloat($('#c_w').value)||1.5,
+    region:$('#c_region').value });
+  if(error) return die(error,'셀럽 추가');
+  ['c_name','c_acc','c_grp'].forEach(k=>$('#'+k).value=''); toast('추가했습니다'); await loadAll();
+};
+$('#cBody').onclick = async e => {
+  const b = e.target.closest('[data-cdel]'); if(!b) return;
+  if(!confirm('삭제합니다.')) return;
+  const { error } = await sb.from('celebs').delete().eq('celeb_id', b.dataset.cdel);
+  if(error) return die(error,'삭제');
+  toast('삭제했습니다'); await loadAll();
+};
+
+/* ═══════════ 미매핑 큐 ═══════════ */
+async function renderQueue(){
+  const { data, error } = await sb.from('unmapped_queue').select('*')
+    .eq('status','pending').order('count',{ascending:false}).limit(200);
+  if(error) return die(error,'큐');
+  $('#qBody').innerHTML = data.length ? data.map(r=>`
+    <tr>
+      <td><b>${esc(r.raw_text)}</b></td>
+      <td class="mini">${esc(r.source_id||'')}</td>
+      <td class="mini">${esc(r.year_month||'')}</td>
+      <td><b>${r.count}</b></td>
+      <td class="mini">${esc(r.example_ref||'')}</td>
+      <td style="display:flex;gap:5px;align-items:center">
+        <input list="entList" data-merge="${r.id}" placeholder="연결할 엔티티" style="font-size:11px;padding:4px 6px">
+        <button class="btn sm" data-mergebtn="${r.id}">연결</button>
+        <button class="btn ghost sm" data-ignore="${r.id}">무시</button>
+      </td>
+    </tr>`).join('')
+    : '<tr><td colspan="6"><div class="empty">처리할 항목이 없습니다.</div></td></tr>';
+}
+$('#qBody').onclick = async e => {
+  const m = e.target.closest('[data-mergebtn]');
+  const g = e.target.closest('[data-ignore]');
+  if(m){
+    const id = m.dataset.mergebtn;
+    const raw = $(`[data-merge="${id}"]`).value.trim();
+    const eid = matchEntity(raw);
+    if(!eid){ toast('사전에 없는 엔티티입니다. 사전 탭에서 먼저 만들어주세요.'); return; }
+    busy(true,'연결 중…');
+    const { data:q } = await sb.from('unmapped_queue').select('raw_text').eq('id',id).single();
+    await sb.from('aliases').upsert({ alias_text:q.raw_text, entity_id:eid, source_scope:'all',
+      added_by:'queue', active:true }, { onConflict:'normalized_alias,source_scope' });
+    await sb.from('unmapped_queue').update({ status:'merged', resolved_entity_id:eid,
+      resolved_date:new Date().toISOString().slice(0,10) }).eq('id',id);
+    busy(false); toast(`${label(eid)} 에 연결했습니다`); await loadAll(); renderQueue();
+  }
+  if(g){
+    await sb.from('unmapped_queue').update({ status:'ignored' }).eq('id', g.dataset.ignore);
+    toast('무시 처리했습니다'); renderQueue();
+  }
+};
+
+/* ═══════════ 설정 ═══════════ */
+$('#setSave').onclick = () => {
+  Object.assign(SET, { full:+$('#setFull').value||1280, fullQ:+$('#setFullQ').value||70,
+                       thumb:+$('#setThumb').value||420, thumbQ:+$('#setThumbQ').value||62 });
+  localStorage.setItem('ta_img', JSON.stringify(SET));
+  $('#cfFull').textContent=SET.full; $('#cfFullQ').textContent=SET.fullQ;
+  $('#cfThumb').textContent=SET.thumb; $('#cfThumbQ').textContent=SET.thumbQ;
+  toast('화질 설정을 저장했습니다. 다음 업로드부터 적용됩니다.');
+};
+$('#gemSave').onclick = () => {
+  localStorage.setItem('ta_gem', $('#setGem').value.trim());
+  localStorage.setItem('ta_gem_model', $('#setGemModel').value.trim() || 'gemini-2.5-flash');
+  toast('저장했습니다');
+};
+async function renderAdmins(){
+  const { data, error } = await sb.from('admins').select('*').order('email');
+  if(error){ $('#adBody').innerHTML = '<tr><td colspan="3"><div class="empty">관리자 권한이 있어야 볼 수 있습니다.</div></td></tr>'; return; }
+  $('#adBody').innerHTML = data.map(a=>`
+    <tr><td>${esc(a.email)}</td><td>${esc(a.name||'')}</td>
+      <td><button class="btn danger sm" data-addel="${esc(a.email)}">삭제</button></td></tr>`).join('');
+}
+$('#adAdd').onclick = async () => {
+  const em = $('#adEmail').value.trim().toLowerCase(); if(!em) return;
+  const { error } = await sb.from('admins').insert({ email:em, name:$('#adName').value.trim()||null });
+  if(error) return die(error,'관리자 추가');
+  $('#adEmail').value=''; $('#adName').value=''; toast('추가했습니다'); renderAdmins();
+};
+$('#adBody').onclick = async e => {
+  const b = e.target.closest('[data-addel]'); if(!b) return;
+  if(!confirm(`${b.dataset.addel} 의 관리자 권한을 뺍니다.`)) return;
+  await sb.from('admins').delete().eq('email', b.dataset.addel);
+  toast('삭제했습니다'); renderAdmins();
+};
+
+/* ═══════════ 탭 ═══════════ */
+/* ═══════════════ 맵 — 드래그 배치 ═══════════════ */
+let MV = [], MN = [], MEDGE = [], mCur = null, mSel = null, mLinkFrom = null;
+
+const KINDLBL = { key:'KEY TREND', mv:'MOVEMENT', photo:'사진', doc:'문서', sticky:'POST-IT', brand:'브랜드', bundle:'묶음' };
+/* 종류별로 어느 원장에서 고르는지 */
+const REFCOL = { key:'entity_id', mv:'entity_id', photo:'image_id', doc:'doc_id', sticky:'note_id', brand:'brand_id', bundle:null };
+
+async function loadMap(){
+  const [v, n, e] = await Promise.all([
+    sb.from('map_views').select('*').order('sort_order'),
+    sb.from('v_map_nodes').select('*'),
+    sb.from('map_edges').select('*')
+  ]);
+  for(const r of [v,n,e]) if(r.error) return die(r.error, '맵 읽기');
+  MV = v.data; MN = n.data; MEDGE = e.data;
+  mCur = mCur || MV[0]?.view_id;
+  $('#mView').innerHTML = MV.map(x => `<option value="${x.view_id}">${esc(x.name_kr)}</option>`).join('');
+  $('#mView').value = mCur;
+  await fillRef();
+  drawMap();
+}
+$('#mView').onchange = () => { mCur = $('#mView').value; mSel = null; $('#mPanel').hidden = true; drawMap(); };
+$('#mKind').onchange = fillRef;
+
+/* 종류를 고르면 그 원장에서 고를 목록을 채웁니다 */
+async function fillRef(){
+  const k = $('#mKind').value, col = REFCOL[k], sel = $('#mRef');
+  if(!col){ sel.innerHTML = '<option value="">— 원장 참조 없음 (직접 입력) —</option>'; sel.disabled = true; return; }
+  sel.disabled = false;
+  let rows = [];
+  if(col === 'entity_id'){
+    rows = ENTITIES.filter(x => k === 'mv' ? x.axis === 'movement' : true)
+      .map(x => [x.entity_id, `${x.entity_id} — ${x.name_kr || x.name_en} (${x.axis})`]);
+  } else if(col === 'image_id'){
+    const { data } = await sb.from('images').select('image_id,account,brand,year_month')
+      .order('created_at', { ascending:false }).limit(200);
+    rows = (data||[]).map(x => [x.image_id, `${x.image_id} — ${x.account || x.brand || ''} ${x.year_month||''}`]);
+  } else if(col === 'doc_id'){
+    const { data } = await sb.from('documents').select('doc_id,title,publisher')
+      .order('created_at', { ascending:false }).limit(200);
+    rows = (data||[]).map(x => [x.doc_id, `${x.doc_id} — ${(x.title||'').slice(0,44)}`]);
+  } else if(col === 'note_id'){
+    const { data } = await sb.from('notes').select('note_id,note_text')
+      .order('created_at', { ascending:false }).limit(200);
+    rows = (data||[]).map(x => [x.note_id, `${x.note_id} — ${(x.note_text||'').slice(0,44)}`]);
+  } else if(col === 'brand_id'){
+    rows = BRANDS.map(x => [x.brand_id, `${x.brand_id} — ${x.brand_name}`]);
+  }
+  sel.innerHTML = rows.length
+    ? rows.map(([v,l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join('')
+    : '<option value="">— 고를 항목이 없습니다 —</option>';
+}
+
+$('#mAdd').onclick = async () => {
+  const k = $('#mKind').value, col = REFCOL[k];
+  const ref = $('#mRef').value;
+  if(col && !ref) return toast('연결할 원장 항목을 고르세요');
+  const t = $('#mT').value || ymNow();
+  const row = { view_id: mCur, kind: k, t, x: 60, y: 60, created_by: ME };
+  if(col) row[col] = ref;
+  const { error } = await sb.from('map_nodes').insert(row);
+  if(error) return die(error, '노드 추가');
+  await loadMap();
+  toast(`${KINDLBL[k]} 노드를 왼쪽 위에 놨습니다 — 끌어다 배치하세요`);
+};
+
+function mnHtml(n){
+  const head = esc((n.r_headline || n.label || '(제목 없음)').slice(0, 40));
+  const img  = n.r_img ? `<img src="${esc(n.r_img)}" loading="lazy" alt="">` : '';
+  return `<div class="mn k-${esc(n.kind)}${mSel===n.node_id?' sel':''}" data-id="${esc(n.node_id)}"
+    style="left:${n.x}px; top:${n.y}px">
+    <span class="tm">${esc(n.t)}</span>
+    <span class="kd">${esc(KINDLBL[n.kind] || n.kind)}</span>${img}
+    <div>${head}</div></div>`;
+}
+
+function drawMap(){
+  const mine = MN.filter(n => n.view_id === mCur);
+  $('#mNodes').innerHTML = mine.map(mnHtml).join('');
+  $('#mStat').textContent = `노드 ${mine.length} · 연결 ${MEDGE.filter(e=>e.view_id===mCur).length}`;
+
+  requestAnimationFrame(() => {
+    const st = $('#mStage').getBoundingClientRect();
+    const ctr = id => {
+      const e = $(`.mn[data-id="${id}"]`); if(!e) return null;
+      const r = e.getBoundingClientRect();
+      return { x: r.left-st.left + r.width/2, y: r.top-st.top + r.height/2 };
+    };
+    let p = '';
+    for(const e2 of MEDGE.filter(e => e.view_id === mCur)){
+      const A = ctr(e2.a), B = ctr(e2.b); if(!A || !B) continue;
+      const mx = (A.x+B.x)/2, my = (A.y+B.y)/2 - 34;
+      p += `<path class="edge${e2.is_key?' key':''}" d="M${A.x},${A.y} Q${mx},${my} ${B.x},${B.y}"/>`;
+      if(e2.label) p += `<text class="lb" x="${mx}" y="${my+8}" text-anchor="middle">${esc(e2.label)}</text>`;
+    }
+    $('#mEdges').innerHTML = p;
+  });
+}
+
+/* ── 드래그 배치 → 놓으면 좌표 저장 ── */
+let drag = null;
+$('#mNodes').addEventListener('mousedown', e => {
+  const el = e.target.closest('.mn'); if(!el) return;
+  if($('#mCanvas').classList.contains('linking')) return;
+  const n = MN.find(x => x.node_id === el.dataset.id);
+  drag = { el, n, ox: e.clientX - n.x, oy: e.clientY - n.y, moved: false };
+  e.preventDefault();
+});
+addEventListener('mousemove', e => {
+  if(!drag) return;
+  drag.moved = true;
+  drag.n.x = Math.max(0, Math.round((e.clientX - drag.ox) / 2) * 2);
+  drag.n.y = Math.max(0, Math.round((e.clientY - drag.oy) / 2) * 2);
+  drag.el.style.left = drag.n.x + 'px';
+  drag.el.style.top  = drag.n.y + 'px';
+});
+addEventListener('mouseup', async () => {
+  if(!drag) return;
+  const d = drag; drag = null;
+  if(!d.moved) return;
+  drawMap();
+  const { error } = await sb.from('map_nodes').update({ x: d.n.x, y: d.n.y }).eq('node_id', d.n.node_id);
+  if(error) die(error, '좌표 저장');
+});
+
+/* ── 연결 그리기 ── */
+$('#mLink').onclick = () => {
+  const on = $('#mCanvas').classList.toggle('linking');
+  mLinkFrom = null;
+  $('#mLink').classList.toggle('on', on);
+  $('#mHint').textContent = on ? '시작 노드 → 끝 노드 순서로 클릭하세요' : '노드를 끌어다 배치하세요 · 노드 클릭 = 선택';
+};
+
+$('#mNodes').addEventListener('click', async e => {
+  const el = e.target.closest('.mn'); if(!el) return;
+  const id = el.dataset.id;
+
+  if($('#mCanvas').classList.contains('linking')){
+    if(!mLinkFrom){ mLinkFrom = id; el.classList.add('sel'); $('#mHint').textContent = '끝 노드를 클릭하세요'; return; }
+    if(mLinkFrom === id){ mLinkFrom = null; el.classList.remove('sel'); return; }
+    const label = prompt('연결 라벨 (선택) — 예: 인스타 확산') || null;
+    const isKey = confirm('핵심 연결인가요? (빨간 굵은 선)\n확인 = 핵심 · 취소 = 일반');
+    const { error } = await sb.from('map_edges').insert({ view_id: mCur, a: mLinkFrom, b: id, label, is_key: isKey });
+    mLinkFrom = null;
+    if(error) return die(error, '연결 만들기');
+    $('#mLink').click();
+    await loadMap();
+    return;
+  }
+  openNode(id);
+});
+
+function openNode(id){
+  mSel = id;
+  const n = MN.find(x => x.node_id === id); if(!n) return;
+  $('#mPanel').hidden = false;
+  $('#mpT').value = n.t || '';
+  $('#mpActive').value = (n.active || []).join(', ');
+  $('#mpTags').value   = (n.tags || []).join(', ');
+  $('#mpHead').value  = n.headline || '';
+  $('#mpMeta').value  = n.meta || '';
+  $('#mpBadge').value = n.badge || '';
+  $('#mBundleRow').hidden = n.kind !== 'bundle';
+  $('#mpCnt').value = n.cnt || '';
+  $('#mpLbl').value = n.label || '';
+  drawMap();
+}
+$('#mClose').onclick = () => { mSel = null; $('#mPanel').hidden = true; drawMap(); };
+
+const csvArr = v => v.split(',').map(x => x.trim()).filter(Boolean);
+
+$('#mSave').onclick = async () => {
+  if(!mSel) return;
+  const patch = {
+    t: $('#mpT').value || ymNow(),
+    active:   csvArr($('#mpActive').value),
+    tags:     csvArr($('#mpTags').value),
+    headline: $('#mpHead').value.trim()  || null,
+    meta:     $('#mpMeta').value.trim()  || null,
+    badge:    $('#mpBadge').value        || null,
+    cnt:      $('#mpCnt').value.trim()   || null,
+    label:    $('#mpLbl').value.trim()   || null
+  };
+  if(!patch.active.length) patch.active = null;
+  if(!patch.tags.length)   patch.tags = null;
+  const { error } = await sb.from('map_nodes').update(patch).eq('node_id', mSel);
+  if(error) return die(error, '노드 저장');
+  await loadMap();
+  toast('저장했습니다');
+};
+
+$('#mDel').onclick = async () => {
+  if(!mSel || !confirm('이 노드와 연결된 선을 전부 지울까요?')) return;
+  const { error } = await sb.from('map_nodes').delete().eq('node_id', mSel);
+  if(error) return die(error, '노드 삭제');
+  mSel = null; $('#mPanel').hidden = true;
+  await loadMap();
+};
+
+const LOADERS = { feed:renderFeed, queue:renderQueue, conf:renderAdmins, map:loadMap };
+$('#tabs').onclick = e => {
+  const b = e.target.closest('button'); if(!b) return;
+  $$('#tabs button').forEach(x=>x.classList.toggle('on', x===b));
+  ['intake','feed','dict','brand','celeb','map','queue','conf'].forEach(v=>
+    $('#'+v+'View').classList.toggle('on', b.dataset.v===v));
+  LOADERS[b.dataset.v]?.();
+};
+
+boot();
+</script>
+
+</body>
+</html>

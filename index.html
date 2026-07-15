@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TREND AGENT — Live Feed &amp; Key Brand</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--paper:#faf7f2; --ink:#1d1d1b; --sub:#8a8578; --hair:#e4ded2; --rising:#c8451f; --new:#1a7a4a; --sticky:#ffe98a}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--paper); color:var(--ink); font-family:'Noto Sans KR',sans-serif}
+header{display:flex; align-items:center; gap:22px; padding:14px 26px; border-bottom:1px solid var(--ink); position:sticky; top:0; background:var(--paper); z-index:10; flex-wrap:wrap}
+header h1{font-family:'Playfair Display',serif; font-size:22px}
+.tabs button{border:1px solid var(--ink); background:transparent; padding:7px 16px; font-size:11px; letter-spacing:.15em; cursor:pointer; font-weight:700; font-family:inherit}
+.tabs button.on{background:var(--ink); color:#fff}
+#mapWrap{position:relative; height:460px; border:1px solid var(--hair); margin-top:16px; overflow:hidden; background:#f3f1ec}
+#mapFrame{width:143%; height:143%; border:0; transform:scale(.7); transform-origin:0 0}
+@media (max-width:900px){ #mapWrap{height:320px} }
+#wall{display:flex; flex-wrap:wrap; gap:14px; margin-top:16px}
+.pit{width:196px; min-height:150px; padding:12px 13px; background:var(--sticky); position:relative;
+     box-shadow:2px 3px 7px rgba(0,0,0,.13); transform:rotate(var(--r,0deg)); transition:transform .16s;
+     display:flex; flex-direction:column; font-size:12.5px; line-height:1.55}
+.pit:hover{transform:rotate(0) scale(1.035); z-index:2}
+.pit .t{font-weight:700; margin-bottom:6px}
+.pit .d{color:#5a5344; font-size:11.5px; flex:1}
+.pit .kws{display:flex; flex-wrap:wrap; gap:3px; margin:8px 0 6px}
+.pit .k{font-size:9px; font-weight:700; letter-spacing:.04em; padding:1px 5px; border-radius:8px;
+        background:var(--kc,#fff); color:#1d1d1b; box-shadow:inset 0 0 0 1px rgba(0,0,0,.14)}
+.pit .s{font-size:9.5px; color:#7d7461; letter-spacing:.04em; border-top:1px solid rgba(0,0,0,.11); padding-top:5px}
+.pit .del{position:absolute; top:4px; right:6px; border:0; background:none; cursor:pointer;
+          color:#8a7f63; font-size:14px; display:none}
+.pit:hover .del{display:block}
+#addPit{width:196px; min-height:150px; border:1.5px dashed var(--hair); background:transparent; cursor:pointer;
+        color:var(--sub); font:inherit; font-size:12px; border-radius:2px}
+#addPit:hover{border-color:var(--ink); color:var(--ink)}
+#pitForm{width:196px; min-height:150px; padding:10px; background:var(--sticky); box-shadow:2px 3px 7px rgba(0,0,0,.13);
+         display:flex; flex-direction:column; gap:5px}
+#pitForm input,#pitForm textarea{border:0; border-bottom:1px solid rgba(0,0,0,.2); background:transparent;
+  font:inherit; font-size:11.5px; padding:3px 1px; width:100%; outline:none; font-family:'Noto Sans KR',sans-serif}
+#pitForm textarea{resize:none; height:34px}
+#pitForm .go{border:1px solid var(--ink); background:var(--ink); color:var(--paper); font:inherit; font-size:10px;
+  font-weight:700; letter-spacing:.1em; padding:5px; cursor:pointer; margin-top:auto}
+#pitForm .go.ghost{background:transparent; color:var(--ink)}
+.tabs a{border:1px solid var(--ink); background:transparent; padding:7px 16px; font-size:11px; letter-spacing:.15em; font-weight:700; text-decoration:none; color:var(--ink); display:inline-block}
+.note{margin-left:auto; font-size:10px; letter-spacing:.14em; color:var(--sub); text-transform:uppercase}
+.view{display:none} .view.on{display:block}
+/* ── LIVE FEED ── */
+#feedWrap{display:flex}
+#dateRail{position:sticky; top:57px; align-self:flex-start; min-width:120px; height:calc(100vh - 57px);
+  border-right:1px solid var(--hair); padding:18px 0; overflow-y:auto}
+#dateRail .d{display:block; width:100%; text-align:left; border:0; background:none; cursor:pointer;
+  padding:7px 18px; font-size:12px; color:var(--sub); border-left:3px solid transparent; font-family:inherit}
+#dateRail .d.on{color:var(--ink); font-weight:700; border-left-color:var(--rising)}
+#feedMain{flex:1; padding:26px 30px; min-width:0}
+.dgroup{margin-bottom:36px}
+.dgroup h2{font-family:'Playfair Display',serif; font-size:26px; border-bottom:1px solid var(--ink); padding-bottom:8px; margin-bottom:16px}
+.grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:20px}
+.fcard{background:#fff; border:1px solid var(--hair); cursor:pointer; text-decoration:none; color:var(--ink); display:block; position:relative; transition:transform .15s}
+.fcard:hover{transform:translateY(-3px)}
+.fcard:focus-visible{outline:2px solid var(--rising); outline-offset:2px}
+.fcard .th{height:210px; background-size:cover; background-position:top center; background-color:#efeae1}
+.fcard:hover .th{filter:brightness(1.04)}
+.fcard .bd{padding:12px 14px}
+.fcard h3{font-family:'Playfair Display',serif; font-size:18px; margin-bottom:4px; word-break:keep-all}
+.fcard .meta{font-size:11px; color:var(--sub); line-height:1.5}
+.badge{position:absolute; top:10px; left:10px; font-size:9px; font-weight:800; letter-spacing:.12em; padding:4px 9px; color:#fff; z-index:1}
+.badge.MAIN{background:var(--rising)} .badge.FEED{background:#9a938a} .badge.NEW{background:var(--new)}
+.ntag{font-size:8px; font-weight:800; letter-spacing:.08em; padding:2px 6px; color:#fff; margin-left:4px; vertical-align:middle}
+.ntag.KR{background:#1a7a4a}.ntag.GL{background:#2b5db8}.ntag.CN{background:#c8451f}
+/* ── KEY BRAND ── */
+#brandMain{padding:26px 30px}
+#brandMain h2{font-family:'Playfair Display',serif; font-size:28px; border-bottom:1px solid var(--ink); padding-bottom:8px; margin-bottom:18px}
+.bgrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:20px}
+.bcard{background:#fff; border:1px solid var(--hair); padding:20px 22px; cursor:pointer; transition:transform .15s; position:relative; overflow:hidden}
+.bcard:hover{transform:translateY(-3px)}
+.bcard .peek{position:absolute; top:14px; right:0; width:132px; border:1px solid var(--hair);
+  box-shadow:-4px 4px 10px #00000022; transform:translateX(105%); transition:transform .3s; z-index:2}
+.bcard.open .peek{transform:translateX(34%)}
+.bcard .gptline{max-height:0; overflow:hidden; transition:max-height .3s, padding .3s; font-size:11px; line-height:1.6;
+  background:var(--sticky); padding:0 10px}
+.bcard.open .gptline{max-height:200px; padding:8px 10px; margin-top:10px; overflow-y:auto}
+.bcard .gptline a{color:var(--rising); text-decoration:none; border-bottom:1px solid var(--rising)}
+.bcard .k{font-size:10px; letter-spacing:.2em; color:var(--sub); text-transform:uppercase; margin-bottom:8px}
+.bcard h3{font-family:'Playfair Display',serif; font-size:26px; margin-bottom:10px}
+.bcard .li{font-size:13px; line-height:1.6}
+.bcard .foot{display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--hair); margin-top:14px; padding-top:12px}
+.pill{font-size:10px; font-weight:800; letter-spacing:.12em; padding:5px 10px; color:#fff; background:var(--rising)}
+.pill.WATCH{background:#cfc9bd; color:var(--ink)}
+.pct{font-family:'Playfair Display',serif; font-size:26px; color:var(--rising)}
+footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter-spacing:.18em; color:var(--sub); text-transform:uppercase}
+.empty{padding:48px; text-align:center; color:var(--sub); font-size:13px}
+#load{position:fixed; inset:0; background:var(--paper); display:flex; align-items:center; justify-content:center;
+  flex-direction:column; gap:12px; z-index:40; font-size:11px; letter-spacing:.2em; color:var(--sub); text-transform:uppercase}
+#load.done{display:none}
+.spin{width:24px;height:24px;border:2px solid var(--hair);border-top-color:var(--ink);border-radius:50%;animation:sp .7s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important; transition:none!important}}
+@media (max-width:720px){ #feedWrap{flex-direction:column} #dateRail{position:static; height:auto; width:100%; border-right:0; border-bottom:1px solid var(--hair); display:flex; overflow-x:auto} #dateRail .d{width:auto; white-space:nowrap} }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>TREND AGENT</h1>
+  <div class="tabs">
+    <button data-v="board" class="on">MAIN BOARD</button>
+    <button data-v="feed">LIVE FEED</button>
+    <button data-v="brand">KEY BRAND</button>
+    <a href="admin.html">+ 수집</a>
+  </div>
+  <span class="note" id="noteTxt">서로 다른 출처 3개+ 연결만 승격</span>
+</header>
+
+<div id="boardView" class="view on"><div id="boardMain"></div></div>
+
+<div id="feedView" class="view"><div id="feedWrap">
+  <nav id="dateRail"></nav>
+  <div id="feedMain"></div>
+</div></div>
+
+<div id="brandView" class="view"><div id="brandMain">
+  <h2>Key Brands <span style="font-size:12px;color:var(--sub);font-family:'Noto Sans KR'">— 수집 자료에서 언급된 브랜드 · 클릭하면 검증 노트와 관련 사진</span></h2>
+  <div class="bgrid" id="bgrid"></div>
+</div></div>
+
+<footer>TREND AGENT · LIVE FEED &amp; KEY BRAND · SUPABASE</footer>
+<div id="load"><div class="spin"></div><span>불러오는 중</span></div>
+
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+/* ═══════════ 설정 — admin.html 과 같은 값 ═══════════ */
+const SUPABASE_URL  = 'https://YOUR-PROJECT.supabase.co';
+const SUPABASE_ANON = 'YOUR-ANON-KEY';
+/* ═════════════════════════════════════════════════ */
+
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
+const $  = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const ymNow = () => new Date().toISOString().slice(0,7);
+const thumbCss = url => url
+  ? `background-image:url(${esc(url)})`
+  : 'background:linear-gradient(160deg,#d8cfc0,#a99a82)';
+
+/* ═══ 데이터 ═══ */
+let FEED = [], BRANDS = [], RISING = [], NOTES = [], ENTS = [], SESSION = null;
+
+async function load(){
+  try{
+    const [f, b, ents, cnts, ae, nt] = await Promise.all([
+      sb.from('v_feed').select('*').order('content_date',{ascending:false}).order('posted_at',{ascending:false}).limit(300),
+      sb.from('v_key_brands').select('*').neq('status','Archived')
+        .order('pinned',{ascending:false}).order('brand_name'),
+      sb.from('entities').select('*').eq('status','Active'),
+      sb.from('v_entity_source_count').select('*'),
+      sb.from('asset_entities').select('entity_id,role,sort_order,images(image_id,thumb_url,is_main,created_at)'),
+      sb.from('v_notes').select('*').order('created_at',{ascending:false}).limit(60)
+    ]);
+    for(const r of [f,b,ents,cnts,ae,nt]) if(r.error) throw r.error;
+    FEED = f.data; BRANDS = b.data; NOTES = nt.data; ENTS = ents.data;
+
+    const cnt = Object.fromEntries(cnts.data.map(r => [r.entity_id, r.source_count]));
+    const cover = {};
+    for(const r of ae.data){
+      if(!r.images?.thumb_url) continue;
+      const cur = cover[r.entity_id];
+      const score = (r.images.is_main ? 100 : 0) + (r.role === 'cover' ? 10 : 0);
+      if(!cur || score > cur.score) cover[r.entity_id] = { score, url: r.images.thumb_url };
+    }
+    RISING = ents.data
+      .map(e => ({ ...e, src: cnt[e.entity_id] || 0, img: cover[e.entity_id]?.url }))
+      .filter(e => e.pinned || e.src >= 1)
+      .sort((a,b2) => (b2.pinned - a.pinned) || (b2.src - a.src) ||
+                      String(b2.first_seen||'').localeCompare(String(a.first_seen||'')))
+      .slice(0, 12);
+
+    renderBoard(); renderFeed(); renderBrands();
+  }catch(e){
+    console.error(e);
+    document.body.insertAdjacentHTML('afterbegin',
+      `<div style="background:#c8451f;color:#fff;padding:12px 26px;font-size:13px">
+        데이터를 불러오지 못했습니다 — ${esc(e.message)}. Supabase 주소와 키를 확인해주세요.</div>`);
+  }
+  $('#load').classList.add('done');
+}
+
+/* ═══ MAIN BOARD ═══ */
+function renderBoard(){
+  const cards = RISING.length ? RISING.map(e => {
+    const badge = e.src >= 3 ? 'MAIN' : (e.first_seen === ymNow() ? 'NEW' : 'FEED');
+    const meta = [
+      esc(e.axis),
+      esc([e.category_l1, e.category_l2].filter(Boolean).join(' › ')),
+      `sources <b style="color:var(--rising)">${e.src}</b>`,
+      e.first_seen ? `First seen ${esc(e.first_seen)}` : ''
+    ].filter(Boolean).join(' · ');
+    return `<div class="fcard" style="cursor:default">
+      <span class="badge ${badge}">${badge === 'MAIN' ? 'MAIN BOARD' : badge}</span>
+      <div class="th" style="${thumbCss(e.img)}"></div>
+      <div class="bd"><h3>${esc(e.name_en || e.name_kr)}</h3><div class="meta">${meta}</div></div>
+    </div>`;
+  }).join('') : '<div class="empty" style="grid-column:1/-1">아직 올라온 트렌드가 없습니다.</div>';
+
+  const mini = BRANDS.filter(b => b.signal === 'RISING' || b.pinned).slice(0, 6);
+  const miniHtml = mini.length ? mini.map(b => `
+    <div class="bcard" style="cursor:default">
+      <div class="k">${esc(b.tier || '')} · ${esc(b.origin || '')}</div>
+      <h3>${esc(b.brand_name)}</h3>
+      <div class="li">${b.headline || '<span style="color:var(--sub)">연결된 트렌드 정보 없음</span>'}</div>
+      <div class="foot"><span class="pill ${esc(b.signal)}">${esc(b.signal)}</span>
+        <span class="pct">${esc(b.growth_pct || '')}</span></div>
+    </div>`).join('') : '<div class="empty" style="grid-column:1/-1">떠오르는 브랜드가 아직 없습니다.</div>';
+
+  $('#boardMain').innerHTML = `<div style="padding:26px 30px">
+    <h2 style="font-family:'Playfair Display',serif;font-size:28px;border-bottom:1px solid var(--ink);padding-bottom:8px;display:flex;align-items:baseline;gap:12px">
+      Trend Map
+      <span style="font-size:12px;color:var(--sub);font-family:'Noto Sans KR';font-weight:400;flex:1">— 선 연결 구조 · 노드 클릭 = 우측 상세</span>
+      <a href="map.html" target="_blank" rel="noopener"
+         style="font-size:11px;letter-spacing:.1em;color:var(--rising);text-decoration:none;border-bottom:1px solid var(--rising);font-family:'Noto Sans KR';font-weight:700">새 창으로 크게 ↗</a>
+    </h2>
+    <div id="mapWrap"><iframe id="mapFrame" src="map.html" title="Trend Map" loading="lazy"></iframe></div>
+
+    <h2 style="font-family:'Playfair Display',serif;font-size:28px;border-bottom:1px solid var(--ink);padding-bottom:8px;margin:34px 0 0">
+      Rising Now <span style="font-size:12px;color:var(--sub);font-family:'Noto Sans KR'">— 출처 3개+ 연결이면 MAIN BOARD로 승격</span></h2>
+    <div class="grid" style="margin-top:16px">${cards}</div>
+    <h2 style="font-family:'Playfair Display',serif;font-size:28px;border-bottom:1px solid var(--ink);padding-bottom:8px;margin:34px 0 16px">
+      Rising Brands</h2>
+    <div class="bgrid">${miniHtml}</div>
+
+    <h2 style="font-family:'Playfair Display',serif;font-size:28px;border-bottom:1px solid var(--ink);padding-bottom:8px;margin:34px 0 0">
+      POST-IT <span style="font-size:12px;color:var(--sub);font-family:'Noto Sans KR'">— 같은 키워드끼리 같은 색</span></h2>
+    <div id="wall"></div>
+  </div>`;
+  renderWall();
+}
+
+/* ═══ POST-IT 월 ═══ */
+/* 키워드마다 고정 색 — entity_id 를 해시해서 항상 같은 색이 나오게 */
+function kwColor(id){
+  let h = 0; for(const ch of String(id)) h = (h*31 + ch.charCodeAt(0)) % 360;
+  return `hsl(${h} 68% 84%)`;
+}
+const tilt = id => {
+  let h = 2166136261;
+  for(const c of String(id)){ h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); }
+  return (((h >>> 0) % 401) / 100 - 2).toFixed(2);   // -2.00 ~ +2.00
+};
+
+function renderWall(){
+  const w = $('#wall'); if(!w) return;
+  w.innerHTML = NOTES.map(n => `
+    <div class="pit" style="--r:${tilt(n.note_id)}deg" data-id="${esc(n.note_id)}">
+      ${SESSION ? '<button class="del" title="삭제">×</button>' : ''}
+      <div class="t">${esc(n.note_text)}</div>
+      <div class="d">${esc(n.detail || '')}</div>
+      <div class="kws">${(n.keywords||[]).map(k =>
+        `<span class="k" style="--kc:${kwColor(k.entity_id)}">${esc(k.name_kr || k.name_en)}</span>`).join('')}</div>
+      <div class="s">${esc(n.source_label)} · ${esc(n.year_month)}</div>
+    </div>`).join('')
+    + `<button id="addPit">＋ POST-IT</button>`;
+}
+
+/* ═══ LIVE FEED ═══ */
+function renderFeed(){
+  const rail = $('#dateRail'), main = $('#feedMain');
+  rail.innerHTML = ''; main.innerHTML = '';
+  if(!FEED.length){ main.innerHTML = '<div class="empty">아직 수집된 자료가 없습니다.</div>'; return; }
+
+  const groups = new Map();
+  for(const it of FEED){
+    const d = it.content_date || String(it.posted_at).slice(0,10);
+    if(!groups.has(d)) groups.set(d, []);
+    groups.get(d).push(it);
+  }
+
+  let first = true;
+  for(const [d, items] of groups){
+    const db = document.createElement('button');
+    db.className = 'd' + (first ? ' on' : ''); db.textContent = d;
+    db.onclick = () => {
+      $('#g-' + d).scrollIntoView({ behavior:'smooth', block:'start' });
+      rail.querySelectorAll('.d').forEach(x => x.classList.toggle('on', x === db));
+    };
+    rail.appendChild(db);
+    first = false;
+
+    const sec = document.createElement('section');
+    sec.className = 'dgroup'; sec.id = 'g-' + d;
+    sec.innerHTML = `<h2>${esc(d)}</h2><div class="grid">` + items.map(it => {
+      const tag = ['KR','GL','CN'].includes(it.region) ? it.region : 'KR';
+      const href = it.url || it.file_url || '#';
+      return `<a class="fcard" href="${esc(href)}" target="_blank" rel="noopener">
+        <span class="badge ${it.badge}">${it.badge === 'MAIN' ? 'MAIN BOARD' : it.badge}</span>
+        <div class="th" style="${thumbCss(it.thumb_url)}"></div>
+        <div class="bd"><h3>${esc(it.title)}<span class="ntag ${tag}">${tag}</span></h3>
+          <div class="meta">${esc(it.meta || '')}</div></div>
+      </a>`;
+    }).join('') + '</div>';
+    main.appendChild(sec);
+  }
+}
+
+/* ═══ KEY BRAND ═══ */
+function renderBrands(){
+  const bg = $('#bgrid');
+  if(!BRANDS.length){ bg.innerHTML = '<div class="empty" style="grid-column:1/-1">등록된 브랜드가 없습니다.</div>'; return; }
+  bg.innerHTML = BRANDS.map(b => {
+    const photos = b.photos || [];
+    const links = (b.links || []).map(l =>
+      `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)} ↗</a>`).join(' · ');
+    const note = [b.verify_note ? esc(b.verify_note) : '', links].filter(Boolean).join('<br>');
+    return `<div class="bcard">
+      <div class="k">${esc(b.tier || '')} · ${esc(b.origin || '')}</div>
+      <h3>${esc(b.brand_name)}</h3>
+      <div class="li">${b.headline || '<span style="color:var(--sub)">연결된 트렌드 정보 없음</span>'}</div>
+      ${photos.length ? `<img class="peek" src="${esc(photos[0].thumb_url || photos[0].file_url)}" alt="" loading="lazy">` : ''}
+      <div class="gptline">${note || '<span style="color:var(--sub)">검증 노트가 아직 없습니다.</span>'}</div>
+      <div class="foot"><span class="pill ${esc(b.signal)}">${esc(b.signal)}</span>
+        <span class="pct">${esc(b.growth_pct || '')}</span></div>
+    </div>`;
+  }).join('');
+  bg.onclick = e => {
+    if(e.target.closest('a')) return;
+    e.target.closest('.bcard')?.classList.toggle('open');
+  };
+}
+
+/* ═══ 탭 ═══ */
+const TABNOTE = {
+  board: '서로 다른 출처 3개+ 연결만 승격',
+  feed:  '피드 = 전체 노출 · 날짜 클릭 = 점프',
+  brand: '카드 클릭 = 검증 노트 · 대표사진'
+};
+document.querySelector('.tabs').addEventListener('click', e => {
+  const b = e.target.closest('button'); if(!b) return;
+  document.querySelectorAll('.tabs button').forEach(x => x.classList.toggle('on', x === b));
+  ['board','feed','brand'].forEach(v => $('#' + v + 'View').classList.toggle('on', b.dataset.v === v));
+  $('#noteTxt').textContent = TABNOTE[b.dataset.v];
+});
+
+/* ═══ 대시보드에서 바로 POST-IT ═══
+   읽기는 누구나. 쓰기는 RLS 가 admins 로 막습니다 — 그래서 여기서 로그인을 받습니다. */
+sb.auth.getSession().then(({ data }) => { SESSION = data.session; renderWall(); });
+
+const norm = v => String(v||'').toLowerCase().replace(/[\s#_-]/g,'');
+
+function matchEntity(term){
+  const t = norm(term); if(!t) return null;
+  const hit = ENTS.find(e => norm(e.name_kr)===t || norm(e.name_en)===t);
+  return hit ? hit.entity_id : null;
+}
+
+document.addEventListener('click', async e => {
+  /* 삭제 */
+  const del = e.target.closest('.pit .del');
+  if(del){
+    const id = del.closest('.pit').dataset.id;
+    if(!confirm('이 POST-IT을 지울까요?')) return;
+    const { error } = await sb.from('notes').delete().eq('note_id', id);
+    if(error) return alert('삭제 실패 — ' + error.message);
+    NOTES = NOTES.filter(n => n.note_id !== id); renderWall();
+    return;
+  }
+
+  if(!e.target.closest('#addPit')) return;
+
+  /* 로그인 안 돼 있으면 먼저 로그인 — prompt 는 비밀번호가 평문으로 보여서 안 씁니다 */
+  if(!SESSION){
+    const lf = document.createElement('div');
+    lf.id = 'pitForm';
+    lf.innerHTML = `
+      <div style="font-size:10px;font-weight:700;letter-spacing:.08em">관리자만 붙일 수 있습니다</div>
+      <input class="e" type="email" placeholder="이메일" autocomplete="username">
+      <input class="p" type="password" placeholder="비밀번호" autocomplete="current-password">
+      <div class="err" style="font-size:10px;color:#c8451f;min-height:12px"></div>
+      <button class="go">로그인</button>
+      <button class="go ghost">취소</button>`;
+    $('#addPit').replaceWith(lf);
+    lf.querySelector('.e').focus();
+
+    lf.querySelector('.go.ghost').onclick = () => renderWall();
+    const doLogin = async () => {
+      const em = lf.querySelector('.e').value.trim(), pw = lf.querySelector('.p').value;
+      if(!em || !pw) return;
+      const { data, error } = await sb.auth.signInWithPassword({ email: em, password: pw });
+      if(error){ lf.querySelector('.err').textContent = '로그인 실패'; return; }
+      SESSION = data.session;
+      await load();
+    };
+    lf.querySelector('.go:not(.ghost)').onclick = doLogin;
+    lf.querySelector('.p').addEventListener('keydown', ev => { if(ev.key === 'Enter') doLogin(); });
+    return;
+  }
+
+  /* 작성 폼 */
+  const btn = $('#addPit');
+  const f = document.createElement('div');
+  f.id = 'pitForm';
+  f.innerHTML = `
+    <input class="t" placeholder="메모 *" maxlength="90">
+    <textarea class="d" placeholder="부가 설명"></textarea>
+    <input class="k" placeholder="키워드, 쉼표로">
+    <input class="s" placeholder="출처 *">
+    <input class="m" type="month" value="${new Date().toISOString().slice(0,7)}">
+    <button class="go">붙이기</button>
+    <button class="go ghost">취소</button>`;
+  btn.replaceWith(f);
+  f.querySelector('.t').focus();
+
+  f.querySelector('.go.ghost').onclick = () => renderWall();
+  f.querySelector('.go:not(.ghost)').onclick = async () => {
+    const text = f.querySelector('.t').value.trim();
+    const src  = f.querySelector('.s').value.trim();
+    const ym   = f.querySelector('.m').value;
+    if(!text) return f.querySelector('.t').focus();
+    if(!src)  return f.querySelector('.s').focus();
+    if(!ym)   return f.querySelector('.m').focus();
+
+    const eids = [], missed = [];
+    for(const k of f.querySelector('.k').value.split(',').map(x=>x.trim().replace(/^#/,'')).filter(Boolean)){
+      const id = matchEntity(k);
+      if(id){ if(!eids.includes(id)) eids.push(id); } else missed.push(k);
+    }
+
+    const { data, error } = await sb.from('notes').insert({
+      year_month: ym, note_text: text, detail: f.querySelector('.d').value.trim() || null,
+      source_label: src, created_by: SESSION.user.email
+    }).select('note_id').single();
+    if(error) return alert('저장 실패 — ' + error.message);
+
+    if(eids.length)
+      await sb.from('note_entities').insert(eids.map(eid => ({ note_id: data.note_id, entity_id: eid })));
+    for(const k of missed){
+      const { data:hit } = await sb.from('unmapped_queue').select('id,count')
+        .eq('normalized_text', norm(k)).is('source_id', null).maybeSingle();
+      if(hit) await sb.from('unmapped_queue').update({ count: hit.count+1, last_seen: ym }).eq('id', hit.id);
+      else    await sb.from('unmapped_queue').insert({ raw_text:k, year_month:ym, count:1,
+                first_seen:ym, last_seen:ym });
+    }
+    if(missed.length) alert(`사전에 없는 키워드 ${missed.length}개는 미매핑 큐로 보냈습니다 — ${missed.join(', ')}`);
+    await load();
+  };
+});
+
+load();
+</script>
+</body>
+</html>
