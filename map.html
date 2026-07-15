@@ -162,8 +162,8 @@ footer b{color:var(--sticky)}
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ══ 설정 — admin.html · index.html 과 같은 값이어야 합니다 ══ */
-const SUPABASE_URL  = 'https://piifytwflubdtkzaiisi.supabase.co';
-const SUPABASE_ANON  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBpaWZ5dHdmbHViZHRremFpaXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQwODI5NDcsImV4cCI6MjA5OTY1ODk0N30.cVrgt7YQ99R-slePt8U2r_GmtDxetejZdqHcnqJmwhc';
+const SUPABASE_URL  = 'https://YOUR-PROJECT.supabase.co';
+const SUPABASE_ANON = 'YOUR-ANON-KEY';
 /* ═══════════════════════════════════════════════════ */
 
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
@@ -181,13 +181,15 @@ const timesOf = v => {
 };
 
 async function load(){
-  const [vw, nd, eg, en] = await Promise.all([
+  const [vw, nd, eg, en, sr] = await Promise.all([
     sb.from('map_views').select('*').order('sort_order'),
     sb.from('v_map_nodes').select('*'),
     sb.from('map_edges').select('*'),
-    sb.from('entities').select('entity_id,name_kr,name_en,axis,notes,proposal,first_seen,status,brand_fit')
+    sb.from('entities').select('entity_id,name_kr,name_en,axis,notes,proposal,first_seen,status,brand_fit'),
+    sb.from('sources').select('source_id,stage')
   ]);
-  for(const r of [vw, nd, eg, en]) if(r.error){ fail(r.error.message); return; }
+  for(const r of [vw, nd, eg, en, sr]) if(r.error){ fail(r.error.message); return; }
+  SRCMAP = Object.fromEntries(sr.data.map(x => [x.source_id, x.stage]));
   VIEWS = vw.data; NODES = nd.data; EDGES = eg.data;
   ENTS = Object.fromEntries(en.data.map(e => [e.entity_id, e]));
 
@@ -333,50 +335,97 @@ function applyTagFilter(){
   const x = $('#filterX'); if(x) x.onclick = () => { TAGFILTER = null; applyTagFilter(); };
 }
 
-/* ── 상세 패널 — 원장에서 끌어옵니다 ── */
+/* ── 상세 패널 ──
+   mockup 의 MoM / Volume / Diffusion / Saturation 을 sources.stage 로 계산합니다.
+   stage = leading → early → mainstream → lagging (확산 단계). 원래 이 모델로 설계돼 있습니다. */
+const STAGES = ['leading','early','mainstream','lagging'];
+const STAGE_KR = { leading:'선행', early:'초기', mainstream:'주류', lagging:'후행' };
+let SRCMAP = {};
+
+const ymN = t => { const m = String(t||'').match(/^(\d{4})-(\d{2})/); return m ? +m[1]*12 + +m[2] : null; };
+
 async function openDetail(id){
   const n = NODES.find(x => x.node_id === id); if(!n) return;
   $('#dK').textContent = n.r_kicker || n.kind.toUpperCase();
   $('#dH').textContent = n.r_headline || '';
-  const e = n.entity_id ? ENTS[n.entity_id] : null;
+  $('#detail').classList.add('open');
 
-  let why = [], stats = [], seen = '—', memo = n.r_meta || n.r_caption || '—', act = '—', links = [];
-
-  if(n.entity_id){
-    const [ae, de, sg] = await Promise.all([
-      sb.from('asset_entities').select('images(image_id,thumb_url,account,likes,source_id,year_month)').eq('entity_id', n.entity_id),
-      sb.from('document_entities').select('documents(doc_id,title,publisher,source_url,year_month)').eq('entity_id', n.entity_id),
-      sb.from('signals').select('*').eq('entity_id', n.entity_id).order('year_month', { ascending:false }).limit(6)
-    ]);
-    const imgs = (ae.data||[]).map(r => r.images).filter(Boolean);
-    const docs = (de.data||[]).map(r => r.documents).filter(Boolean);
-    const srcs = new Set([...imgs.map(i=>i.source_id), ...docs.map(d=>d.source_id)].filter(Boolean));
-
-    stats = [['Sources', String(srcs.size)], ['Photos', String(imgs.length)],
-             ['Docs', String(docs.length)], ['First seen', e?.first_seen || '—']];
-    if(imgs.length) why.push(`사진 ${imgs.length}건 · 출처 ${srcs.size}곳`);
-    if(docs.length) why.push(`문서 ${docs.length}건`);
-    if((sg.data||[]).length) why.push(`시그널 ${sg.data.length}개월 기록`);
-    const celebs = imgs.filter(i => i.account).map(i => i.account);
-    seen = celebs.length ? `${celebs.slice(0,6).join(' · ')}${celebs.length>6?` 외 ${celebs.length-6}`:''}` : '착장 데이터 없음';
-    memo = e?.notes || memo;
-    act = e?.proposal || '적용 제안이 아직 없습니다 — 관리자 → 사전에서 채우세요';
-    links = docs.filter(d => d.source_url).slice(0,5).map(d => ({ label: d.title || d.publisher, url: d.source_url }));
-
-    const ev = imgs.filter(i=>i.thumb_url).slice(0,6);
-    if(ev.length) seen += `<div class="ev" style="margin-top:8px">${ev.map(i=>`<img src="${esc(i.thumb_url)}" loading="lazy">`).join('')}</div>`;
+  if(!n.entity_id){
+    $('#dWhy').innerHTML   = '<li>원장 항목이 연결되지 않은 노드입니다</li>';
+    $('#dSeen').innerHTML  = '—';
+    $('#dStats').innerHTML = '';
+    $('#dMemo').textContent = n.r_meta || n.r_caption || '—';
+    $('#dAct').textContent  = '—';
+    $('#dLinks').innerHTML  = '—';
+    return;
   }
 
-  $('#dWhy').innerHTML   = (why.length?why:['—']).map(w => `<li>${esc(w)}</li>`).join('');
+  const e = ENTS[n.entity_id];
+  const [ae, de, re_] = await Promise.all([
+    sb.from('asset_entities').select('role,images(image_id,thumb_url,account,is_celeb,celeb_name,likes,source_id,year_month,post_date,created_at)').eq('entity_id', n.entity_id),
+    sb.from('document_entities').select('documents(doc_id,title,publisher,source_url,source_id,year_month)').eq('entity_id', n.entity_id),
+    sb.from('ranking_entities').select('rankings(id,rank,product_name,platform,source_id,year_month)').eq('entity_id', n.entity_id)
+  ]);
+  const imgs = (ae.data||[]).map(r => r.images).filter(Boolean);
+  const docs = (de.data||[]).map(r => r.documents).filter(Boolean);
+  const rnks = (re_.data||[]).map(r => r.rankings).filter(Boolean);
+  const all  = [...imgs, ...docs, ...rnks];
+
+  /* 확산 단계 */
+  const srcIds = [...new Set(all.map(x => x.source_id).filter(Boolean))];
+  const stages = [...new Set(srcIds.map(sid => SRCMAP[sid]).filter(Boolean))];
+  const reached = STAGES.filter(st => stages.includes(st));
+  const deep = reached.length ? STAGES.indexOf(reached[reached.length-1]) : -1;
+
+  const diffusion = reached.length >= 3 ? `Strong · ${reached.length} stages`
+                  : reached.length === 2 ? `Moderate · 2 stages`
+                  : reached.length === 1 ? `Weak · 1 stage` : '—';
+  const saturation = deep >= 3 ? 'High' : deep === 2 ? 'Mid' : deep >= 0 ? 'Low' : '—';
+
+  /* MoM — 이번 달 대비 지난 달 자료 수 */
+  const cur = ymN(n.t) ?? ymN(new Date().toISOString().slice(0,7));
+  const at = x => ymN(x.post_date || x.year_month || x.created_at);
+  const nCur = all.filter(x => at(x) === cur).length;
+  const nPrev = all.filter(x => at(x) === cur - 1).length;
+  const mom = nPrev ? `${nCur >= nPrev ? '+' : ''}${Math.round((nCur - nPrev) / nPrev * 100)}%`
+            : nCur ? 'NEW' : '—';
+
+  const volume = all.length >= 12 ? 'High' : all.length >= 5 ? 'Mid' : all.length ? 'Low' : '—';
+
+  /* WHY NOW */
+  const why = [];
+  const accts = [...new Set(imgs.map(x => x.account).filter(Boolean))];
+  if(accts.length) why.push(`계정 ${accts.length}개 · 사진 ${imgs.length}건`);
+  if(docs.length)  why.push(`문서 ${docs.length}건 — ${[...new Set(docs.map(d=>d.publisher).filter(Boolean))].slice(0,3).join(', ') || '출처 미상'}`);
+  if(rnks.length){
+    const best = Math.min(...rnks.map(r => r.rank).filter(Boolean));
+    why.push(`리테일 랭킹 진입 — 최고 ${best}위`);
+  }
+  if(reached.length >= 2) why.push(`${reached.map(x => STAGE_KR[x]).join(' → ')} 로 확산`);
+  if(saturation === 'Low' && all.length) why.push('시장 saturation Low — 진입 기회');
+  if(saturation === 'High') why.push('시장 saturation High — 선제 대응 필요');
+
+  /* SEEN ON */
+  const celebs = imgs.filter(x => x.is_celeb && x.celeb_name);
+  const others = accts.filter(a => !celebs.some(c => c.account === a));
+  let seen = celebs.length
+    ? `셀럽 착장 ${celebs.length}건 — ${celebs.slice(0,3).map(c => `${c.celeb_name} (${c.year_month||''})`).join(', ')}`
+      + (others.length ? ` · 일반 계정 ${others[0]} 외 ${others.length-1}` : '')
+    : accts.length ? `일반 계정 ${accts.slice(0,4).join(', ')}${accts.length>4?` 외 ${accts.length-4}`:''}`
+    : '착장 데이터 없음';
+  const ev = imgs.filter(x => x.thumb_url).slice(0,6);
+  if(ev.length) seen += `<div class="ev" style="margin-top:8px">${ev.map(x=>`<img src="${esc(x.thumb_url)}" loading="lazy" alt="">`).join('')}</div>`;
+
+  $('#dWhy').innerHTML   = (why.length ? why : ['연결된 자료가 아직 없습니다']).map(w => `<li>${esc(w)}</li>`).join('');
   $('#dSeen').innerHTML  = seen;
-  $('#dStats').innerHTML = (stats.length?stats:[['—','—']]).map(([k,v]) =>
-    `<div class="s"><b>${esc(v)}</b><span>${esc(k)}</span></div>`).join('');
-  $('#dMemo').textContent = memo;
-  $('#dAct').textContent  = act;
-  $('#dLinks').innerHTML  = links.length
+  $('#dStats').innerHTML = [['MoM',mom],['Volume',volume],['Diffusion',diffusion],['Saturation',saturation]]
+    .map(([k,v]) => `<div class="s"><b>${esc(v)}</b><span>${esc(k)}</span></div>`).join('');
+  $('#dMemo').textContent = e?.notes || n.r_meta || '메모가 아직 없습니다 — 관리자 → 사전에서 채우세요';
+  $('#dAct').textContent  = e?.proposal || '적용 제안이 아직 없습니다 — 관리자 → 사전에서 채우세요';
+  const links = docs.filter(d => d.source_url).slice(0,5).map(d => ({ label: d.title || d.publisher, url: d.source_url }));
+  $('#dLinks').innerHTML = links.length
     ? links.map(l => `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)}</a><br>`).join('')
     : '—';
-  $('#detail').classList.add('open');
 }
 $('#detail .x').onclick = () => $('#detail').classList.remove('open');
 
