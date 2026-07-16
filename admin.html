@@ -126,6 +126,13 @@ tbody tr:hover{background:#fdfcf9}
 .chip .cx{cursor:pointer; font-style:normal; margin-left:5px; opacity:.5}
 .chip .cx:hover{opacity:1}
 .chip.ismv{box-shadow:0 0 0 1.5px #c8451f}
+.ktc{display:inline-flex; align-items:center; gap:5px; cursor:pointer; margin:0 6px 6px 0;
+  padding:4px 9px; font-size:11px; border:1px solid var(--hair); border-radius:3px; background:#faf9f6}
+.ktc .n{font-size:9px; color:var(--sub)}
+.ktc.reco{border:1.5px solid #c8451f; color:#c8451f; font-weight:700}
+.ktc.on{background:var(--ink); color:#fff; border-color:var(--ink)}
+.ktc.on .n{color:#fffa}
+.ktc.on.reco{background:#c8451f; border-color:#c8451f}
 .chip .stg{border:0; background:transparent; font-size:9px; font-family:inherit; margin-left:4px;
   color:inherit; cursor:pointer; max-width:76px; padding:0}
 .chip .stg:focus{outline:0}
@@ -378,6 +385,10 @@ tbody tr:hover{background:#fdfcf9}
     <span class="mini" id="radarHint">사진 태그 + 기사 키워드 + 랭킹 키워드를 모아 AI 가 묶고, 근거(건수·소스)와 함께 제안합니다</span>
   </div>
   <div id="radarBox" hidden style="background:#fff;border:2px solid var(--ink);border-radius:4px;padding:12px 14px;margin-bottom:14px"></div>
+  <div id="ktBar" style="background:#fff;border:1px solid var(--hair);border-radius:4px;padding:10px 12px;margin-bottom:12px">
+    <div class="mini" style="margin-bottom:6px">KEY TREND 후보 — <b style="color:#c8451f">빨간 테두리 = 출처 3곳+ 등록 추천</b> · 클릭 = 지정/해제 (지정하면 그 자료가 MAIN 으로)</div>
+    <div id="ktChips"><span class="mini">불러오는 중…</span></div>
+  </div>
 
   <h2 class="sec">피드 <span>— 대시보드에 그대로 나가는 목록. 출처 3개+ 연결이면 MAIN BOARD로 자동 승격</span></h2>
   <div class="row">
@@ -592,7 +603,7 @@ tbody tr:hover{background:#fdfcf9}
   <h2 class="sec">미매핑 큐 <span>— 사전에 없던 표현. 등장 횟수가 높으면 새 엔티티 후보</span></h2>
   <div class="bar" style="margin-bottom:10px">
     <button class="btn ghost sm" id="qMerge">AI 로 표현 합치기 — 비슷한 키워드를 대표 키워드 하나로</button>
-    <button class="btn ghost sm" id="qCluster">AI 로 흐름 제안 — MOVEMENT 로 묶기</button>
+    <button class="btn ghost sm" id="qCluster">AI 로 흐름 제안 — KEY TREND · MOVEMENT 구분해서</button>
     <span class="mini">합치기: #sports_to_street_style · #sport_luxe → "스포티 스트리트" 하나로 · 나머지는 별칭</span>
   </div>
   <div id="qClusterBox" hidden style="background:#fff;border:1px solid var(--hair);border-radius:4px;padding:12px 14px;margin-bottom:12px"></div>
@@ -666,7 +677,8 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ═══════════ 설정 — 여기 두 줄만 바꾸면 됩니다 ═══════════ */
 const SUPABASE_URL  = 'https://piifytwflubdtkzaiisi.supabase.co';
-const SUPABASE_ANON  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBpaWZ5dHdmbHViZHRremFpaXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQwODI5NDcsImV4cCI6MjA5OTY1ODk0N30.cVrgt7YQ99R-slePt8U2r_GmtDxetejZdqHcnqJmwhc';/* ════════════════════════════════════════════════════════ */
+const SUPABASE_ANON  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBpaWZ5dHdmbHViZHRremFpaXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQwODI5NDcsImV4cCI6MjA5OTY1ODk0N30.cVrgt7YQ99R-slePt8U2r_GmtDxetejZdqHcnqJmwhc';
+/* ════════════════════════════════════════════════════════ */
 
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 const $  = s => document.querySelector(s);
@@ -1974,7 +1986,7 @@ $('#saveDoc').onclick = async () => {
 /* ═══════════ 피드 ═══════════ */
 /* ═══ 트렌드 레이더 — 자잘한 #태그들에서 메인 트렌드를 잡아냅니다.
    AI 는 초안만 — 제목·연결 전부 이 자리에서 고치고 나서 등록합니다 ═══ */
-let RADAR = [], RADAR_STAT = {};
+let RADAR = [], RADAR_STAT = {}, RADAR_BOX = 'radarBox';
 
 const rEvidence = g => {          // 근거는 항상 실제 집계로 다시 계산
   let n = 0; const srcs = new Set();
@@ -1983,7 +1995,7 @@ const rEvidence = g => {          // 근거는 항상 실제 집계로 다시 �
 };
 
 function drawRadar(){
-  const box = $('#radarBox');
+  const box = $('#' + RADAR_BOX);
   if(!RADAR.length){ box.hidden = true; return; }
   box.hidden = false;
   box.innerHTML = `<div style="font-weight:700;letter-spacing:.06em;margin-bottom:2px">📡 지금 메인 트렌드 후보</div>
@@ -1994,14 +2006,21 @@ function drawRadar(){
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           <input class="rMain" data-i="${i}" value="${esc(g.main)}" ${g.done?'disabled':''}
             style="font-weight:700;font-size:15px;max-width:240px;padding:5px 8px">
-          <select class="rType" data-i="${i}" ${g.done?'disabled':''} style="max-width:130px;padding:5px 6px">
+          <select class="rType" data-i="${i}" ${g.done?'disabled':''} style="max-width:140px;padding:5px 6px">
             <option value="mv" ${g.is_movement?'selected':''}>↗ MOVEMENT</option>
-            <option value="kw" ${!g.is_movement?'selected':''}>키워드</option>
+            <option value="kw" ${!g.is_movement?'selected':''}>KEY TREND</option>
           </select>
+          ${g.is_movement ? '' : `<select class="rPar" data-i="${i}" ${g.done?'disabled':''} title="상위 MOVEMENT — 자동 연결"
+            style="max-width:170px;padding:5px 6px">
+            <option value="">상위 흐름 없음</option>
+            ${[...new Set([...MOVEMENTS().map(m=>m.name_kr||m.name_en),
+                           ...RADAR.filter(x=>x.is_movement).map(x=>x.main)])]
+              .map(nm=>`<option ${norm(g.parent||'')===norm(nm)?'selected':''}>${esc(nm)}</option>`).join('')}
+          </select>`}
           <span class="pill RISING">${ev.n}건 · 소스 ${ev.s}곳</span>
           <span class="sp"></span>
           ${g.done ? '<span class="mini">등록됨 ✓</span>'
-                   : `<button class="btn sm" data-rr="${i}">등록 + 표현 통합</button>
+                   : `<button class="btn sm" data-rr="${i}">${g.is_movement?'MOVEMENT':'KEY TREND'} 등록 + 통합</button>
                       <button class="btn ghost sm" data-rx="${i}" title="이 후보 버리기">버리기</button>`}
         </div>
         <div class="mini" style="margin:4px 0">${esc(g.why||'')}</div>
@@ -2042,7 +2061,9 @@ $('#radar').onclick = async () => {
 지금 실제로 움직이는 **메인 트렌드**를 묶어서 잡아주세요.
 - 같은 뜻·같은 흐름의 표현은 한 묶음으로 (예: y2k / retro training set / vintage trainingset → Y2K Revival)
 - main: 짧은 대표 이름. [사전] 에 같은 뜻이 있으면 그 표현으로.
-- is_movement: 여러 아이템군을 관통하는 큰 흐름이면 true, 특정 아이템·스타일이면 false
+- is_movement: 여러 아이템군을 관통하는 큰 흐름(MOVEMENT)이면 true, 특정 아이템·스타일(KEY TREND)이면 false
+  ★ MOVEMENT 가 더 큰 개념입니다 — Y2K Revival(움직임) 아래에 벨벳 트레이닝셋(키 트렌드)이 속합니다.
+- parent: is_movement=false 일 때, 이 KEY TREND 가 속하는 상위 MOVEMENT 이름. 위 목록이나 기존 MOVEMENT 중에서. 없으면 ""
 - why: 왜 메인이라고 판단했는지 한 줄
 - 강한 것부터 최대 6개. 억지로 채우지 마세요.
 
@@ -2052,77 +2073,126 @@ ${dictForAI()}
 [키워드 통계 — 표현 (건수/소스수)]
 ${terms.map(t => `${t.text} (${t.n}건/${t.srcs.size}소스)`).join(', ')}` }],
       { type:'ARRAY', items:{ type:'OBJECT', properties:{
-          main:{type:'STRING'}, is_movement:{type:'BOOLEAN'}, why:{type:'STRING'},
+          main:{type:'STRING'}, is_movement:{type:'BOOLEAN'}, parent:{type:'STRING'}, why:{type:'STRING'},
           members:{ type:'ARRAY', items:{type:'STRING'} }
-        }, required:['main','is_movement','why','members'] } },
+        }, required:['main','is_movement','parent','why','members'] } },
       '트렌드 레이더');
 
     RADAR = (out||[]).filter(g => g.main && (g.members||[]).length)
-      .map(g => ({ main:g.main, is_movement:!!g.is_movement, why:g.why, members:[...g.members], done:false }));
+      .map(g => ({ main:g.main, is_movement:!!g.is_movement, parent:g.parent||'', why:g.why, members:[...g.members], done:false }));
     RADAR.sort((a,b) => rEvidence(b).n - rEvidence(a).n);
     if(!RADAR.length){ busy(false); return toast('뚜렷한 메인 트렌드를 못 잡았습니다'); }
-    drawRadar();
+    RADAR_BOX = 'radarBox'; drawRadar();
   }catch(e){ die(e, '트렌드 레이더'); }
   busy(false);
 };
 
-/* 편집 — 제목 · 종류 · 연결 */
-$('#radarBox').addEventListener('input', e => {
-  if(e.target.classList.contains('rMain')) RADAR[+e.target.dataset.i].main = e.target.value;
-});
-$('#radarBox').addEventListener('change', e => {
-  if(e.target.classList.contains('rType')){ RADAR[+e.target.dataset.i].is_movement = e.target.value === 'mv'; }
-});
-$('#radarBox').addEventListener('keydown', e => {
-  if(e.key !== 'Enter' || !e.target.classList.contains('rAdd')) return;
-  e.preventDefault();
-  const g = RADAR[+e.target.dataset.i];
-  const raw = e.target.value.trim(); if(!raw) return;
-  if(!g.members.some(m => norm(m) === norm(raw))) g.members.push(raw);
-  drawRadar();
-  $(`.rAdd[data-i="${e.target.dataset.i}"]`)?.focus();
-});
-$('#radarBox').addEventListener('click', async e => {
-  const cx = e.target.closest('.cx');
-  if(cx){ RADAR[+cx.dataset.i].members.splice(+cx.dataset.j, 1); drawRadar(); return; }
-  const rx = e.target.closest('[data-rx]');
-  if(rx){ RADAR.splice(+rx.dataset.rx, 1); drawRadar(); return; }
+/* 편집 — 제목 · 종류 · 상위 흐름 · 연결. 레이더(피드 탭)와 흐름 제안(큐 탭)이 같은 UI 를 씁니다 */
+for(const bid of ['radarBox','qClusterBox']){
+  const B = $('#' + bid);
+  B.addEventListener('input', e => {
+    if(e.target.classList.contains('rMain')) RADAR[+e.target.dataset.i].main = e.target.value;
+  });
+  B.addEventListener('change', e => {
+    if(e.target.classList.contains('rType')){
+      RADAR[+e.target.dataset.i].is_movement = e.target.value === 'mv'; drawRadar();
+    }
+    if(e.target.classList.contains('rPar')) RADAR[+e.target.dataset.i].parent = e.target.value;
+  });
+  B.addEventListener('keydown', e => {
+    if(e.key !== 'Enter' || !e.target.classList.contains('rAdd')) return;
+    e.preventDefault();
+    const g = RADAR[+e.target.dataset.i];
+    const raw = e.target.value.trim(); if(!raw) return;
+    if(!g.members.some(m => norm(m) === norm(raw))) g.members.push(raw);
+    drawRadar();
+    $('#' + RADAR_BOX).querySelector(`.rAdd[data-i="${e.target.dataset.i}"]`)?.focus();
+  });
+  B.addEventListener('click', async e => {
+    const cx = e.target.closest('.cx');
+    if(cx && cx.dataset.j !== undefined && B.contains(cx)){
+      RADAR[+cx.dataset.i].members.splice(+cx.dataset.j, 1); drawRadar(); return;
+    }
+    const rx = e.target.closest('[data-rx]');
+    if(rx){ RADAR.splice(+rx.dataset.rx, 1); drawRadar(); return; }
 
-  const b = e.target.closest('[data-rr]'); if(!b) return;
-  const g = RADAR[+b.dataset.rr];
-  const name = (g.main||'').trim();
-  if(!name) return toast('제목이 비어 있습니다');
-  if(!g.members.length) return toast('연결된 표현이 없습니다 — 최소 1개는 이어주세요');
-  busy(true, `"${name}" 등록 중…`);
-  try{
-    let eid = matchEntity(name) || scanEntities(name, 1)[0];
-    if(!eid){
-      const { data:en, error } = await sb.from('entities').insert({
-        name_kr: name, name_en: name, axis: g.is_movement ? 'movement' : 'style',
-        first_seen: ymNow(), status:'Active', brand_fit:['ALL'], created_by: ME
-      }).select('entity_id').single();
-      if(error) throw error;
-      eid = en.entity_id;
-    }
-    let ali = 0;
-    for(const m of g.members){
-      if(matchEntity(m) === eid || norm(m) === norm(name)) continue;
-      const { error:e2 } = await sb.from('aliases').upsert(
-        { alias_text: m, entity_id: eid, source_scope:'all', added_by:'radar', active:true },
-        { onConflict:'normalized_alias,source_scope' });
-      if(!e2) ali++;
-      await sb.from('unmapped_queue').update({ status:'merged', resolved_entity_id: eid,
-        resolved_date: new Date().toISOString().slice(0,10) })
-        .eq('normalized_text', norm(m)).eq('status','pending');
-    }
-    await loadAll();
-    g.done = true; drawRadar();
-    toast(`"${name}" ${g.is_movement?'MOVEMENT':'키워드'} 등록 · 표현 ${ali}개 통합`);
-  }catch(e2){ die(e2, '레이더 등록'); }
-  busy(false);
-});
+    const b2 = e.target.closest('[data-rr]'); if(!b2) return;
+    const g = RADAR[+b2.dataset.rr];
+    const name = (g.main||'').trim();
+    if(!name) return toast('제목이 비어 있습니다');
+    if(!g.members.length) return toast('연결된 표현이 없습니다 — 최소 1개는 이어주세요');
+    busy(true, `"${name}" 등록 중…`);
+    try{
+      /* MOVEMENT 든 KEY TREND 든 — 없으면 만들고, 있으면 재사용 */
+      const mkEntity = async (nm, axis) => {
+        let id2 = matchEntity(nm) || scanEntities(nm, 1)[0];
+        if(id2) return id2;
+        const { data:en, error } = await sb.from('entities').insert({
+          name_kr: nm, name_en: nm, axis, first_seen: ymNow(),
+          status:'Active', brand_fit:['ALL'], created_by: ME
+        }).select('entity_id').single();
+        if(error) throw error;
+        return en.entity_id;
+      };
+      const eid = await mkEntity(name, g.is_movement ? 'movement' : 'style');
+
+      /* KEY TREND 면 상위 MOVEMENT 자동 연결 — 상위가 아직 없으면 같이 만듭니다 */
+      let parentMsg = '';
+      if(!g.is_movement && (g.parent||'').trim()){
+        const pid = await mkEntity(g.parent.trim(), 'movement');
+        const { error:eP } = await sb.from('entities').update({ parent_movement: pid }).eq('entity_id', eid);
+        if(!eP) parentMsg = ` · ↗ ${g.parent} 에 연결`;
+      }
+
+      let ali = 0;
+      for(const m of g.members){
+        if(matchEntity(m) === eid || norm(m) === norm(name)) continue;
+        const { error:e2 } = await sb.from('aliases').upsert(
+          { alias_text: m, entity_id: eid, source_scope:'all', added_by:'radar', active:true },
+          { onConflict:'normalized_alias,source_scope' });
+        if(!e2) ali++;
+        await sb.from('unmapped_queue').update({ status:'merged', resolved_entity_id: eid,
+          resolved_date: new Date().toISOString().slice(0,10) })
+          .eq('normalized_text', norm(m)).eq('status','pending');
+      }
+      await loadAll();
+      if(typeof renderQueue === 'function' && RADAR_BOX === 'qClusterBox') renderQueue();
+      g.done = true; drawRadar();
+      toast(`"${name}" ${g.is_movement?'MOVEMENT':'KEY TREND'} 등록 · 표현 ${ali}개 통합${parentMsg}`);
+    }catch(e2){ die(e2, '제안 등록'); }
+    busy(false);
+  });
+}
+
+async function renderKtBar(){
+  const { data:cnts } = await sb.from('v_entity_source_count').select('*');
+  const cnt = Object.fromEntries((cnts||[]).map(r => [r.entity_id, r.source_count]));
+  const list = ENTITIES
+    .filter(e => e.axis !== 'movement' && e.status !== 'Archived')
+    .map(e => ({ ...e, src: cnt[e.entity_id] || 0 }))
+    .filter(e => e.pinned || e.src >= 1)
+    .sort((a,b) => (b.src - a.src) || (b.pinned - a.pinned))
+    .slice(0, 30);
+  $('#ktChips').innerHTML = list.length
+    ? list.map(e => `<span class="ktc${e.src >= 3 ? ' reco' : ''}${e.pinned ? ' on' : ''}" data-kt="${esc(e.entity_id)}"
+        title="${e.pinned ? 'KEY TREND 지정됨 — 클릭 = 해제' : (e.src >= 3 ? '출처 3곳+ — 등록 추천' : '클릭 = KEY TREND 지정')}">
+        ${e.pinned ? '★ ' : ''}${esc(e.name_kr || e.name_en)}<span class="n">${e.src}곳</span></span>`).join('')
+    : '<span class="mini">아직 키워드가 붙은 자료가 없습니다</span>';
+}
+$('#ktChips').onclick = async e => {
+  const c = e.target.closest('[data-kt]'); if(!c) return;
+  const ent = ENTITIES.find(x => x.entity_id === c.dataset.kt); if(!ent) return;
+  const { error } = await sb.from('entities').update({ pinned: !ent.pinned }).eq('entity_id', ent.entity_id);
+  if(error) return die(error, 'KEY TREND 지정');
+  ent.pinned = !ent.pinned;
+  renderKtBar(); renderFeed();
+  toast(ent.pinned
+    ? `★ ${ent.name_kr} — KEY TREND 지정. 이 키워드가 붙은 자료는 MAIN 으로 뜹니다`
+    : `${ent.name_kr} — 지정 해제`);
+};
 
 async function renderFeed(){
+  renderKtBar();
   busy(true,'피드 불러오는 중…');
   try{
     let q = sb.from('v_feed').select('*').limit(300);
@@ -2686,75 +2756,43 @@ $('#qClusterBox').addEventListener('click', async e => {
   busy(false);
 });
 
-/* 큐 + 최근 태그를 AI 가 훑어서 상위 흐름을 제안합니다 — 등록은 사람이 결정 */
+/* 큐의 흐름 제안 — 레이더와 같은 편집 UI 로 엽니다 (KEY TREND / MOVEMENT / 상위 흐름 전부 여기서) */
 $('#qCluster').onclick = async () => {
   busy(true, '흐름 묶는 중…');
   try{
     const { data:q } = await sb.from('unmapped_queue').select('raw_text,count')
-      .eq('status','pending').order('count',{ascending:false}).limit(60);
-    const terms = [...new Set([
-      ...(q||[]).map(x => x.raw_text),
-      ...ENTITIES.filter(e => e.axis !== 'movement' && e.status === 'Active').map(e => e.name_kr)
-    ])].slice(0, 80);
+      .eq('status','pending').order('count',{ascending:false}).limit(80);
+    const stat = {};
+    for(const r of (q||[])){
+      const k = norm(r.raw_text); if(!k) continue;
+      stat[k] = { text: r.raw_text, n: r.count || 1, srcs: new Set() };
+    }
+    for(const e2 of ENTITIES.filter(x => x.axis !== 'movement' && x.status === 'Active').slice(0, 60)){
+      const k = norm(e2.name_kr); if(!stat[k]) stat[k] = { text: e2.name_kr, n: 1, srcs: new Set() };
+    }
+    const terms = Object.values(stat).sort((x,y)=>y.n-x.n).slice(0, 100);
     if(terms.length < 3){ busy(false); return toast('묶을 키워드가 아직 부족합니다'); }
-    const existing = MOVEMENTS().map(m => m.name_kr || m.name_en);
 
     const out = await gemini(
-      [{ text: `패션 트렌드 키워드 목록입니다. 같은 상위 흐름(MOVEMENT)으로 묶이는 것들만 골라 묶어주세요.
-- 이미 있는 MOVEMENT: ${existing.join(', ') || '(없음)'} — 여기 들어갈 키워드는 그 이름으로 묶으세요.
-- 흐름이 뚜렷한 묶음만. 억지로 다 묶지 마세요. 2~5개 묶음이면 충분합니다.
-- movement 이름은 짧게 (예: Y2K Revival, Wellness, Customizing).
+      [{ text: `패션 키워드 목록입니다. 같은 흐름끼리 묶어주세요.
+- is_movement: 여러 아이템군을 관통하는 큰 흐름(MOVEMENT)이면 true, 특정 아이템·스타일(KEY TREND)이면 false
+  ★ MOVEMENT 가 더 큰 개념입니다 — Wellness(움직임) 아래 알로 요가 룩(키 트렌드)이 속합니다.
+- parent: is_movement=false 면 속하는 상위 MOVEMENT 이름 (목록의 movement 나 기존 MOVEMENT: ${MOVEMENTS().map(m=>m.name_kr||m.name_en).join(', ') || '없음'}). 없으면 ""
+- main: 짧은 대표 이름. 뚜렷한 묶음만, 최대 6개.
 
-키워드: ${terms.join(', ')}` }],
+키워드: ${terms.map(t=>t.text).join(', ')}` }],
       { type:'ARRAY', items:{ type:'OBJECT', properties:{
-          movement:{type:'STRING'}, members:{ type:'ARRAY', items:{type:'STRING'} }
-        }, required:['movement','members'] } },
+          main:{type:'STRING'}, is_movement:{type:'BOOLEAN'}, parent:{type:'STRING'}, why:{type:'STRING'},
+          members:{ type:'ARRAY', items:{type:'STRING'} }
+        }, required:['main','is_movement','parent','why','members'] } },
       '흐름 제안');
 
-    const box = $('#qClusterBox');
-    const good = (out||[]).filter(g => g.movement && (g.members||[]).length >= 2);
-    if(!good.length){ box.hidden = true; busy(false); return toast('뚜렷한 묶음을 못 찾았습니다'); }
-    box.hidden = false;
-    box.innerHTML = `<div class="mini" style="margin-bottom:8px">AI 제안 — 등록을 눌러야 사전에 생깁니다</div>` +
-      good.map((g,i) => `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:7px 0;border-top:1px solid var(--hair)">
-        <b style="min-width:140px">↗ ${esc(g.movement)}</b>
-        <span style="flex:1">${g.members.map(m=>`<span class="chip">${esc(m)}</span>`).join(' ')}</span>
-        <button class="btn sm" data-qc="${i}">MOVEMENT 등록</button>
-      </div>`).join('');
-    box.dataset.groups = JSON.stringify(good);
+    RADAR = (out||[]).filter(g => g.main && (g.members||[]).length >= 2)
+      .map(g => ({ main:g.main, is_movement:!!g.is_movement, parent:g.parent||'', why:g.why||'', members:[...g.members], done:false }));
+    if(!RADAR.length){ busy(false); return toast('뚜렷한 묶음을 못 찾았습니다'); }
+    RADAR_STAT = stat;
+    RADAR_BOX = 'qClusterBox'; drawRadar();
   }catch(e){ die(e, '흐름 제안'); }
-  busy(false);
-};
-
-$('#qClusterBox').onclick = async e => {
-  const b = e.target.closest('[data-qc]'); if(!b) return;
-  const g = JSON.parse($('#qClusterBox').dataset.groups)[+b.dataset.qc];
-  busy(true, `${g.movement} 등록 중…`);
-  try{
-    /* 1) MOVEMENT 만들기 (이미 있으면 그걸로) */
-    let mvId = matchEntity(g.movement);
-    if(!mvId){
-      const { data:en, error } = await sb.from('entities').insert({
-        name_kr: g.movement, name_en: g.movement, axis:'movement',
-        first_seen: ymNow(), status:'Active', brand_fit:['ALL'], created_by: ME
-      }).select('entity_id').single();
-      if(error) throw error;
-      mvId = en.entity_id;
-    }
-    /* 2) 멤버 중 사전에 있는 키워드는 상위 MOVEMENT 로 연결 */
-    let linked = 0, pending = [];
-    for(const m of g.members){
-      const eid = matchEntity(m) || scanEntities(m, 1)[0];
-      if(eid && eid !== mvId){
-        const { error:e2 } = await sb.from('entities').update({ parent_movement: mvId }).eq('entity_id', eid);
-        if(!e2) linked++;
-      } else if(!eid) pending.push(m);
-    }
-    await loadAll();
-    b.textContent = '등록됨 ✓'; b.disabled = true;
-    toast(`"${g.movement}" 등록 · 사전 키워드 ${linked}개 연결` +
-          (pending.length ? ` · 큐 항목 ${pending.length}개는 승격하면 연결하세요` : ''));
-  }catch(e2){ die(e2, 'MOVEMENT 등록'); }
   busy(false);
 };
 
@@ -2908,10 +2946,32 @@ $('#mAdd').onclick = async () => {
   const t = $('#mT').value || ymNow();
   const row = { view_id: mCur, kind: k, t, x: 60, y: 60, created_by: ME };
   if(col) row[col] = ref;
-  const { error } = await sb.from('map_nodes').insert(row);
+  const { data:nn, error } = await sb.from('map_nodes').insert(row).select('node_id').single();
   if(error) return die(error, '노드 추가');
+
+  /* KEY TREND 인데 사전에 상위 MOVEMENT 가 있으면 — mv 노드와 빨간 연결선이 자동으로 따라옵니다 */
+  let followed = '';
+  if(k === 'key' && ref){
+    const ent = ENTITIES.find(x => x.entity_id === ref);
+    if(ent?.parent_movement){
+      let mvNode = MN.find(x => x.view_id === mCur && x.kind === 'mv' && x.entity_id === ent.parent_movement);
+      if(!mvNode){
+        const { data:mv2, error:eM } = await sb.from('map_nodes').insert({
+          view_id: mCur, kind:'mv', entity_id: ent.parent_movement,
+          t, x: row.x + 320, y: row.y + 20, created_by: ME
+        }).select('node_id').single();
+        if(!eM) mvNode = mv2;
+      }
+      if(mvNode){
+        await sb.from('map_edges').upsert(
+          { view_id: mCur, a: nn.node_id, b: mvNode.node_id, is_key: true },
+          { onConflict: 'a,b' });
+        followed = ` · ↗ ${label(ent.parent_movement)} 자동 연결`;
+      }
+    }
+  }
   await loadMap();
-  toast(`${KINDLBL[k]} 노드를 왼쪽 위에 놨습니다 — 끌어다 배치하세요`);
+  toast(`${KINDLBL[k]} 노드를 왼쪽 위에 놨습니다 — 끌어다 배치하세요${followed}`);
 };
 
 function mnHtml(n){
