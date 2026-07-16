@@ -38,6 +38,9 @@ svg#edges{position:absolute; inset:0; width:100%; height:100%; pointer-events:no
 .node.bundle::after{transform:rotate(-1.2deg) translate(-3px,4px)}
 .node.bundle .cnt{font-family:'Playfair Display',serif; font-size:20px}
 .node.bundle .lbl{font-size:10px; color:var(--sub); letter-spacing:.08em}
+.node.bundle{width:170px}
+.bgrid{display:grid; grid-template-columns:1fr 1fr; gap:3px; margin-bottom:6px}
+.bgrid img{width:100%; height:64px; object-fit:cover; display:block; border:1px solid var(--hair)}
 .ntags{position:absolute; top:-11px; right:-8px; display:flex; gap:3px; z-index:2}
 .ntag{cursor:pointer; font-size:8px; font-weight:800; letter-spacing:.08em; padding:2px 6px; color:#fff;
   box-shadow:1px 1px 0 #00000025; transform:rotate(2deg)}
@@ -162,7 +165,7 @@ footer b{color:var(--sticky)}
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ══ 설정 — admin.html · index.html 과 같은 값이어야 합니다 ══ */
-const SUPABASE_URL  = 'https://piifytwflubdtkzaiisi.supabase.co';
+const SUPABASE_URL  = 'https://piifytwflubdtkzaiisi.supabase.co'; 
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBpaWZ5dHdmbHViZHRremFpaXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQwODI5NDcsImV4cCI6MjA5OTY1ODk0N30.cVrgt7YQ99R-slePt8U2r_GmtDxetejZdqHcnqJmwhc';
 /* ═══════════════════════════════════════════════════ */
 
@@ -171,7 +174,7 @@ const $  = s => document.querySelector(s);
 const esc = x => String(x ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const el = h => { const d = document.createElement('div'); d.innerHTML = h; return d.firstElementChild; };
 
-let VIEWS = [], NODES = [], EDGES = [], ENTS = {}, curView = null, curTimeIdx = null, TAGFILTER = null;
+let VIEWS = [], NODES = [], EDGES = [], ENTS = {}, BUNDLE_IMGS = {}, curView = null, curTimeIdx = null, TAGFILTER = null;
 
 /* ── 시간축: 뷰에 times 가 비어 있으면 노드의 t 에서 자동으로 만듭니다 ── */
 const timesOf = v => {
@@ -193,6 +196,18 @@ async function load(){
   VIEWS = vw.data; NODES = nd.data; EDGES = eg.data;
   ENTS = Object.fromEntries(en.data.map(e => [e.entity_id, e]));
 
+  /* 묶음 노드에 엔티티가 걸려 있으면 그 키워드의 사진들을 안에 채웁니다 */
+  const bids = [...new Set(NODES.filter(n => n.kind === 'bundle' && n.entity_id).map(n => n.entity_id))];
+  BUNDLE_IMGS = {};
+  if(bids.length){
+    const { data: bi } = await sb.from('asset_entities')
+      .select('entity_id, images(thumb_url)').in('entity_id', bids).limit(400);
+    for(const r of (bi || [])){
+      if(!r.images?.thumb_url) continue;
+      (BUNDLE_IMGS[r.entity_id] ||= []).push(r.images.thumb_url);
+    }
+  }
+
   if(!VIEWS.length){ fail('맵 뷰가 없습니다. schema.sql 을 실행하셨나요?'); return; }
   curView = curView || VIEWS[0].view_id;
 
@@ -213,7 +228,7 @@ function nodeHtml(n){
   const tagHtml = (n.r_tags && n.r_tags.length)
     ? `<div class="ntags">${n.r_tags.map(t => `<span class="ntag ${esc(t)}" data-t="${esc(t)}">${t==='SERGIO TACCHINI'?'ST':esc(t)}</span>`).join('')}</div>` : '';
   const when = `<span class="when">${esc(n.t)}</span>${tagHtml}`;
-  const id = `n-${esc(n.node_id)}`, pos = `left:${n.x}px;top:${n.y}px`;
+  const id = `n-${esc(n.node_id)}`, pos = `left:${n.x}px;top:${n.y}px` + (n.w ? `;width:${n.w}px` : '');
   const img = n.r_img ? `<img src="${esc(n.r_img)}" loading="lazy" alt="">` : '';
 
   switch(n.kind){
@@ -231,8 +246,13 @@ function nodeHtml(n){
       <div class="t">${esc(n.r_kicker || '')}</div><h4>${esc(n.r_headline || '')}</h4></div>`;
     case 'mv': return `<div class="node n-mv" id="${id}" style="${pos}">${when}
       <div class="k">${esc(n.r_kicker || 'PARENT MOVEMENT')}</div><h3>${esc(n.r_headline || '')}</h3></div>`;
-    case 'bundle': return `<div class="node bundle" id="${id}" style="${pos}">${when}
-      <div class="cnt">${esc(n.cnt || '')}</div><div class="lbl">${esc(n.label || '')}</div></div>`;
+    case 'bundle': {
+      const imgs = (n.entity_id && BUNDLE_IMGS[n.entity_id]) || [];
+      const grid = imgs.length ? `<div class="bgrid">${imgs.slice(0,4).map(u=>`<img src="${esc(u)}" loading="lazy" alt="">`).join('')}</div>` : '';
+      const cnt = n.cnt || (imgs.length ? `×${imgs.length}` : '');
+      return `<div class="node bundle" id="${id}" style="${pos}">${when}${grid}
+      <div class="cnt">${esc(cnt)}</div><div class="lbl">${esc(n.label || n.r_headline || '')}</div></div>`;
+    }
     default: return '';
   }
 }
