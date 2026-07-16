@@ -119,12 +119,26 @@ tbody tr:hover{background:#fdfcf9}
   border-radius:2px; margin:2px 3px 2px 0; background:var(--accent-soft); color:var(--accent)}
 .chip.rm{cursor:pointer}
 .chip.tag{background:#f4efe6; color:#8a8578; border:1px dashed #d8d2c4}
+.chip .ctxt{cursor:text; font-weight:inherit}
+.chip .cm{cursor:pointer; font-style:normal; font-weight:800; font-size:9px; padding:1px 4px;
+  margin-left:5px; border:1px solid currentColor; border-radius:2px; opacity:.4}
+.chip .cm.on{opacity:1; background:#c8451f; color:#fff; border-color:#c8451f}
+.chip .cx{cursor:pointer; font-style:normal; margin-left:5px; opacity:.5}
+.chip .cx:hover{opacity:1}
+.chip.ismv{box-shadow:0 0 0 1.5px #c8451f}
+.chip .stg{border:0; background:transparent; font-size:9px; font-family:inherit; margin-left:4px;
+  color:inherit; cursor:pointer; max-width:76px; padding:0}
+.chip .stg:focus{outline:0}
 .mvchecks{display:flex; flex-wrap:wrap; gap:4px 12px; padding:6px 0}
 .mvchecks label{display:flex; align-items:center; gap:5px; font-size:12px; cursor:pointer; white-space:nowrap}
 .mvchecks input{margin:0; accent-color:#c8451f}
 .rkw{width:86px; border:0; border-bottom:1px dashed var(--hair); background:transparent;
   font:inherit; font-size:11px; padding:2px 3px; margin-left:4px}
 .rkw:focus{outline:0; border-bottom-color:var(--ink)}
+.editrow td{background:#fbf8f1; border-top:2px solid var(--ink)}
+.erow{display:flex; gap:10px; flex-wrap:wrap; padding:6px 2px}
+.erow > div{flex:1; min-width:120px}
+.erow input,.erow textarea{width:100%}
 .chip.rm:after{content:' ×'; opacity:.6}
 .badge{display:inline-block; font-size:9px; font-weight:800; letter-spacing:.1em; padding:3px 7px; color:#fff}
 .badge.MAIN{background:var(--rising)} .badge.FEED{background:#9a938a} .badge.NEW{background:var(--ok)}
@@ -271,8 +285,7 @@ tbody tr:hover{background:#fdfcf9}
       <div><label class="f">TREND KEYWORD</label>
         <input id="dEnt" list="entList" placeholder="입력 후 Enter — 사전에 있으면 연결, 없으면 #키워드로">
         <div id="dEntChips" style="margin-top:6px"></div></div>
-      <div style="max-width:280px"><label class="f">MOVEMENT — 관련 흐름에 체크 (복수 가능)</label>
-        <div id="dMvBox" class="mvchecks"><span class="mini">등록된 MOVEMENT 없음</span></div></div>
+      <div style="max-width:250px; align-self:flex-end"><span class="mini">칩의 <b style="border:1px solid;padding:0 3px;border-radius:2px">M</b> = 그 키워드를 MOVEMENT 로 · 글자 클릭 = 수정</span></div>
     </div>
     <div class="row"><div>
       <label class="f">첨부 파일 — PDF 또는 캡처 · 올리면 AI가 여기서 읽습니다</label>
@@ -438,7 +451,7 @@ tbody tr:hover{background:#fdfcf9}
 
 <!-- ── 브랜드 ── -->
 <section id="brandView" class="view">
-  <h2 class="sec">브랜드 <span>— 대시보드 KEY BRAND 카드에 그대로 나갑니다</span></h2>
+  <h2 class="sec">브랜드 <span>— ★ 를 켠 브랜드만 대시보드 KEY BRAND 탭에 나갑니다</span></h2>
   <div class="row">
     <div><label class="f">검색</label><input id="bQ" placeholder="브랜드명"></div>
     <div style="max-width:140px; align-self:flex-end"><button class="btn" id="bNew">+ 새 브랜드</button></div>
@@ -461,8 +474,8 @@ tbody tr:hover{background:#fdfcf9}
       <div style="max-width:120px"><label class="f">증감</label><input id="b_pct" placeholder="+230%"></div>
       <div style="max-width:130px"><label class="f">상태</label>
         <select id="b_status"><option>Active</option><option>Watch</option><option>Archived</option></select></div>
-      <div style="max-width:110px"><label class="f">고정</label>
-        <select id="b_pinned"><option value="false">FALSE</option><option value="true">TRUE</option></select></div>
+      <div style="max-width:150px"><label class="f">KEY BRAND 탭 노출</label>
+        <select id="b_pinned"><option value="false">숨김</option><option value="true">노출 ★</option></select></div>
       <div><label class="f">별칭 — 쉼표 구분</label><input id="b_aliases" placeholder="오소이, #osoi"></div>
     </div>
     <div class="row"><div>
@@ -549,6 +562,7 @@ tbody tr:hover{background:#fdfcf9}
       <div><label class="f">부제 · 메모</label><input id="mpMeta"></div>
       <div style="max-width:120px"><label class="f">뱃지</label>
         <select id="mpBadge"><option value="">원장 값</option><option>RISING</option><option>NEW</option><option>WATCH</option></select></div>
+      <div style="max-width:110px"><label class="f">너비 px — 비우면 기본</label><input id="mpW" type="number" min="80" max="640" step="10"></div>
     </div>
     <div class="row" id="mBundleRow" hidden>
       <div style="max-width:110px"><label class="f">개수</label><input id="mpCnt" placeholder="×12"></div>
@@ -633,8 +647,8 @@ tbody tr:hover{background:#fdfcf9}
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ═══════════ 설정 — 여기 두 줄만 바꾸면 됩니다 ═══════════ */
-const SUPABASE_URL  = 'https://piifytwflubdtkzaiisi.supabase.co';
-const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBpaWZ5dHdmbHViZHRremFpaXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQwODI5NDcsImV4cCI6MjA5OTY1ODk0N30.cVrgt7YQ99R-slePt8U2r_GmtDxetejZdqHcnqJmwhc';/* ═══════════════════════════════════════════════════ */
+const SUPABASE_URL  = 'https://xxxxx.supabase.co'; 
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBpaWZ5dHdmbHViZHRremFpaXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQwODI5NDcsImV4cCI6MjA5OTY1ODk0N30.cVrgt7YQ99R-slePt8U2r_GmtDxetejZdqHcnqJmwhc';
 /* ════════════════════════════════════════════════════════ */
 
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
@@ -724,10 +738,6 @@ async function loadAll(){
     const keepMv = $('#sessMv').value;
     $('#sessMv').innerHTML = mvOptions();
     $('#sessMv').value = keepMv;
-    const keepDMv = new Set([...document.querySelectorAll('#dMvBox input:checked')].map(x => x.value));
-    $('#dMvBox').innerHTML = MOVEMENTS().length
-      ? MOVEMENTS().map(m => `<label><input type="checkbox" value="${esc(m.entity_id)}" ${keepDMv.has(m.entity_id)?'checked':''}>${esc(m.name_kr || m.name_en)}</label>`).join('')
-      : '<span class="mini">등록된 MOVEMENT 없음 — 세션 바 ＋ 로 등록</span>';
 
     const keep = $('#sessBrand').value;
     $('#sessBrand').innerHTML = '<option value="">브랜드 선택</option>' +
@@ -779,31 +789,63 @@ function scanEntities(text, max = 3){
 const label = id => { const e=entById[id]; return e ? (e.name_en || e.name_kr) : id; };
 
 /* ── 칩 입력 위젯 ── */
-/* allowTags=true 면: 사전에 있으면 엔티티 칩(진한색), 없으면 #해시태그 칩(흐린색).
-   #해시태그는 소문자 + 띄어쓰기 → _ 로 자동 정리됩니다. 칩 클릭 = 삭제. */
-function chipInput(inputSel, chipSel, store, resolve, allowTags){
+/* allowTags=true : 사전에 있으면 엔티티 칩(진한색), 없으면 #해시태그 칩(흐린색).
+   mvSet 을 주면 칩마다 M 버튼 — 누르면 그 키워드를 MOVEMENT 로 표시.
+   글자 클릭 = 수정 · × = 삭제 */
+function chipInput(inputSel, chipSel, store, resolve, allowTags, mvSet){
   const inp=$(inputSel), box=$(chipSel);
+  const isTag = v => String(v).startsWith('#');
+  const isMv  = v => (mvSet && mvSet.has(v)) || (!isTag(v) && entById[v]?.axis === 'movement');
   const draw = () => box.innerHTML = store.map((v,i)=>
-    `<span class="chip rm${String(v).startsWith('#')?' tag':''}" data-i="${i}">${esc(resolve && !String(v).startsWith('#') ? resolve(v) : v)}</span>`).join('');
-  box.onclick = e => { const c=e.target.closest('.chip'); if(!c) return;
-    store.splice(+c.dataset.i,1); draw(); };
+    `<span class="chip${isTag(v)?' tag':''}${isMv(v)?' ismv':''}" data-i="${i}">
+       <b class="ctxt" data-i="${i}" title="클릭 = 수정">${esc(resolve && !isTag(v) ? resolve(v) : v)}</b>${
+       mvSet ? `<i class="cm${isMv(v)?' on':''}" data-i="${i}" title="MOVEMENT 로 표시">M</i>` : ''
+       }<i class="cx" data-i="${i}" title="삭제">×</i></span>`).join('');
+
+  const parse = raw => {                 // 입력·수정 공용 — Enter 규칙과 동일
+    if(!resolve) return raw;
+    const id = matchEntity(raw) || scanEntities(raw, 1)[0] || null;
+    if(id) return id;
+    if(!allowTags){ toast(`사전에 없는 표현 — "${raw}" 는 미매핑 큐로 보냅니다`); addToQueue(raw); return null; }
+    const h = hashTag(raw); if(h) addToQueue(raw);
+    return h;
+  };
+
+  box.onclick = e => {
+    const t = e.target;
+    const i = +t.dataset.i; const v = store[i];
+    if(t.classList.contains('cx')){          // 삭제
+      store.splice(i,1); mvSet?.delete(v); draw(); return;
+    }
+    if(t.classList.contains('cm')){          // MOVEMENT 토글
+      if(!isTag(v) && entById[v]?.axis === 'movement'){ toast('사전에서 이미 MOVEMENT 인 키워드입니다'); return; }
+      mvSet.has(v) ? mvSet.delete(v) : mvSet.add(v);
+      draw(); return;
+    }
+    if(t.classList.contains('ctxt')){        // 수정
+      const cur = isTag(v) ? v.replace(/^#/,'').replace(/_/g,' ') : (resolve ? resolve(v) : v);
+      const nv = prompt('키워드 수정', cur);
+      if(nv === null) return;
+      const raw = nv.trim();
+      if(!raw){ store.splice(i,1); mvSet?.delete(v); draw(); return; }   // 비우면 삭제
+      const parsed = parse(raw);
+      if(!parsed) return;
+      const hadMv = mvSet?.has(v); mvSet?.delete(v);
+      if(store.includes(parsed) && parsed !== v){ store.splice(i,1); }   // 이미 있으면 중복 제거
+      else store[i] = parsed;
+      if(hadMv) mvSet?.add(parsed);
+      draw(); return;
+    }
+  };
+
   inp.addEventListener('keydown', e => {
     if(e.key!=='Enter') return; e.preventDefault();
     const raw=inp.value.trim(); if(!raw) return;
-    let v;
-    if(!resolve) v = raw;
-    else {
-      v = matchEntity(raw) || scanEntities(raw, 1)[0] || null;
-      if(!v){
-        if(!allowTags){ toast(`사전에 없는 표현 — "${raw}" 는 미매핑 큐로 보냅니다`); addToQueue(raw); inp.value=''; return; }
-        v = hashTag(raw);                       // #wellness — 오타도 눈에 보이니 클릭해서 뺄 수 있습니다
-        if(v) addToQueue(raw);                  // 승격 후보로도 쌓아둡니다
-      }
-    }
+    const v = parse(raw);
     if(v && !store.includes(v)) store.push(v);
     inp.value=''; draw();
   });
-  return { draw, clear(){ store.length=0; draw(); } };
+  return { draw, clear(){ store.length=0; mvSet?.clear(); draw(); } };
 }
 
 async function addToQueue(raw, srcId){
@@ -979,7 +1021,7 @@ async function intake(files){
         preview: URL.createObjectURL(thumb.blob),
         orig: f.size,
         sel: true,
-        meta: { account:'', likes:'', brand: $('#sessBrand').value || '', movement: $('#sessMv').value || '', category:'', note:'', source_url:'',
+        meta: { account:'', likes:'', brand: $('#sessBrand').value || '', movement: $('#sessMv').value || '', kwMeta:{}, category:'', note:'', source_url:'',
                 is_celeb:false, celeb_name:'', is_main:false, entities:[], tags:[] }
       });
     }catch(e){ die(e, f.name); }
@@ -998,6 +1040,7 @@ function renderImgCards(){
       <input type="checkbox" class="pick" ${it.sel?'checked':''} title="선택">
       <button class="x" title="빼기">×</button>
       <button class="btn ghost ai" title="이 사진만 AI로">AI</button>
+      <button class="btn ghost cp" title="이 카드 내용을 선택된 카드들에 동일하게">⧉ 선택에 복사</button>
       <img class="thumb" src="${it.preview}" alt="">
       <input data-k="source_url" type="url" placeholder="출처 URL (선택)">
       <div class="row">
@@ -1048,8 +1091,16 @@ function renderImgCards(){
       it.meta.is_celeb = !!e.target.value.trim();
     });
 
+    const KSTAGES = ['','NEW','RISING','PEAK','ON-GOING','DESCEND'];
+    const km = it.meta.kwMeta ||= {};        // { entity_id: {stage, mv} }
     const drawKw = () => c.querySelector('.kwChips').innerHTML =
-      it.meta.entities.map((v,j)=>`<span class="chip rm" data-j="${j}">${esc(label(v))}</span>`).join('');
+      it.meta.entities.map((v,j)=>{
+        const m = km[v] ||= { stage:'', mv: entById[v]?.axis === 'movement' };
+        return `<span class="chip${m.mv?' ismv':''}" data-j="${j}">${esc(label(v))}
+          <select class="stg" data-j="${j}" title="트렌드 단계">${
+            KSTAGES.map(x=>`<option value="${x}" ${m.stage===x?'selected':''}>${x||'—'}</option>`).join('')
+          }</select><i class="cm${m.mv?' on':''}" data-j="${j}" title="MOVEMENT">M</i><i class="cx" data-j="${j}" title="삭제">×</i></span>`;
+      }).join('');
     const drawTag = () => c.querySelector('.tagChips').innerHTML =
       it.meta.tags.map((v,j)=>`<span class="chip rm" data-j="${j}">${esc(v)}</span>`).join('');
 
@@ -1067,8 +1118,19 @@ function renderImgCards(){
       if(!it.meta.tags.includes(v)) it.meta.tags.push(v);
       e.target.value=''; drawTag(); linkStat();
     });
-    c.querySelector('.kwChips').onclick = e => { const x=e.target.closest('.chip'); if(!x) return;
-      it.meta.entities.splice(+x.dataset.j,1); drawKw(); linkStat(); };
+    c.querySelector('.kwChips').onclick = e => {
+      const j = +e.target.dataset.j; const v = it.meta.entities[j];
+      if(e.target.classList.contains('cx')){ delete km[v]; it.meta.entities.splice(j,1); drawKw(); linkStat(); return; }
+      if(e.target.classList.contains('cm')){
+        if(entById[v]?.axis === 'movement'){ toast('사전에서 이미 MOVEMENT 인 키워드입니다'); return; }
+        km[v].mv = !km[v].mv; drawKw(); return;
+      }
+    };
+    c.querySelector('.kwChips').addEventListener('change', e => {
+      if(!e.target.classList.contains('stg')) return;
+      const v = it.meta.entities[+e.target.dataset.j];
+      (km[v] ||= { stage:'', mv:false }).stage = e.target.value;
+    });
     c.querySelector('.tagChips').onclick = e => { const x=e.target.closest('.chip'); if(!x) return;
       it.meta.tags.splice(+x.dataset.j,1); drawTag(); linkStat(); };
     drawKw(); drawTag();
@@ -1077,6 +1139,20 @@ function renderImgCards(){
     };
     c.querySelector('.x').onclick = () => {
       URL.revokeObjectURL(it.preview); QUEUE_IMGS.splice(i,1); renderImgCards();
+    };
+    c.querySelector('.cp').onclick = () => {
+      const tgt = QUEUE_IMGS.filter(x => x.sel && x !== it);
+      if(!tgt.length) return toast('먼저 채워 넣을 카드들을 체크하세요 (이 카드는 자동 제외)');
+      for(const x of tgt){
+        x.meta.brand    = it.meta.brand;
+        x.meta.category = it.meta.category;
+        x.meta.movement = it.meta.movement;
+        x.meta.entities = [...it.meta.entities];
+        x.meta.kwMeta   = JSON.parse(JSON.stringify(it.meta.kwMeta || {}));
+        x.meta.tags     = [...it.meta.tags];
+      }
+      renderImgCards();
+      toast(`${tgt.length}장에 동일하게 채웠습니다 — 브랜드 · 아이템군 · MOVEMENT · 키워드 · 태그`);
     };
     c.querySelector('.ai').onclick = async () => {
       busy(true,'AI가 읽는 중…');
@@ -1270,8 +1346,11 @@ $('#saveImgs').onclick = async () => {
       if(e2) throw e2;
 
       // 5) 연결
+      const km2 = it.meta.kwMeta || {};
       const links = it.meta.entities.map((eid,ix)=>({ image_id:id, entity_id:eid, sort_order:ix,
-        role: ix===0 ? 'cover' : 'evidence', mapping_method:'manual', created_by:ME }));
+        role: km2[eid]?.mv ? 'movement' : (ix===0 ? 'cover' : 'evidence'),
+        trend_stage: km2[eid]?.stage || null,
+        mapping_method:'manual', created_by:ME }));
       /* MOVEMENT 를 골랐으면 role='movement' 로 같이 붙입니다 — 흐름 추적은 이걸로 합니다 */
       if(it.meta.movement && !it.meta.entities.includes(it.meta.movement))
         links.push({ image_id:id, entity_id:it.meta.movement, sort_order:99,
@@ -1316,7 +1395,8 @@ async function ensureCeleb(name, account){
 
 /* ── 문서 저장 ── */
 const docEnts = [];
-const docChips = chipInput('#dEnt', '#dEntChips', docEnts, label, true);
+const docMv = new Set();      // M 이 켜진 키워드 (엔티티 id 또는 #태그)
+const docChips = chipInput('#dEnt', '#dEntChips', docEnts, label, true, docMv);
 
 /* ── 모드 전환 ── */
 const PANES = { image:'#imgMode', doc:'#docMode', rank:'#rankMode', text:'#textMode', postit:'#postitMode' };
@@ -1759,7 +1839,7 @@ $('#saveDoc').onclick = async () => {
       summary: $('#dSum').value.trim() || null, editor_summary: $('#dSum').value.trim() || null,
       published_summary: $('#dSum').value.trim() || null,
       source_url: $('#dUrl').value.trim() || null, uploaded_by: ME,
-      keywords: (t => t.length ? t : null)(docEnts.filter(v => String(v).startsWith('#')))
+      keywords: (t => t.length ? t : null)(docEnts.filter(v => String(v).startsWith('#') && !docMv.has(v)))
     }).select('doc_id').single();
     if(error) throw error;
     const id = row.doc_id;
@@ -1804,11 +1884,25 @@ $('#saveDoc').onclick = async () => {
 
     const dEnts2 = docEnts.filter(v => !String(v).startsWith('#'));
     const dLinks = dEnts2.map((eid,i)=>({ doc_id:id, entity_id:eid,
-      relation_type: i===0?'primary':'mentioned', mapping_method:'manual', approved:true, created_by:ME }));
-    for(const cb of document.querySelectorAll('#dMvBox input:checked'))
-      if(!dEnts2.includes(cb.value))
-        dLinks.push({ doc_id:id, entity_id:cb.value, relation_type:'movement',
+      relation_type: docMv.has(eid) ? 'movement' : (i===0?'primary':'mentioned'),
+      mapping_method:'manual', approved:true, created_by:ME }));
+
+    /* M 이 켜진 #태그 → MOVEMENT 엔티티로 자동 등록하고 연결 */
+    let newMv = 0;
+    for(const tg of docEnts.filter(v => String(v).startsWith('#') && docMv.has(v))){
+      const name = tg.replace(/^#/,'').replace(/_/g,' ');
+      let eid = matchEntity(name);
+      if(!eid){
+        const { data:en, error:eM } = await sb.from('entities').insert({
+          name_kr:name, name_en:name, axis:'movement', first_seen:ym,
+          status:'Active', brand_fit:['ALL'], created_by:ME }).select('entity_id').single();
+        if(eM) throw eM;
+        eid = en.entity_id; newMv++;
+      }
+      if(!dLinks.some(l => l.entity_id === eid))
+        dLinks.push({ doc_id:id, entity_id:eid, relation_type:'movement',
                       mapping_method:'manual', approved:true, created_by:ME });
+    }
     if(dLinks.length){
       const { error:e3 } = await sb.from('document_entities').upsert(dLinks);
       if(e3) throw e3;
@@ -1817,6 +1911,7 @@ $('#saveDoc').onclick = async () => {
     toast(`저장했습니다 — ${id}`);
     ['#dTitle','#dPub','#dDate','#dUrl','#dSeason','#dSum'].forEach(s=>$(s).value='');
     $('#dFile').value=''; $('#dCover').value=''; docChips.clear();
+    if(newMv){ await loadAll(); toast(`MOVEMENT ${newMv}개 사전 등록`); }
   }catch(e){ die(e,'문서 저장'); }
 };
 
@@ -1843,7 +1938,8 @@ async function renderFeed(){
         <td>${esc(r.region||'')}</td>
         <td class="mini">${esc(r.content_date||'')}</td>
         <td>${r.src_cnt}</td>
-        <td style="white-space:nowrap"><button class="btn ghost sm" data-tomap="${r.kind}:${r.id}:${esc(r.year_month||'')}" title="Trend Map 에 노드로 올리기">맵+</button>
+        <td style="white-space:nowrap"><button class="btn ghost sm" data-edit="${r.kind}:${r.id}">수정</button>
+            <button class="btn ghost sm" data-tomap="${r.kind}:${r.id}:${esc(r.year_month||'')}" title="맵에 올리기 · 이미 있으면 갱신">맵+</button>
             <button class="btn danger sm" data-del="${r.kind}:${r.id}">삭제</button></td>
       </tr>`).join('')
       : '<tr><td colspan="7"><div class="empty">아직 수집된 자료가 없습니다. 수집 탭에서 사진이나 문서를 올려보세요.</div></td></tr>';
@@ -1854,15 +1950,63 @@ $('#fBody').onclick = async e => {
   const tm = e.target.closest('[data-tomap]');
   if(tm){
     const [kind, id, ym] = tm.dataset.tomap.split(':');
+    const col = kind==='image' ? 'image_id' : 'doc_id';
     busy(true,'맵에 올리는 중…');
     try{
-      const row = { view_id:'monthly', kind: kind==='image' ? 'photo' : 'doc',
-                    t: ym || ymNow(), x: 60, y: 60, created_by: ME };
-      row[kind==='image' ? 'image_id' : 'doc_id'] = id;
-      const { error } = await sb.from('map_nodes').insert(row);
-      if(error) throw error;
-      toast('맵(월별) 왼쪽 위에 올렸습니다 — 맵 탭에서 끌어다 배치하세요');
+      const { data:ex } = await sb.from('map_nodes').select('node_id').eq(col, id).eq('view_id','monthly').limit(1);
+      if(ex && ex.length){
+        await sb.from('map_nodes').update({ t: ym || ymNow() }).eq('node_id', ex[0].node_id);
+        toast('이미 맵에 있어 등장 월만 갱신했습니다 — 제목·사진은 원장에서 자동 반영됩니다');
+      } else {
+        const row = { view_id:'monthly', kind: kind==='image' ? 'photo' : 'doc',
+                      t: ym || ymNow(), x: 60, y: 60, created_by: ME };
+        row[col] = id;
+        const { error } = await sb.from('map_nodes').insert(row);
+        if(error) throw error;
+        toast('맵(월별) 왼쪽 위에 올렸습니다 — 맵 탭에서 끌어다 배치하세요');
+      }
     }catch(err){ die(err,'맵에 올리기'); }
+    busy(false);
+    return;
+  }
+
+  const ed = e.target.closest('[data-edit]');
+  if(ed){
+    document.querySelectorAll('#fBody .editrow').forEach(x => x.remove());
+    const [kind, id] = ed.dataset.edit.split(':');
+    const tbl = kind==='image' ? 'images' : 'documents';
+    const pk  = kind==='image' ? 'image_id' : 'doc_id';
+    busy(true,'불러오는 중…');
+    try{
+      const { data:rec, error } = await sb.from(tbl).select('*').eq(pk, id).single();
+      if(error) throw error;
+      const row = document.createElement('tr'); row.className = 'editrow';
+      row.innerHTML = `<td colspan="7"><div class="erow">` + (kind==='image'
+        ? `<div><label class="f">제목 · 메모</label><input class="ei" data-k="note" value="${esc(rec.note||'')}"></div>
+           <div style="max-width:150px"><label class="f">계정</label><input class="ei" data-k="account" value="${esc(rec.account||'')}"></div>
+           <div style="max-width:150px"><label class="f">브랜드</label><input class="ei" data-k="brand" value="${esc(rec.brand||'')}"></div>
+           <div style="max-width:110px"><label class="f">귀속 월</label><input class="ei" data-k="year_month" type="month" value="${esc(rec.year_month||'')}"></div>`
+        : `<div><label class="f">제목</label><input class="ei" data-k="title" value="${esc(rec.title||'')}"></div>
+           <div style="max-width:150px"><label class="f">발행처</label><input class="ei" data-k="publisher" value="${esc(rec.publisher||'')}"></div>
+           <div style="max-width:130px"><label class="f">발행일</label><input class="ei" data-k="doc_date" type="date" value="${esc(rec.doc_date||'')}"></div>
+           <div style="max-width:110px"><label class="f">귀속 월</label><input class="ei" data-k="year_month" type="month" value="${esc(rec.year_month||'')}"></div>
+           <div style="flex-basis:100%"><label class="f">요약</label><textarea class="ei" data-k="summary" rows="3">${esc(rec.summary||'')}</textarea></div>`)
+        + `<div style="align-self:flex-end;display:flex;gap:6px">
+             <button class="btn sm" data-esave>저장</button>
+             <button class="btn ghost sm" data-ecancel>취소</button></div></div></td>`;
+      ed.closest('tr').after(row);
+      row.querySelector('[data-ecancel]').onclick = () => row.remove();
+      row.querySelector('[data-esave]').onclick = async () => {
+        const patch = {};
+        row.querySelectorAll('.ei').forEach(x => patch[x.dataset.k] = x.value.trim() || null);
+        busy(true,'저장 중…');
+        const { error:e2 } = await sb.from(tbl).update(patch).eq(pk, id);
+        busy(false);
+        if(e2) return die(e2,'수정 저장');
+        toast('저장했습니다 — 피드·맵·대시보드에 자동 반영됩니다');
+        renderFeed();
+      };
+    }catch(err){ die(err,'수정'); }
     busy(false);
     return;
   }
@@ -1984,6 +2128,8 @@ function renderBrands(){
       <div style="font-family:'Playfair Display',serif;font-size:22px;margin:4px 0 8px">${esc(b.brand_name)}</div>
       <div style="font-size:12.5px;line-height:1.6">${b.headline||'<span class="mini">카드 본문 없음</span>'}</div>
       <div style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--hair);margin-top:12px;padding-top:10px">
+        <button class="btn ghost sm" data-bpin="${b.brand_id}" title="KEY BRAND 탭 노출 켜기/끄기"
+          style="${b.pinned?'background:var(--ink);color:#fff':''}">${b.pinned?'★ 노출 중':'☆ 숨김'}</button>
         <span class="pill ${b.signal}">${esc(b.signal)}</span>
         <span style="font-family:'Playfair Display',serif;font-size:20px;color:var(--rising)">${esc(b.growth_pct||'')}</span>
         <button class="btn ghost sm" data-bedit="${b.brand_id}">편집</button>
@@ -1992,7 +2138,17 @@ function renderBrands(){
     : '<div class="empty" style="grid-column:1/-1">브랜드가 없습니다. 사진에 브랜드명을 넣으면 자동으로 여기 쌓입니다.</div>';
 }
 $('#bQ').addEventListener('input', renderBrands);
-$('#bList').onclick = e => {
+$('#bList').onclick = async e => {
+  const pin = e.target.closest('[data-bpin]');
+  if(pin){
+    const b = BRANDS.find(x => x.brand_id === pin.dataset.bpin); if(!b) return;
+    const { error } = await sb.from('brands').update({ pinned: !b.pinned }).eq('brand_id', b.brand_id);
+    if(error) return die(error, 'KEY BRAND 노출');
+    b.pinned = !b.pinned;
+    renderBrands();
+    toast(b.pinned ? `★ ${b.brand_name} — KEY BRAND 탭에 나갑니다` : `${b.brand_name} — 숨겼습니다`);
+    return;
+  }
   const btn = e.target.closest('[data-bedit]'); if(!btn) return;
   const b = BRANDS.find(x=>x.brand_id===btn.dataset.bedit);
   $('#b_id').value=b.brand_id; $('#b_name').value=b.brand_name; $('#b_tier').value=b.tier||'niche';
@@ -2178,7 +2334,7 @@ let MV = [], MN = [], MEDGE = [], mCur = null, mSel = null, mLinkFrom = null;
 
 const KINDLBL = { key:'KEY TREND', mv:'MOVEMENT', photo:'사진', doc:'문서', sticky:'POST-IT', brand:'브랜드', bundle:'묶음' };
 /* 종류별로 어느 원장에서 고르는지 */
-const REFCOL = { key:'entity_id', mv:'entity_id', photo:'image_id', doc:'doc_id', sticky:'note_id', brand:'brand_id', bundle:null };
+const REFCOL = { key:'entity_id', mv:'entity_id', photo:'image_id', doc:'doc_id', sticky:'note_id', brand:'brand_id', bundle:'entity_id' };
 
 async function loadMap(){
   const [v, n, e] = await Promise.all([
@@ -2240,7 +2396,7 @@ $('#mAdd').onclick = async () => {
 };
 
 function mnHtml(n){
-  const head = esc((n.r_headline || n.label || '(제목 없음)').slice(0, 40));
+  const head = esc((n.r_headline || n.r_caption || n.label || '(제목 없음)').slice(0, 40));
   const img  = n.r_img ? `<img src="${esc(n.r_img)}" loading="lazy" alt="">` : '';
   return `<div class="mn k-${esc(n.kind)}${mSel===n.node_id?' sel':''}" data-id="${esc(n.node_id)}"
     style="left:${n.x}px; top:${n.y}px">
@@ -2335,6 +2491,7 @@ function openNode(id){
   $('#mpHead').value  = n.headline || '';
   $('#mpMeta').value  = n.meta || '';
   $('#mpBadge').value = n.badge || '';
+  $('#mpW').value = n.w || '';
   $('#mBundleRow').hidden = n.kind !== 'bundle';
   $('#mpCnt').value = n.cnt || '';
   $('#mpLbl').value = n.label || '';
@@ -2353,6 +2510,7 @@ $('#mSave').onclick = async () => {
     headline: $('#mpHead').value.trim()  || null,
     meta:     $('#mpMeta').value.trim()  || null,
     badge:    $('#mpBadge').value        || null,
+    w:        +$('#mpW').value || null,
     cnt:      $('#mpCnt').value.trim()   || null,
     label:    $('#mpLbl').value.trim()   || null
   };
