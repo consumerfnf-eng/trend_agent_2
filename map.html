@@ -171,7 +171,7 @@ const $  = s => document.querySelector(s);
 const esc = x => String(x ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const el = h => { const d = document.createElement('div'); d.innerHTML = h; return d.firstElementChild; };
 
-let VIEWS = [], NODES = [], EDGES = [], ENTS = {}, curView = null, curTimeIdx = 0, TAGFILTER = null;
+let VIEWS = [], NODES = [], EDGES = [], ENTS = {}, curView = null, curTimeIdx = null, TAGFILTER = null;
 
 /* ── 시간축: 뷰에 times 가 비어 있으면 노드의 t 에서 자동으로 만듭니다 ── */
 const timesOf = v => {
@@ -199,7 +199,7 @@ async function load(){
   $('#viewSel').innerHTML = VIEWS.map(v =>
     `<button class="${v.view_id===curView?'on':''}" data-v="${esc(v.view_id)}">${esc(v.name_kr)}</button>`).join('');
   $('#viewSel').querySelectorAll('button').forEach(b => b.onclick = () => {
-    curView = b.dataset.v; curTimeIdx = 0; TAGFILTER = null; load();
+    curView = b.dataset.v; curTimeIdx = null; TAGFILTER = null; load();
   });
   render();
 }
@@ -251,7 +251,7 @@ function render(){
   $('#legend').textContent = V.legend || '';
 
   if(!mine.length){ fail('이 뷰에 놓인 노드가 없습니다.'); $('#timeSel').innerHTML=''; $('#sideList').innerHTML=''; return; }
-  if(curTimeIdx >= times.length) curTimeIdx = times.length - 1;
+  if(curTimeIdx === null || curTimeIdx >= times.length) curTimeIdx = times.length - 1;   // 처음엔 최신 달 — 방금 올린 게 바로 보입니다
 
   $('#timeSel').innerHTML = times.map((t,i) =>
     `<button class="${i===curTimeIdx?'on':''}" data-i="${i}">${esc(t)}</button>`).join('');
