@@ -39,6 +39,26 @@ header h1{font-family:'Playfair Display',serif; font-size:22px}
 .fcard .meta{font-size:11px; color:var(--sub); line-height:1.5}
 .badge{position:absolute; top:10px; left:10px; font-size:9px; font-weight:800; letter-spacing:.12em; padding:4px 9px; color:#fff; z-index:1}
 .badge.MAIN{background:var(--rising)} .badge.FEED{background:#9a938a} .badge.NEW{background:var(--new)}
+#dpanel{position:fixed; right:-420px; top:0; bottom:0; width:400px; max-width:92vw; background:var(--paper);
+  border-left:1px solid var(--ink); z-index:60; overflow-y:auto; transition:right .28s; padding:20px 22px 30px}
+#dpanel.open{right:0}
+#dpDim{position:fixed; inset:0; background:#0004; z-index:55; opacity:0; pointer-events:none; transition:opacity .28s}
+#dpDim.open{opacity:1; pointer-events:auto}
+#dpanel .px{position:absolute; top:12px; right:14px; border:0; background:none; font-size:20px; cursor:pointer}
+#dpanel .hero{width:100%; max-height:340px; object-fit:cover; border:1px solid var(--hair); display:block}
+#dpanel .hgrid{display:grid; grid-template-columns:1fr 1fr; gap:5px}
+#dpanel .hgrid img{width:100%; height:130px; object-fit:cover; border:1px solid var(--hair)}
+#dpanel h2{font-family:'Playfair Display',serif; font-size:21px; margin:12px 0 2px}
+#dpanel .k{font-size:9px; letter-spacing:.2em; color:var(--rising); text-transform:uppercase; font-weight:700; margin-top:14px}
+#dpanel h5{font-size:10px; letter-spacing:.18em; text-transform:uppercase; color:var(--sub);
+  border-top:1px solid var(--hair); padding-top:10px; margin:16px 0 7px}
+#dpanel .ev{font-size:12px; line-height:1.7}
+#dpanel .ev b{color:var(--rising)}
+#dpanel .memo{background:#fff; border:1px solid var(--hair); padding:10px 12px; font-size:12px; line-height:1.6; white-space:pre-wrap}
+#dpanel .chip{display:inline-block; background:var(--ink); color:#fff; font-size:10px; padding:3px 8px; margin:0 4px 5px 0; border-radius:2px}
+#dpanel .chip.tag{background:#f4efe6; color:#8a8578; border:1px dashed #d8d2c4}
+#dpanel .go{display:inline-block; margin-top:12px; font-size:11px; letter-spacing:.1em; color:var(--rising);
+  text-decoration:none; border-bottom:1px solid var(--rising); font-weight:700}
 .ntag{font-size:8px; font-weight:800; letter-spacing:.08em; padding:2px 6px; color:#fff; margin-left:4px; vertical-align:middle}
 .ntag.KR{background:#1a7a4a}.ntag.GL{background:#2b5db8}.ntag.CN{background:#c8451f}
 /* ── KEY BRAND ── */
@@ -97,6 +117,11 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
   <div class="bgrid" id="bgrid"></div>
 </div></div>
 
+<aside id="dpanel">
+  <button class="px" id="dpClose">×</button>
+  <div id="dpBody"></div>
+</aside>
+<div id="dpDim"></div>
 <footer>TREND AGENT · LIVE FEED &amp; KEY BRAND · SUPABASE</footer>
 <div id="load"><div class="spin"></div><span>불러오는 중</span></div>
 
@@ -194,6 +219,88 @@ function renderBoard(){
     <div id="mapWrap"><iframe id="mapFrame" src="map.html" title="Trend Map"></iframe></div>`;
 }
 
+/* ═══ 우측 슬라이드 패널 — 피드·브랜드 카드 클릭 상세 ═══ */
+const ENT_NAME = () => Object.fromEntries(ENTS.map(e => [e.entity_id, e.name_kr || e.name_en]));
+const closeP = () => { $('#dpanel').classList.remove('open'); $('#dpDim').classList.remove('open'); };
+$('#dpClose').onclick = closeP; $('#dpDim').onclick = closeP;
+const openP = html => { $('#dpBody').innerHTML = html; $('#dpanel').classList.add('open'); $('#dpDim').classList.add('open'); };
+
+async function openFeedPanel(it){
+  openP('<div class="empty">불러오는 중…</div>');
+  const names = ENT_NAME();
+  let html = '';
+  if(it.kind === 'image'){
+    const [{ data:rec }, { data:lk }, { data:tg }] = await Promise.all([
+      sb.from('images').select('*').eq('image_id', it.id).single(),
+      sb.from('asset_entities').select('entity_id,role,trend_stage').eq('image_id', it.id),
+      sb.from('asset_tags').select('tag_value').eq('image_id', it.id)
+    ]);
+    if(!rec) return openP('<div class="empty">자료를 찾지 못했습니다</div>');
+    const kws = (lk||[]).filter(l=>l.role!=='movement').map(l =>
+      `<span class="chip">${esc(names[l.entity_id]||l.entity_id)}${l.trend_stage?` · ${esc(l.trend_stage)}`:''}</span>`).join('');
+    const mv = (lk||[]).find(l=>l.role==='movement');
+    const tags = (tg||[]).map(t=>`<span class="chip tag">${esc(t.tag_value)}</span>`).join('');
+    html = `
+      ${rec.file_url||rec.thumb_url ? `<img class="hero" src="${esc(rec.file_url||rec.thumb_url)}" alt="">` : ''}
+      <div class="k">${esc(it.badge==='MAIN'?'MAIN BOARD':it.badge)} · ${esc(rec.region||'')} · ${esc(rec.year_month||'')}</div>
+      <h2>${esc(rec.note || rec.account || it.title)}</h2>
+      <h5>Trend evidence</h5>
+      <div class="ev">
+        ${it.src_cnt ? `출처 <b>${it.src_cnt}곳</b>에서 포착${it.src_cnt>=3?' — MAIN 승격':''}<br>` : ''}
+        ${mv ? `흐름 <b>↗ ${esc(names[mv.entity_id]||'')}</b><br>` : ''}
+        ${rec.account ? `계정 ${esc(rec.account)}${rec.likes?` · 좋아요 ${(+rec.likes).toLocaleString()}`:''}<br>` : ''}
+        ${rec.brand ? `브랜드 ${esc(rec.brand)}<br>` : ''}
+        소스 ${esc(rec.source_id||'')}${rec.post_date?` · ${esc(rec.post_date)}`:''}
+      </div>
+      ${rec.note ? `<h5>Memo</h5><div class="memo">${esc(rec.note)}</div>` : ''}
+      <h5>주요 키워드</h5><div>${kws + tags || '<span class="mini">연결된 키워드 없음</span>'}</div>
+      ${rec.source_url ? `<a class="go" href="${esc(rec.source_url)}" target="_blank" rel="noopener">원문 보기 ↗</a>` : ''}`;
+  } else {
+    const [{ data:rec }, { data:lk }] = await Promise.all([
+      sb.from('documents').select('*').eq('doc_id', it.id).single(),
+      sb.from('document_entities').select('entity_id,relation_type').eq('doc_id', it.id)
+    ]);
+    if(!rec) return openP('<div class="empty">자료를 찾지 못했습니다</div>');
+    const kws = (lk||[]).filter(l=>l.relation_type!=='movement').map(l =>
+      `<span class="chip">${esc(names[l.entity_id]||l.entity_id)}</span>`).join('');
+    const mv = (lk||[]).find(l=>l.relation_type==='movement');
+    const tags = (rec.keywords||[]).map(t=>`<span class="chip tag">${esc(t)}</span>`).join('');
+    html = `
+      ${rec.thumb_url ? `<img class="hero" src="${esc(rec.thumb_url)}" alt="">` : ''}
+      <div class="k">${esc(it.badge==='MAIN'?'MAIN BOARD':it.badge)} · ${esc(rec.region||'')} · ${esc(rec.year_month||'')}</div>
+      <h2>${esc(rec.title || it.title)}</h2>
+      <h5>Trend evidence</h5>
+      <div class="ev">
+        ${it.src_cnt ? `출처 <b>${it.src_cnt}곳</b>에서 포착${it.src_cnt>=3?' — MAIN 승격':''}<br>` : ''}
+        ${mv ? `흐름 <b>↗ ${esc(names[mv.entity_id]||'')}</b><br>` : ''}
+        ${rec.publisher ? `발행 ${esc(rec.publisher)}${rec.doc_date?` · ${esc(rec.doc_date)}`:''}<br>` : ''}
+        ${rec.season ? `시즌 ${esc(rec.season)}<br>` : ''}
+        소스 ${esc(rec.source_id||'')}
+      </div>
+      ${rec.summary ? `<h5>Summary</h5><div class="memo">${esc(rec.summary)}</div>` : ''}
+      <h5>주요 키워드</h5><div>${kws + tags || '<span class="mini">연결된 키워드 없음</span>'}</div>
+      ${rec.source_url ? `<a class="go" href="${esc(rec.source_url)}" target="_blank" rel="noopener">원문 보기 ↗</a>` : ''}`;
+  }
+  openP(html);
+}
+
+function openBrandPanel(b){
+  const names = ENT_NAME();
+  const photos = (b.photos||[]).slice(0,4);
+  const linked = (b.linked_entities||[]).map(v =>
+    `<span class="chip${String(v).startsWith('#')?' tag':''}">${esc(String(v).startsWith('#')?v:(names[v]||v))}</span>`).join('');
+  const links = (b.links||[]).map(l=>`<a class="go" style="margin-right:12px" href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)} ↗</a>`).join('');
+  openP(`
+    ${photos.length ? `<div class="hgrid">${photos.map(p=>`<img src="${esc(p.thumb_url||p.file_url)}" alt="">`).join('')}</div>` : ''}
+    <div class="k">${esc(b.tier||'')} · ${esc(b.origin||'')} · ${esc(b.signal||'')}${b.growth_pct?` · ${esc(b.growth_pct)}`:''}</div>
+    <h2>${esc(b.brand_name)}</h2>
+    ${b.headline ? `<div class="ev">${esc(b.headline)}</div>` : ''}
+    <h5>Trend evidence</h5>
+    <div class="memo">${esc(b.verify_note || '검증 노트가 아직 없습니다')}</div>
+    <h5>연결 트렌드</h5><div>${linked || '<span class="mini">연결된 키워드 없음</span>'}</div>
+    ${links ? `<div style="margin-top:6px">${links}</div>` : ''}`);
+}
+
 /* ═══ LIVE FEED ═══ */
 function renderFeed(){
   const rail = $('#dateRail'), main = $('#feedMain');
@@ -222,8 +329,7 @@ function renderFeed(){
     sec.className = 'dgroup'; sec.id = 'g-' + d;
     sec.innerHTML = `<h2>${esc(d)}</h2><div class="grid">` + items.map(it => {
       const tag = ['KR','GL','CN'].includes(it.region) ? it.region : 'KR';
-      const href = it.url || it.file_url || '#';
-      return `<a class="fcard" href="${esc(href)}" target="_blank" rel="noopener">
+      return `<a class="fcard" href="#" data-fk="${esc(it.kind)}:${esc(it.id)}">
         <span class="badge ${it.badge}">${it.badge === 'MAIN' ? 'MAIN BOARD' : it.badge}</span>
         <div class="th" style="${thumbCss(it.thumb_url)}"></div>
         <div class="bd"><h3>${esc(it.title)}<span class="ntag ${tag}">${tag}</span></h3>
@@ -232,6 +338,13 @@ function renderFeed(){
     }).join('') + '</div>';
     main.appendChild(sec);
   }
+  main.onclick = e => {
+    const a = e.target.closest('[data-fk]'); if(!a) return;
+    e.preventDefault();
+    const [kind, id] = a.dataset.fk.split(':');
+    const it = FEED.find(x => x.kind === kind && String(x.id) === id);
+    if(it) openFeedPanel(it);
+  };
 }
 
 /* ═══ KEY BRAND ═══ */
@@ -255,7 +368,9 @@ function renderBrands(){
   }).join('');
   bg.onclick = e => {
     if(e.target.closest('a')) return;
-    e.target.closest('.bcard')?.classList.toggle('open');
+    const c = e.target.closest('.bcard'); if(!c) return;
+    const b = BRANDS[[...bg.children].indexOf(c)];
+    if(b) openBrandPanel(b);
   };
 }
 
