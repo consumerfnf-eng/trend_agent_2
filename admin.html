@@ -118,6 +118,13 @@ tbody tr:hover{background:#fdfcf9}
 .chip{display:inline-block; font-size:10px; font-weight:700; letter-spacing:.06em; padding:2px 7px;
   border-radius:2px; margin:2px 3px 2px 0; background:var(--accent-soft); color:var(--accent)}
 .chip.rm{cursor:pointer}
+.chip.tag{background:#f4efe6; color:#8a8578; border:1px dashed #d8d2c4}
+.mvchecks{display:flex; flex-wrap:wrap; gap:4px 12px; padding:6px 0}
+.mvchecks label{display:flex; align-items:center; gap:5px; font-size:12px; cursor:pointer; white-space:nowrap}
+.mvchecks input{margin:0; accent-color:#c8451f}
+.rkw{width:86px; border:0; border-bottom:1px dashed var(--hair); background:transparent;
+  font:inherit; font-size:11px; padding:2px 3px; margin-left:4px}
+.rkw:focus{outline:0; border-bottom-color:var(--ink)}
 .chip.rm:after{content:' ×'; opacity:.6}
 .badge{display:inline-block; font-size:9px; font-weight:800; letter-spacing:.1em; padding:3px 7px; color:#fff}
 .badge.MAIN{background:var(--rising)} .badge.FEED{background:#9a938a} .badge.NEW{background:var(--ok)}
@@ -262,14 +269,18 @@ tbody tr:hover{background:#fdfcf9}
     </div></div>
     <div class="row">
       <div><label class="f">TREND KEYWORD</label>
-        <input id="dEnt" list="entList" placeholder="이름 입력 후 Enter">
+        <input id="dEnt" list="entList" placeholder="입력 후 Enter — 사전에 있으면 연결, 없으면 #키워드로">
         <div id="dEntChips" style="margin-top:6px"></div></div>
-      <div style="max-width:230px"><label class="f">MOVEMENT — 이 기사가 어떤 흐름인지</label>
-        <select id="dMv" class="mvSel"></select></div>
+      <div style="max-width:280px"><label class="f">MOVEMENT — 관련 흐름에 체크 (복수 가능)</label>
+        <div id="dMvBox" class="mvchecks"><span class="mini">등록된 MOVEMENT 없음</span></div></div>
     </div>
     <div class="row"><div>
       <label class="f">첨부 파일 — PDF 또는 캡처 · 올리면 AI가 여기서 읽습니다</label>
       <input id="dFile" type="file" accept="image/*,application/pdf">
+    </div></div>
+    <div class="row"><div>
+      <label class="f">대표 사진 — 메인보드·피드·맵에 보일 썸네일 (선택 · 없으면 첨부 캡처를 씁니다)</label>
+      <input id="dCover" type="file" accept="image/*">
     </div></div>
     <div class="row"><div>
       <label class="f">또는 본문 붙여넣기 — 첨부가 없을 때</label>
@@ -623,7 +634,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ═══════════ 설정 — 여기 두 줄만 바꾸면 됩니다 ═══════════ */
 const SUPABASE_URL  = 'https://piifytwflubdtkzaiisi.supabase.co';
-const SUPABASE_ANON  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBpaWZ5dHdmbHViZHRremFpaXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQwODI5NDcsImV4cCI6MjA5OTY1ODk0N30.cVrgt7YQ99R-slePt8U2r_GmtDxetejZdqHcnqJmwhc';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBpaWZ5dHdmbHViZHRremFpaXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQwODI5NDcsImV4cCI6MjA5OTY1ODk0N30.cVrgt7YQ99R-slePt8U2r_GmtDxetejZdqHcnqJmwhc';/* ═══════════════════════════════════════════════════ */
 /* ════════════════════════════════════════════════════════ */
 
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
@@ -713,9 +724,10 @@ async function loadAll(){
     const keepMv = $('#sessMv').value;
     $('#sessMv').innerHTML = mvOptions();
     $('#sessMv').value = keepMv;
-    const keepDMv = $('#dMv').value;
-    $('#dMv').innerHTML = mvOptions();
-    $('#dMv').value = keepDMv;
+    const keepDMv = new Set([...document.querySelectorAll('#dMvBox input:checked')].map(x => x.value));
+    $('#dMvBox').innerHTML = MOVEMENTS().length
+      ? MOVEMENTS().map(m => `<label><input type="checkbox" value="${esc(m.entity_id)}" ${keepDMv.has(m.entity_id)?'checked':''}>${esc(m.name_kr || m.name_en)}</label>`).join('')
+      : '<span class="mini">등록된 MOVEMENT 없음 — 세션 바 ＋ 로 등록</span>';
 
     const keep = $('#sessBrand').value;
     $('#sessBrand').innerHTML = '<option value="">브랜드 선택</option>' +
@@ -767,18 +779,28 @@ function scanEntities(text, max = 3){
 const label = id => { const e=entById[id]; return e ? (e.name_en || e.name_kr) : id; };
 
 /* ── 칩 입력 위젯 ── */
-function chipInput(inputSel, chipSel, store, resolve){
+/* allowTags=true 면: 사전에 있으면 엔티티 칩(진한색), 없으면 #해시태그 칩(흐린색).
+   #해시태그는 소문자 + 띄어쓰기 → _ 로 자동 정리됩니다. 칩 클릭 = 삭제. */
+function chipInput(inputSel, chipSel, store, resolve, allowTags){
   const inp=$(inputSel), box=$(chipSel);
   const draw = () => box.innerHTML = store.map((v,i)=>
-    `<span class="chip rm" data-i="${i}">${esc(resolve?resolve(v):v)}</span>`).join('');
+    `<span class="chip rm${String(v).startsWith('#')?' tag':''}" data-i="${i}">${esc(resolve && !String(v).startsWith('#') ? resolve(v) : v)}</span>`).join('');
   box.onclick = e => { const c=e.target.closest('.chip'); if(!c) return;
     store.splice(+c.dataset.i,1); draw(); };
   inp.addEventListener('keydown', e => {
     if(e.key!=='Enter') return; e.preventDefault();
     const raw=inp.value.trim(); if(!raw) return;
-    const v = resolve ? (matchEntity(raw) || null) : raw;
-    if(resolve && !v){ toast(`사전에 없는 표현 — "${raw}" 는 미매핑 큐로 보냅니다`); addToQueue(raw); inp.value=''; return; }
-    if(!store.includes(v)) store.push(v);
+    let v;
+    if(!resolve) v = raw;
+    else {
+      v = matchEntity(raw) || scanEntities(raw, 1)[0] || null;
+      if(!v){
+        if(!allowTags){ toast(`사전에 없는 표현 — "${raw}" 는 미매핑 큐로 보냅니다`); addToQueue(raw); inp.value=''; return; }
+        v = hashTag(raw);                       // #wellness — 오타도 눈에 보이니 클릭해서 뺄 수 있습니다
+        if(v) addToQueue(raw);                  // 승격 후보로도 쌓아둡니다
+      }
+    }
+    if(v && !store.includes(v)) store.push(v);
     inp.value=''; draw();
   });
   return { draw, clear(){ store.length=0; draw(); } };
@@ -1294,7 +1316,7 @@ async function ensureCeleb(name, account){
 
 /* ── 문서 저장 ── */
 const docEnts = [];
-const docChips = chipInput('#dEnt', '#dEntChips', docEnts, label);
+const docChips = chipInput('#dEnt', '#dEntChips', docEnts, label, true);
 
 /* ── 모드 전환 ── */
 const PANES = { image:'#imgMode', doc:'#docMode', rank:'#rankMode', text:'#textMode', postit:'#postitMode' };
@@ -1356,14 +1378,13 @@ function drawRank(){
   if(!RANK_ROWS.length){ box.innerHTML=''; $('#rStat').textContent=''; $('#saveRank').disabled=true; return; }
   box.innerHTML = `<table><thead><tr><th style="width:44px">순위</th><th>아이템명</th><th style="width:110px">브랜드</th>
     <th style="width:74px">가격</th><th style="width:38%">#키워드</th></tr></thead>
-    <tbody>${RANK_ROWS.map(r=>`<tr>
+    <tbody>${RANK_ROWS.map((r,ri)=>`<tr>
       <td><b>${r.rank}</b></td><td>${esc(r.product_name)}</td><td>${esc(r.brand)}</td>
       <td>${r.price ? r.price.toLocaleString() : '—'}</td>
       <td>${
-        (r.entities||[]).map(e=>`<span class="chip">${esc(label(e))}</span>`).join('') +
-        (r.keywords||[]).map(k=>`<span class="chip" style="background:#f4efe6;color:var(--sub)">${esc(k)}</span>`).join('')
-        || '<span class="mini" style="color:#c8451f">— 없음</span>'
-      }</td>
+        (r.entities||[]).map((e,i)=>`<span class="chip rm" data-r="${ri}" data-kind="e" data-i="${i}" title="클릭 = 삭제">${esc(label(e))}</span>`).join('') +
+        (r.keywords||[]).map((k,i)=>`<span class="chip rm tag" data-r="${ri}" data-kind="k" data-i="${i}" title="클릭 = 삭제">${esc(k)}</span>`).join('')
+      }<input class="rkw" data-r="${ri}" placeholder="+ Enter"></td>
     </tr>`).join('')}</tbody></table>`;
   const enough = RANK_ROWS.filter(r => kwCount(r) >= 2).length;
   const some   = RANK_ROWS.filter(r => kwCount(r) >= 1).length;
@@ -1372,6 +1393,31 @@ function drawRank(){
     (RANK_ROWS.length > some ? ` · 없음 <i style="color:#c8451f;font-style:normal">${RANK_ROWS.length-some}</i>` : '');
   $('#saveRank').disabled = !IS_ADMIN;
 }
+
+/* 키워드 칩 클릭 = 삭제 · 행 끝 입력칸에서 Enter = 추가 (사전에 있으면 연결, 없으면 #키워드) */
+$('#rPreview').addEventListener('click', e => {
+  const c = e.target.closest('.chip.rm'); if(!c) return;
+  const r = RANK_ROWS[+c.dataset.r]; if(!r) return;
+  (c.dataset.kind === 'e' ? r.entities : r.keywords).splice(+c.dataset.i, 1);
+  r.entity_id = (r.entities||[])[0] || null;
+  drawRank();
+});
+$('#rPreview').addEventListener('keydown', e => {
+  if(e.key !== 'Enter' || !e.target.classList.contains('rkw')) return;
+  e.preventDefault();
+  const r = RANK_ROWS[+e.target.dataset.r]; if(!r) return;
+  const raw = e.target.value.trim(); if(!raw) return;
+  r.entities = r.entities || []; r.keywords = r.keywords || [];
+  const id = matchEntity(raw) || scanEntities(raw, 1)[0];
+  if(id){ if(!r.entities.includes(id)) r.entities.push(id); }
+  else {
+    const h = hashTag(raw);
+    if(h && !r.keywords.includes(h)){ r.keywords.push(h); addToQueue(raw); }
+  }
+  r.entity_id = r.entities[0] || null;
+  drawRank();
+  $(`.rkw[data-r="${e.target.dataset.r}"]`)?.focus();   // 다시 그려도 그 행에서 이어서 입력
+});
 
 /* 1차: 상품명·브랜드를 사전에 스캔. 2차(AI): 스캔에서 못 잡은 행만 */
 function matchRows(){
@@ -1547,7 +1593,7 @@ $('#saveRank').onclick = async () => {
 
 /* ── 텍스트: AI 키워드 추출 ── */
 const textEnts = [];
-const textChips = chipInput('#tEnt', '#tEntChips', textEnts, label);
+const textChips = chipInput('#tEnt', '#tEntChips', textEnts, label, true);
 
 $('#tParse').onclick = async () => {
   const raw = $('#tRaw').value.trim();
@@ -1594,12 +1640,14 @@ $('#saveText').onclick = async () => {
       title, publisher: $('#tPub').value.trim() || null,
       source_id: $('#source').value, doc_type: 'text', year_month: ym,
       region: $('#region').value,
-      summary: $('#tSum').value.trim() || null, created_by: ME
+      summary: $('#tSum').value.trim() || null, created_by: ME,
+      keywords: (t => t.length ? t : null)(textEnts.filter(v => String(v).startsWith('#')))
     }).select('doc_id').single();
     if(error) throw error;
-    if(textEnts.length){
+    const tEnts2 = textEnts.filter(v => !String(v).startsWith('#'));
+    if(tEnts2.length){
       const { error:e2 } = await sb.from('document_entities').upsert(
-        textEnts.map((eid,i) => ({ doc_id:data.doc_id, entity_id:eid, sort_order:i })));
+        tEnts2.map((eid,i) => ({ doc_id:data.doc_id, entity_id:eid, sort_order:i })));
       if(e2) throw e2;
     }
     $('#tRaw').value=''; $('#tTitle').value=''; $('#tPub').value=''; $('#tSum').value='';
@@ -1678,14 +1726,17 @@ $('#dAi').onclick = async () => {
     if(!$('#dSum').value    && out.summary)   $('#dSum').value    = out.summary;
     if(f) $('#dType').value = f.type === 'application/pdf' ? 'pdf' : 'capture';
 
-    let linked = 0, queued = 0;
+    let linked = 0, tagged = 0;
     for(const k of (out.keywords || [])){
       const id = scanEntities(k, 1)[0] || matchEntity(k);
       if(id){ if(!docEnts.includes(id)){ docEnts.push(id); linked++; } }
-      else { await addToQueue(k); queued++; }
+      else {
+        const h = hashTag(k);
+        if(h && !docEnts.includes(h)){ docEnts.push(h); tagged++; await addToQueue(k); }
+      }
     }
     docChips.draw();
-    toast(`요약 완료 — 사전 연결 ${linked}건` + (queued ? ` · 새 표현 ${queued}건은 미매핑 큐로` : ''));
+    toast(`요약 완료 — 사전 연결 ${linked} · #키워드 ${tagged} (필요 없는 건 칩을 눌러 빼세요)`);
   }catch(e){ die(e, '기사 AI 요약'); }
   busy(false);
 };
@@ -1707,7 +1758,8 @@ $('#saveDoc').onclick = async () => {
       season: $('#dSeason').value.trim() || null, region: $('#region').value,
       summary: $('#dSum').value.trim() || null, editor_summary: $('#dSum').value.trim() || null,
       published_summary: $('#dSum').value.trim() || null,
-      source_url: $('#dUrl').value.trim() || null, uploaded_by: ME
+      source_url: $('#dUrl').value.trim() || null, uploaded_by: ME,
+      keywords: (t => t.length ? t : null)(docEnts.filter(v => String(v).startsWith('#')))
     }).select('doc_id').single();
     if(error) throw error;
     const id = row.doc_id;
@@ -1735,12 +1787,28 @@ $('#saveDoc').onclick = async () => {
       if(e2) throw e2;
     }
 
-    const dLinks = docEnts.map((eid,i)=>({ doc_id:id, entity_id:eid,
+    /* 대표 사진 — 있으면 이걸 썸네일로. 첨부가 PDF 라 썸네일이 없던 경우도 이걸로 해결됩니다 */
+    const cf = $('#dCover').files[0];
+    if(cf){
+      const t  = await resize(cf, SET.thumb, SET.thumbQ);
+      const pt = `thumbs/${ym}/${id}.jpg`;
+      const ut = await sb.storage.from('media').upload(pt, t.blob,
+        { contentType:'image/jpeg', cacheControl:'604800', upsert:true });
+      if(ut.error) throw ut.error;
+      const { error:e2c } = await sb.from('documents').update({
+        thumb_path: pt,
+        thumb_url: sb.storage.from('media').getPublicUrl(pt).data.publicUrl
+      }).eq('doc_id', id);
+      if(e2c) throw e2c;
+    }
+
+    const dEnts2 = docEnts.filter(v => !String(v).startsWith('#'));
+    const dLinks = dEnts2.map((eid,i)=>({ doc_id:id, entity_id:eid,
       relation_type: i===0?'primary':'mentioned', mapping_method:'manual', approved:true, created_by:ME }));
-    const dmv = $('#dMv').value;
-    if(dmv && !docEnts.includes(dmv))
-      dLinks.push({ doc_id:id, entity_id:dmv, relation_type:'movement',
-                    mapping_method:'manual', approved:true, created_by:ME });
+    for(const cb of document.querySelectorAll('#dMvBox input:checked'))
+      if(!dEnts2.includes(cb.value))
+        dLinks.push({ doc_id:id, entity_id:cb.value, relation_type:'movement',
+                      mapping_method:'manual', approved:true, created_by:ME });
     if(dLinks.length){
       const { error:e3 } = await sb.from('document_entities').upsert(dLinks);
       if(e3) throw e3;
@@ -1748,7 +1816,7 @@ $('#saveDoc').onclick = async () => {
     busy(false);
     toast(`저장했습니다 — ${id}`);
     ['#dTitle','#dPub','#dDate','#dUrl','#dSeason','#dSum'].forEach(s=>$(s).value='');
-    $('#dFile').value=''; docChips.clear();
+    $('#dFile').value=''; $('#dCover').value=''; docChips.clear();
   }catch(e){ die(e,'문서 저장'); }
 };
 
@@ -1775,13 +1843,29 @@ async function renderFeed(){
         <td>${esc(r.region||'')}</td>
         <td class="mini">${esc(r.content_date||'')}</td>
         <td>${r.src_cnt}</td>
-        <td><button class="btn danger sm" data-del="${r.kind}:${r.id}">삭제</button></td>
+        <td style="white-space:nowrap"><button class="btn ghost sm" data-tomap="${r.kind}:${r.id}:${esc(r.year_month||'')}" title="Trend Map 에 노드로 올리기">맵+</button>
+            <button class="btn danger sm" data-del="${r.kind}:${r.id}">삭제</button></td>
       </tr>`).join('')
       : '<tr><td colspan="7"><div class="empty">아직 수집된 자료가 없습니다. 수집 탭에서 사진이나 문서를 올려보세요.</div></td></tr>';
   }catch(e){ die(e,'피드'); }
   busy(false);
 }
 $('#fBody').onclick = async e => {
+  const tm = e.target.closest('[data-tomap]');
+  if(tm){
+    const [kind, id, ym] = tm.dataset.tomap.split(':');
+    busy(true,'맵에 올리는 중…');
+    try{
+      const row = { view_id:'monthly', kind: kind==='image' ? 'photo' : 'doc',
+                    t: ym || ymNow(), x: 60, y: 60, created_by: ME };
+      row[kind==='image' ? 'image_id' : 'doc_id'] = id;
+      const { error } = await sb.from('map_nodes').insert(row);
+      if(error) throw error;
+      toast('맵(월별) 왼쪽 위에 올렸습니다 — 맵 탭에서 끌어다 배치하세요');
+    }catch(err){ die(err,'맵에 올리기'); }
+    busy(false);
+    return;
+  }
   const b = e.target.closest('[data-del]'); if(!b) return;
   const [kind,id] = b.dataset.del.split(':');
   if(!confirm(`${id} 를 삭제합니다. 되돌릴 수 없습니다.`)) return;
@@ -1985,17 +2069,56 @@ async function renderQueue(){
       <td class="mini">${esc(r.year_month||'')}</td>
       <td><b>${r.count}</b></td>
       <td class="mini">${esc(r.example_ref||'')}</td>
-      <td style="display:flex;gap:5px;align-items:center">
-        <input list="entList" data-merge="${r.id}" placeholder="연결할 엔티티" style="font-size:11px;padding:4px 6px">
-        <button class="btn sm" data-mergebtn="${r.id}">연결</button>
+      <td style="display:flex;gap:5px;align-items:center;flex-wrap:wrap">
+        <select data-axis="${r.id}" style="font-size:11px;padding:4px 4px;max-width:86px">
+          <option value="detail">detail</option><option value="style">style</option>
+          <option value="silhouette">실루엣</option><option value="color">컬러</option>
+          <option value="fabric">소재</option><option value="pattern_graphic">패턴</option>
+          <option value="movement">movement</option></select>
+        <button class="btn sm" data-promote="${r.id}" title="이 표현을 사전에 새 엔티티로">⬆ 승격</button>
+        <input list="entList" data-merge="${r.id}" placeholder="또는 기존에 연결" style="font-size:11px;padding:4px 6px;max-width:130px">
+        <button class="btn ghost sm" data-mergebtn="${r.id}">연결</button>
         <button class="btn ghost sm" data-ignore="${r.id}">무시</button>
       </td>
     </tr>`).join('')
     : '<tr><td colspan="6"><div class="empty">처리할 항목이 없습니다.</div></td></tr>';
 }
 $('#qBody').onclick = async e => {
+  const p2 = e.target.closest('[data-promote]');
   const m = e.target.closest('[data-mergebtn]');
   const g = e.target.closest('[data-ignore]');
+  if(p2){
+    const id = p2.dataset.promote;
+    const axis = $(`[data-axis="${id}"]`).value;
+    busy(true,'승격 중…');
+    try{
+      const { data:q } = await sb.from('unmapped_queue').select('raw_text,year_month').eq('id',id).single();
+      const name = q.raw_text.replace(/^#/,'').replace(/_/g,' ').trim();
+      const already = matchEntity(name);
+      if(already){
+        toast(`이미 사전에 있습니다 — ${label(already)} 에 연결합니다`);
+        await sb.from('aliases').upsert({ alias_text:q.raw_text, entity_id:already, source_scope:'all',
+          added_by:'queue', active:true }, { onConflict:'normalized_alias,source_scope' });
+        await sb.from('unmapped_queue').update({ status:'merged', resolved_entity_id:already,
+          resolved_date:new Date().toISOString().slice(0,10) }).eq('id',id);
+      } else {
+        const { data:en, error } = await sb.from('entities').insert({
+          name_kr:name, name_en:name, axis, first_seen:q.year_month || ymNow(),
+          status:'Active', brand_fit:['ALL'], created_by:ME
+        }).select('entity_id').single();
+        if(error) throw error;
+        if(norm(q.raw_text) !== norm(name))
+          await sb.from('aliases').upsert({ alias_text:q.raw_text, entity_id:en.entity_id, source_scope:'all',
+            added_by:'queue', active:true }, { onConflict:'normalized_alias,source_scope' });
+        await sb.from('unmapped_queue').update({ status:'promoted', resolved_entity_id:en.entity_id,
+          resolved_date:new Date().toISOString().slice(0,10) }).eq('id',id);
+        toast(`"${name}" 사전 등록 — 다음부터 자동으로 잡힙니다`);
+      }
+      await loadAll(); renderQueue();
+    }catch(err){ die(err,'승격'); }
+    busy(false);
+    return;
+  }
   if(m){
     const id = m.dataset.mergebtn;
     const raw = $(`[data-merge="${id}"]`).value.trim();
