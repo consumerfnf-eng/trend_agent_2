@@ -123,7 +123,7 @@ const $ = s => document.querySelector(s);
 const esc = x => String(x ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const norm = v => String(v||'').toLowerCase().replace(/[\s#_-]/g,'');
 
-let ENTS = [], SIG = [], CNT = {}, COVER = {}, month = new Date().toISOString().slice(0,7);
+let ENTS = [], SIG = [], CNT = {}, COVER = {}, TAGS = [], month = new Date().toISOString().slice(0,7);
 let catF = 'All', brandF = 'All';
 
 const SRC_PRI = ['naver','google','sometrend','manual'];
@@ -166,11 +166,14 @@ function stageOf(eid){
 }
 
 async function load(){
-  const [e2, s2, c2, ae] = await Promise.all([
+  const since = new Date(Date.now() - 62*86400e3).toISOString();
+  const [e2, s2, c2, ae, tg, dk] = await Promise.all([
     sb.from('entities').select('entity_id,name_kr,name_en,axis,category_l1,brand_fit,notes,proposal,first_seen,pinned,parent_movement,status'),
     sb.from('search_signals').select('*').order('week'),
     sb.from('v_entity_source_count').select('*'),
-    sb.from('asset_entities').select('entity_id,role,images(thumb_url,is_celeb,celeb_name,account)').limit(1500)
+    sb.from('asset_entities').select('entity_id,role,images(thumb_url,is_celeb,celeb_name,account)').limit(1500),
+    sb.from('asset_tags').select('tag_value, images!inner(created_at)').gte('images.created_at', since).limit(1000),
+    sb.from('documents').select('keywords,created_at').gte('created_at', since).not('keywords','is',null).limit(400)
   ]);
   ENTS = (e2.data||[]).filter(x => x.status !== 'Archived' && x.axis !== 'movement');
   SIG = s2.data || [];
@@ -181,6 +184,15 @@ async function load(){
     COVER[r.entity_id] ||= r.images.thumb_url;
     (window.LOOKS[r.entity_id] ||= []).push(r.images);
   }
+  /* 사전에 없는 #태그 — 피드에서만 잡힌 표현. 등록해야 검색량 추적이 시작됩니다 */
+  const entNorms = new Set(ENTS.flatMap(e => [norm(e.name_kr), norm(e.name_en||'')]));
+  const tagCnt = {};
+  const feedTag = t => { const k = norm(t); if(!k || entNorms.has(k)) return;
+    (tagCnt[k] ||= { text: String(t).replace(/^#/,'').replace(/_/g,' '), n: 0 }).n++; };
+  for(const r of (tg.data||[])) feedTag(r.tag_value);
+  for(const r of (dk.data||[])) for(const k of (r.keywords||[])) feedTag(k);
+  TAGS = Object.values(tagCnt).sort((a,b)=>b.n-a.n).slice(0, 40);
+
   const { data:mm } = await sb.from('search_signals').select('week').order('week',{ascending:false}).limit(1);
   const months = [...new Set([month, ...SIG.map(x => x.week.slice(0,7))])].sort().reverse().slice(0,12);
   $('#mSel').innerHTML = months.map(m => `<option ${m===month?'selected':''}>${m}</option>`).join('');
@@ -248,14 +260,21 @@ function renderRows(q){
     .filter(e => !q || norm(e.name_kr).includes(norm(q)) || norm(e.name_en||'').includes(norm(q)))
     .sort((a,b) => (CNT[b.entity_id]||0) - (CNT[a.entity_id]||0))
     .slice(0, 80);
-  $('#kBody').innerHTML = rows.length ? rows.map(e => `
+  const tagRows = (catF==='All' && brandF==='All')
+    ? TAGS.filter(t => !q || norm(t.text).includes(norm(q))).map(t => `
+      <tr><td><b style="color:var(--sub)">#${esc(t.text)}</b>
+        <div class="mini">피드 ${t.n}건 — 미등록 · 관리자 클러스터/큐에서 등록하면 검색량 추적 시작</div></td>
+        <td class="mini">—</td><td><span class="pillb New">미등록</span></td>
+        <td class="fl">—</td><td class="fl">—</td></tr>`).join('')
+    : '';
+  $('#kBody').innerHTML = (rows.length || tagRows) ? rows.map(e => `
     <tr class="krow" data-open="${esc(e.entity_id)}">
       <td><b>${esc(e.name_kr||e.name_en)}</b><div class="mini">${esc((e.notes||'').slice(0,44))}</div></td>
       <td>${esc(e.category_l1||e.axis||'')}</td>
       <td><span class="pillb ${stageOf(e.entity_id)}">${stageOf(e.entity_id)}</span></td>
       <td>${spark(e.entity_id, 'KR')}</td>
       <td>${chgHtml(change4(e.entity_id,'KR'))}</td>
-    </tr>`).join('') : '<tr><td colspan="5" class="empty">해당하는 키워드가 없습니다</td></tr>';
+    </tr>`).join('') + tagRows : '<tr><td colspan="5" class="empty">해당하는 키워드가 없습니다</td></tr>';
 }
 
 /* ── 키워드 상세 (이미지 5) ── */

@@ -696,6 +696,12 @@ tbody tr:hover{background:#fdfcf9}
 
 
 
+  <h3 class="sub">검색량 수집</h3>
+  <div class="bar" style="margin-bottom:14px">
+    <button class="btn sm" id="sigRun">검색량 지금 갱신 — 네이버에 다녀오기</button>
+    <span class="mini" id="sigRunStat">주 1회 자동 + 필요할 때 이 버튼. Edge Function 배포가 먼저입니다 (README)</span>
+  </div>
+
   <h3 class="sub">연결</h3>
   <div class="tw"><table><tbody>
     <tr><th style="width:170px">Supabase 프로젝트</th><td id="cfUrl" class="mini"></td></tr>
@@ -754,8 +760,8 @@ tbody tr:hover{background:#fdfcf9}
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ═══════════ 설정 — 여기 두 줄만 바꾸면 됩니다 ═══════════ */
-const SUPABASE_URL  = 'https://piifytwflubdtkzaiisi.supabase.co';
-const SUPABASE_ANON  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBpaWZ5dHdmbHViZHRremFpaXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQwODI5NDcsImV4cCI6MjA5OTY1ODk0N30.cVrgt7YQ99R-slePt8U2r_GmtDxetejZdqHcnqJmwhc';
+const SUPABASE_URL  = 'https://YOUR-PROJECT.supabase.co';
+const SUPABASE_ANON  = 'YOUR-ANON-KEY';
 /* ════════════════════════════════════════════════════════ */
 
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
@@ -1636,6 +1642,19 @@ $('#gubun').onchange = applyGubun;
 $('#srcSel').onchange = syncSource;
 $('#srcTxt').addEventListener('blur', syncSource);
 
+$('#sigRun').onclick = async () => {
+  busy(true, '검색량 수집 중… (키워드 수에 따라 1~2분)');
+  try{
+    const r = await fetch(`${SUPABASE_URL}/functions/v1/search-signals`, { method:'POST' });
+    const j = await r.json().catch(() => null);
+    if(!r.ok) throw new Error(`함수 응답 ${r.status} — Edge Function 을 아직 배포 안 하셨다면 README 의 3단계를 먼저 해주세요`);
+    $('#sigRunStat').textContent = `완료 — 키워드 ${j?.keywords ?? '?'}개 · 네이버 ${j?.naver ?? 0}건 · 구글 ${j?.google ?? 0}건` +
+      (j?.errs?.length ? ` · 참고: ${j.errs.join(' / ')}` : '');
+    toast('검색량 갱신 완료 — TREND SIGNAL 페이지에 반영됐습니다');
+  }catch(e){ die(e, '검색량 갱신'); }
+  busy(false);
+};
+
 $('#advBtn').onclick = e => { e.stopPropagation(); $('#advMenu').hidden = !$('#advMenu').hidden; };
 document.addEventListener('click', e => { if(!e.target.closest('.advWrap')) $('#advMenu').hidden = true; });
 
@@ -2021,7 +2040,7 @@ $('#saveText').onclick = async () => {
       title, publisher: $('#tPub').value.trim() || null,
       source_id: $('#source').value, doc_type: 'text', year_month: ym,
       region: $('#region').value,
-      summary: $('#tSum').value.trim() || null, created_by: ME,
+      summary: $('#tSum').value.trim() || null, uploaded_by: ME,
       keywords: (t => t.length ? t : null)(textEnts.filter(v => String(v).startsWith('#')))
     }).select('doc_id').single();
     if(error) throw error;
