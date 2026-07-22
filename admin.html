@@ -142,6 +142,21 @@ tbody tr:hover{background:#fdfcf9}
 .rkw{width:86px; border:0; border-bottom:1px dashed var(--hair); background:transparent;
   font:inherit; font-size:11px; padding:2px 3px; margin-left:4px}
 .rkw:focus{outline:0; border-bottom-color:var(--ink)}
+.clh{font-size:11px; letter-spacing:.2em; font-weight:800; border-bottom:2px solid var(--ink); padding-bottom:6px; margin-bottom:10px}
+.clb{background:#fff; border:1px solid var(--hair); border-radius:4px; padding:10px 12px; margin-bottom:12px}
+.clb.dragover{outline:2px dashed #c8451f; outline-offset:2px}
+.clb .tt{display:flex; align-items:center; gap:8px; margin-bottom:6px}
+.clb .tt input{font-weight:700; font-size:14px; border:0; border-bottom:1px dashed transparent; background:transparent; flex:1; padding:3px 2px}
+.clb .tt input:hover,.clb .tt input:focus{border-bottom-color:var(--hair); outline:0}
+.clline{display:flex; align-items:baseline; gap:7px; font-size:12px; padding:3px 4px; border-radius:3px; cursor:grab}
+.clline:hover{background:#faf6ec}
+.clline .d{color:var(--sub); font-size:11px; white-space:nowrap}
+.clline .s{color:#c8451f; font-size:10px; font-weight:700; white-space:nowrap}
+.clline .x2{cursor:pointer; color:var(--sub); margin-left:auto}
+.clline .x2:hover{color:#c8451f}
+.cladd{font-size:11px; color:var(--sub); cursor:pointer; padding:3px 4px}
+.cladd:hover{color:var(--ink)}
+.cladd select{font-size:11px; max-width:100%}
 .editrow td{background:#fbf8f1; border-top:2px solid var(--ink)}
 .erow{display:flex; gap:10px; flex-wrap:wrap; padding:6px 2px}
 .erow > div{flex:1; min-width:120px}
@@ -203,6 +218,7 @@ tbody tr:hover{background:#fdfcf9}
     <button data-v="dict">사전</button>
     <button data-v="brand">브랜드</button>
     <button data-v="celeb">셀럽</button>
+    <button data-v="cluster">클러스터</button>
     <button data-v="map">맵</button>
     <button data-v="queue">미매핑 큐</button>
     <button data-v="conf">설정</button>
@@ -222,6 +238,7 @@ tbody tr:hover{background:#fdfcf9}
     <button data-mode="rank">📊 랭킹</button>
     <button data-mode="text">📝 텍스트</button>
     <button data-mode="postit">📌 POST-IT</button>
+    <button data-mode="sig">📈 시그널 (썸트렌드 · 검색량)</button>
   </div>
 
   <div class="sess">
@@ -363,6 +380,31 @@ tbody tr:hover{background:#fdfcf9}
   </div>
 
   <!-- ── POST-IT ── -->
+  <div id="sigMode" hidden style="max-width:760px">
+    <div class="mini" style="margin-bottom:10px">
+      썸트렌드 유료 플랜의 <b>엑셀 다운로드(언급량 · 주별)</b> 나 네이버 데이터랩 엑셀을 그대로 붙여넣으세요.<br>
+      두 형태 다 읽습니다 — ① 세로형: <code>날짜 [tab] 키워드 [tab] 값</code> · ② 가로형: 첫 줄이 키워드들, 첫 칸이 날짜.<br>
+      키워드는 사전과 자동 매칭됩니다 (한/영/별칭). 사전에 없는 키워드 열은 건너뛰고 알려드립니다.
+    </div>
+    <div class="row">
+      <div style="max-width:130px"><label class="f">지역</label>
+        <select id="sgRegion"><option>KR</option><option>GL</option><option>CN</option></select></div>
+      <div style="max-width:170px"><label class="f">출처</label>
+        <select id="sgSrc"><option value="sometrend">썸트렌드 (언급량)</option>
+          <option value="naver">네이버 데이터랩</option><option value="manual">기타 수동</option></select></div>
+    </div>
+    <div><label class="f">엑셀 내용 붙여넣기</label>
+      <textarea id="sgRaw" rows="10" placeholder="날짜	젤리슈즈	카고팬츠
+2026-06-01	1240	880
+2026-06-08	1890	760"></textarea></div>
+    <div class="bar" style="margin-top:10px">
+      <button class="btn" id="sgParse">읽기</button>
+      <span class="mini" id="sgStat"></span>
+    </div>
+    <div id="sgPrev" style="margin-top:8px"></div>
+    <div class="bar" style="margin-top:8px"><button class="btn" id="sgSave" hidden>저장 — search_signals 에</button></div>
+  </div>
+
   <div id="postitMode" hidden style="max-width:580px">
     <div><label class="f">메모 — 포스트잇에 보일 한 줄</label>
       <input id="pText" placeholder="90년대 젤리슈즈, 커스텀 문화가 소비 이유가 되는 중"></div>
@@ -546,6 +588,20 @@ tbody tr:hover{background:#fdfcf9}
 </section>
 
 <!-- ── 미매핑 큐 ── -->
+<section id="clusterView" class="view">
+  <h2 class="sec">클러스터 <span>— KEY TREND 에 어떤 피드가 붙었는지 · MOVEMENT 에 어떤 KEY TREND 가 속하는지. 줄을 끌어서 옮길 수 있습니다</span></h2>
+  <div style="display:grid; grid-template-columns:1.4fr 1fr; gap:18px; align-items:start">
+    <div>
+      <div class="clh">KEY TREND CLUSTER</div>
+      <div id="ktCluster"><span class="mini">불러오는 중…</span></div>
+    </div>
+    <div>
+      <div class="clh">MOVEMENT CLUSTER</div>
+      <div id="mvCluster"></div>
+    </div>
+  </div>
+</section>
+
 <section id="mapView" class="view">
   <h2 class="sec">맵 <span>— 노드를 끌어다 놓으면 좌표가 저장됩니다. 대시보드 Trend Map 에 그대로 나갑니다</span></h2>
 
@@ -676,8 +732,8 @@ tbody tr:hover{background:#fdfcf9}
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ═══════════ 설정 — 여기 두 줄만 바꾸면 됩니다 ═══════════ */
-const SUPABASE_URL  = 'https://piifytwflubdtkzaiisi.supabase.co';
-const SUPABASE_ANON  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBpaWZ5dHdmbHViZHRremFpaXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQwODI5NDcsImV4cCI6MjA5OTY1ODk0N30.cVrgt7YQ99R-slePt8U2r_GmtDxetejZdqHcnqJmwhc';
+const SUPABASE_URL  = 'https://YOUR-PROJECT.supabase.co';
+const SUPABASE_ANON  = 'YOUR-ANON-KEY';
 /* ════════════════════════════════════════════════════════ */
 
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
@@ -966,7 +1022,8 @@ const AI_PROMPT = `당신은 패션 트렌드 리서처입니다. 이 이미지�
 - account: 화면에 보이는 계정명 (@ 포함). 없으면 ""
 - likes: 화면에 보이는 좋아요 수를 숫자만. "1.2만"이면 12000. 없으면 ""
 - brand: 확실히 식별되는 브랜드명. 로고나 텍스트로 확인될 때만. 없으면 ""
-- category: 아우터 / 상의 / 하의 / 원피스·스커트 / 신발 / 가방 / 모자 / ACC / 기타 중 주된 아이템 하나. 정확히 이 표기로.
+- category: TOP / BOTTOM / OUTERWEAR / DRESS / BAG / SHOES / OTHER ACC 중 하나. 정확히 이 표기로.
+- trend_kind: STYLE TREND / LIFESTYLE / HOT BRAND 중 해당하는 것 (배열, 중복 가능)
 - tags: 눈에 보이는 디자인 속성을 영어 소문자로 3~6개 (예: barrel leg, metallic logo, drop waist)
 JSON만 출력하세요.`;
 
@@ -1112,6 +1169,19 @@ function renderImgCards(){
           <select data-k="category"><option value="">선택</option>
             ${CATEGORIES.map(v=>`<option>${v}</option>`).join('')}</select></div>
       </div>
+      <div class="row">
+        <div style="max-width:120px"><label class="f">서브 (SHOES)</label>
+          <select data-k="category_sub"><option value="">—</option>
+            ${SHOE_SUBS.map(v=>`<option>${v}</option>`).join('')}</select></div>
+        <div><label class="f">트렌드 구분 — 중복</label>
+          <div class="tkRow">${TREND_KINDS.map(v=>`<label class="tk"><input type="checkbox" data-tk="${v}">${v}</label>`).join('')}</div></div>
+      </div>
+      <div class="row">
+        <div><label class="f">시즌 제시 — 중복</label>
+          <div class="tkRow">${SEASON_OPTS.map(v=>`<label class="tk"><input type="checkbox" data-ss="${v}">${v}</label>`).join('')}</div></div>
+        <div style="max-width:120px"><label class="f">출시일</label><input data-k="release_date" type="date"></div>
+      </div>
+      <div><label class="f">정량 신호</label><input data-k="quant_signal" placeholder="검색량 급증 · 2주 완판 · 리셀가 1.8배"></div>
       <div>
         <label class="f">MOVEMENT</label>
         <select data-k="movement" class="mvSel">${mvOptions()}</select>
@@ -1209,6 +1279,11 @@ function renderImgCards(){
         x.meta.entities = [...it.meta.entities];
         x.meta.kwMeta   = JSON.parse(JSON.stringify(it.meta.kwMeta || {}));
         x.meta.tags     = [...it.meta.tags];
+        x.meta.trend_kind = [...(it.meta.trend_kind||[])];
+        x.meta.seasons    = [...(it.meta.seasons||[])];
+        x.meta.category_sub = it.meta.category_sub;
+        x.meta.release_date = it.meta.release_date;
+        x.meta.quant_signal = it.meta.quant_signal;
       }
       renderImgCards();
       toast(`${tgt.length}장에 동일하게 채웠습니다 — 브랜드 · 아이템군 · MOVEMENT · 키워드 · 태그`);
@@ -1374,6 +1449,11 @@ $('#saveImgs').onclick = async () => {
         is_celeb:    !!it.meta.celeb_name,
         celeb_name:  it.meta.celeb_name || null,
         is_main:     String(it.meta.is_main) === 'true',
+        trend_kind:  (it.meta.trend_kind||[]).length ? it.meta.trend_kind : null,
+        category_sub: it.meta.category_sub || null,
+        seasons:     (it.meta.seasons||[]).length ? it.meta.seasons : null,
+        release_date: it.meta.release_date || null,
+        quant_signal: it.meta.quant_signal || null,
         file_hash:   it.hash,
         mime_type:   'image/jpeg',
         file_size:   it.full.blob.size,
@@ -1458,11 +1538,68 @@ const docMv = new Set();      // M 이 켜진 키워드 (엔티티 id 또는 #�
 const docChips = chipInput('#dEnt', '#dEntChips', docEnts, label, true, docMv);
 
 /* ── 모드 전환 ── */
-const PANES = { image:'#imgMode', doc:'#docMode', rank:'#rankMode', text:'#textMode', postit:'#postitMode' };
+const PANES = { image:'#imgMode', doc:'#docMode', rank:'#rankMode', text:'#textMode', postit:'#postitMode', sig:'#sigMode' };
 $('#modes').onclick = e => {
   const b = e.target.closest('button[data-mode]'); if(!b) return;
   [...$('#modes').children].forEach(x => x.classList.toggle('on', x === b));
   for(const [m, sel] of Object.entries(PANES)) $(sel).hidden = (m !== b.dataset.mode);
+};
+
+/* ═══ 시그널 붙여넣기 — 썸트렌드/데이터랩 엑셀 → search_signals ═══ */
+let SG_ROWS = [];
+const sgMonday = d => { const x = new Date(d); if(isNaN(x)) return null;
+  x.setDate(x.getDate() - ((x.getDay()+6)%7)); return x.toISOString().slice(0,10); };
+const sgDate = t => {
+  const m = String(t).trim().match(/(\d{4})[.\-\/년\s]+(\d{1,2})[.\-\/월\s]+(\d{1,2})/);
+  return m ? `${m[1]}-${String(m[2]).padStart(2,'0')}-${String(m[3]).padStart(2,'0')}` : null;
+};
+
+$('#sgParse').onclick = () => {
+  const raw = $('#sgRaw').value.trim();
+  if(!raw) return toast('붙여넣은 내용이 없습니다');
+  const lines = raw.split(/\r?\n/).map(l => l.split(/\t|,(?=\S)/).map(c => c.trim())).filter(l => l.length > 1);
+  if(!lines.length) return toast('표 형태를 못 읽었습니다 — 엑셀에서 그대로 복사해 주세요');
+  SG_ROWS = []; const missed = new Set();
+  const isLong = lines.every(l => sgDate(l[0]) && l.length <= 3) && lines.some(l => isNaN(+l[1]));
+  if(isLong){
+    for(const [d, kw, v] of lines){
+      const wk = sgMonday(sgDate(d)); const eid = matchEntity(kw);
+      if(!wk || v === undefined || isNaN(+String(v).replace(/,/g,''))) continue;
+      if(!eid){ missed.add(kw); continue; }
+      SG_ROWS.push({ entity_id: eid, week: wk, volume: +String(v).replace(/,/g,'') });
+    }
+  } else {
+    const head = lines[0]; const cols = [];
+    head.slice(1).forEach((kw, i) => { const eid = matchEntity(kw);
+      if(eid) cols.push({ i: i+1, eid }); else if(kw) missed.add(kw); });
+    for(const l of lines.slice(1)){
+      const wk = sgMonday(sgDate(l[0])); if(!wk) continue;
+      for(const c of cols){ const v = +String(l[c.i]||'').replace(/,/g,'');
+        if(!isNaN(v) && l[c.i] !== undefined && l[c.i] !== '') SG_ROWS.push({ entity_id: c.eid, week: wk, volume: v }); }
+    }
+  }
+  /* 같은 주 중복이면 마지막 값 */
+  const dedup = {}; for(const r of SG_ROWS) dedup[r.entity_id+'|'+r.week] = r;
+  SG_ROWS = Object.values(dedup);
+  $('#sgStat').textContent = `${SG_ROWS.length}건 읽음` + (missed.size ? ` · 사전에 없어 건너뜀: ${[...missed].slice(0,6).join(', ')}${missed.size>6?'…':''}` : '');
+  const byE = {}; for(const r of SG_ROWS) (byE[r.entity_id] ||= []).push(r);
+  $('#sgPrev').innerHTML = Object.entries(byE).slice(0,20).map(([eid, rs]) =>
+    `<div class="mini" style="padding:2px 0">• ${esc(label(eid))} — ${rs.length}주 (${rs[0].week} ~ ${rs[rs.length-1].week})</div>`).join('');
+  $('#sgSave').hidden = !SG_ROWS.length;
+};
+
+$('#sgSave').onclick = async () => {
+  if(!SG_ROWS.length) return;
+  busy(true, '시그널 저장 중…');
+  try{
+    const region = $('#sgRegion').value, source = $('#sgSrc').value;
+    const { error } = await sb.from('search_signals').upsert(
+      SG_ROWS.map(r => ({ ...r, region, source })), { onConflict:'entity_id,region,week' });
+    if(error) throw error;
+    toast(`시그널 ${SG_ROWS.length}건 저장 — TREND SIGNAL 페이지에 바로 반영됩니다`);
+    SG_ROWS = []; $('#sgRaw').value=''; $('#sgPrev').innerHTML=''; $('#sgStat').textContent=''; $('#sgSave').hidden = true;
+  }catch(e){ die(e, '시그널 저장'); }
+  busy(false);
 };
 
 /* ── 링크 붙여넣으면 자동 채우기 ──
@@ -2155,10 +2292,75 @@ for(const bid of ['radarBox','qClusterBox']){
           resolved_date: new Date().toISOString().slice(0,10) })
           .eq('normalized_text', norm(m)).eq('status','pending');
       }
+
+      /* ── 소급 연결: 이미 올라온 피드 중 이 표현이 붙은 것들을 전부 이 키워드에 연결합니다.
+         이게 없으면 새 키워드는 연결 0개 — 맵 수치도 승격도 안 잡힙니다 */
+      busy(true, `"${name}" 기존 피드에 연결 중…`);
+      const norms = [...new Set([norm(name), ...g.members.map(norm)])].filter(Boolean);
+      let nImg = 0, nDoc = 0, nRnk = 0;
+
+      const { data:tg } = await sb.from('asset_tags').select('image_id').in('normalized_value', norms).limit(500);
+      const imgIds = [...new Set((tg||[]).map(x => x.image_id).filter(Boolean))];
+      if(imgIds.length){
+        const { error:eL } = await sb.from('asset_entities').upsert(
+          imgIds.map(iid => ({ image_id: iid, entity_id: eid, role: g.is_movement ? 'movement' : 'evidence',
+            sort_order: 95, mapping_method:'radar', created_by: ME })));
+        if(!eL) nImg = imgIds.length;
+      }
+
+      const since = new Date(Date.now() - 93*86400e3).toISOString();
+      const { data:dk } = await sb.from('documents').select('doc_id,keywords')
+        .gte('created_at', since).not('keywords','is',null).limit(400);
+      const docIds = (dk||[]).filter(d => (d.keywords||[]).some(k => norms.includes(norm(k)))).map(d => d.doc_id);
+      if(docIds.length){
+        const { error:eD } = await sb.from('document_entities').upsert(
+          docIds.map(did => ({ doc_id: did, entity_id: eid,
+            relation_type: g.is_movement ? 'movement' : 'mentioned',
+            mapping_method:'radar', approved:true, created_by: ME })));
+        if(!eD) nDoc = docIds.length;
+      }
+
+      const { data:rk } = await sb.from('rankings').select('id,keywords')
+        .gte('captured_at', since).not('keywords','is',null).limit(400);
+      const rnkIds = (rk||[]).filter(r => (r.keywords||[]).some(k => norms.includes(norm(k)))).map(r => r.id);
+      if(rnkIds.length){
+        const { error:eR } = await sb.from('ranking_entities').upsert(
+          rnkIds.map(rid => ({ ranking_id: rid, entity_id: eid })), { onConflict:'ranking_id,entity_id' });
+        if(!eR) nRnk = rnkIds.length;
+      }
+
+      /* ── 맵에 자동 배치: 월별 뷰에 노드가 없으면 만듭니다. KEY TREND 면 상위 흐름 선까지 */
+      let mapMsg = '';
+      const { data:exN } = await sb.from('map_nodes').select('node_id')
+        .eq('view_id','monthly').eq('entity_id', eid).limit(1);
+      if(!exN || !exN.length){
+        const { data:kn, error:eN } = await sb.from('map_nodes').insert({
+          view_id:'monthly', kind: g.is_movement ? 'mv' : 'key', entity_id: eid,
+          t: ymNow(), x: 60, y: 60, created_by: ME }).select('node_id').single();
+        if(!eN){
+          mapMsg = ' · 맵(월별)에 올림';
+          const pv = (!g.is_movement && (g.parent||'').trim()) ? (matchEntity(g.parent.trim())) : null;
+          if(pv){
+            let { data:pm } = await sb.from('map_nodes').select('node_id')
+              .eq('view_id','monthly').eq('kind','mv').eq('entity_id', pv).limit(1);
+            let pmId = pm && pm[0]?.node_id;
+            if(!pmId){
+              const { data:pm2 } = await sb.from('map_nodes').insert({
+                view_id:'monthly', kind:'mv', entity_id: pv, t: ymNow(), x: 380, y: 80, created_by: ME
+              }).select('node_id').single();
+              pmId = pm2?.node_id;
+            }
+            if(pmId) await sb.from('map_edges').upsert(
+              { view_id:'monthly', a: kn.node_id, b: pmId, is_key: true }, { onConflict:'a,b' });
+          }
+        }
+      }
+
       await loadAll();
       if(typeof renderQueue === 'function' && RADAR_BOX === 'qClusterBox') renderQueue();
       g.done = true; drawRadar();
-      toast(`"${name}" ${g.is_movement?'MOVEMENT':'KEY TREND'} 등록 · 표현 ${ali}개 통합${parentMsg}`);
+      toast(`"${name}" ${g.is_movement?'MOVEMENT':'KEY TREND'} 등록 · 표현 ${ali}개 통합${parentMsg}` +
+            ` · 소급 연결: 사진 ${nImg} · 기사 ${nDoc} · 랭킹 ${nRnk}${mapMsg}`);
     }catch(e2){ die(e2, '제안 등록'); }
     busy(false);
   });
@@ -3109,11 +3311,177 @@ $('#mDel').onclick = async () => {
   await loadMap();
 };
 
-const LOADERS = { feed:renderFeed, queue:renderQueue, conf:renderAdmins, map:loadMap };
+/* ═══════════ 클러스터 — KEY TREND ↔ 피드 · MOVEMENT ↔ KEY TREND ═══════════ */
+let CL_LINKS = {};   // entity_id → [{kind,id,date,src,txt}]
+
+async function loadCluster(){
+  const since = new Date(Date.now() - 120*86400e3).toISOString();
+  const [ae, de, re2] = await Promise.all([
+    sb.from('asset_entities').select('entity_id, images!inner(image_id,year_month,source_id,account,note,created_at)')
+      .gte('images.created_at', since).limit(1200),
+    sb.from('document_entities').select('entity_id, documents!inner(doc_id,year_month,source_id,publisher,title,summary,created_at)')
+      .gte('documents.created_at', since).limit(600),
+    sb.from('ranking_entities').select('entity_id, rankings!inner(id,year_month,platform,rank,product_name)').limit(600)
+  ]);
+  CL_LINKS = {};
+  const put = (eid, l) => (CL_LINKS[eid] ||= []).push(l);
+  for(const r of (ae.data||[])){ const i2=r.images; if(i2) put(r.entity_id,
+    { kind:'image', id:i2.image_id, date:i2.year_month, src:i2.source_id, txt:i2.note || i2.account || '(사진)' }); }
+  for(const r of (de.data||[])){ const d2=r.documents; if(d2) put(r.entity_id,
+    { kind:'doc', id:d2.doc_id, date:d2.year_month, src:d2.publisher || d2.source_id, txt:d2.title || (d2.summary||'').slice(0,40) }); }
+  for(const r of (re2.data||[])){ const k2=r.rankings; if(k2) put(r.entity_id,
+    { kind:'rank', id:String(k2.id), date:k2.year_month, src:`RANK · ${k2.platform||''}`, txt:`${k2.rank}위 ${k2.product_name||''}` }); }
+  drawCluster();
+}
+
+function drawCluster(){
+  const kts = ENTITIES.filter(e => e.axis !== 'movement' && e.status !== 'Archived')
+    .filter(e => e.pinned || (CL_LINKS[e.entity_id]||[]).length)
+    .sort((a,b) => (CL_LINKS[b.entity_id]||[]).length - (CL_LINKS[a.entity_id]||[]).length)
+    .slice(0, 24);
+  const feedOpts = () => {
+    const seen = new Set();
+    return FEED.slice(0, 40).map(f => `<option value="${f.kind}:${f.id}">${esc((f.title||'').slice(0,42))}</option>`).join('');
+  };
+
+  $('#ktCluster').innerHTML = kts.length ? kts.map(e => {
+    const ls = (CL_LINKS[e.entity_id]||[]).sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+    return `<div class="clb" data-ent="${esc(e.entity_id)}">
+      <div class="tt">
+        <b>#</b><input class="ktTitle" data-e="${esc(e.entity_id)}" value="${esc(e.name_kr||e.name_en)}" title="제목 수정 후 Enter">
+        <button class="btn ghost sm" data-board="${esc(e.entity_id)}">메인보드 업로드</button>
+      </div>
+      ${ls.map(l => `<div class="clline" draggable="true" data-lk="${l.kind}:${esc(l.id)}" data-from="${esc(e.entity_id)}">
+        <span class="d">${esc(l.date||'')}</span><span class="s">${esc(l.src||'')}</span>
+        <span>${esc(String(l.txt).slice(0,46))}</span>
+        <span class="x2" data-un="${l.kind}:${esc(l.id)}:${esc(e.entity_id)}" title="연결 끊기">×</span>
+      </div>`).join('') || '<div class="mini" style="padding:2px 4px">연결된 피드 없음 — 아래에서 추가</div>'}
+      <div class="cladd">＋ 피드 연결 추가:
+        <select data-addfeed="${esc(e.entity_id)}"><option value="">최근 피드에서 선택…</option>${feedOpts()}</select></div>
+    </div>`;
+  }).join('') : '<div class="mini">피드가 연결된 KEY TREND 가 아직 없습니다</div>';
+
+  const mvs = MOVEMENTS();
+  $('#mvCluster').innerHTML = mvs.length ? mvs.map(m => {
+    const kids = ENTITIES.filter(e => e.parent_movement === m.entity_id && e.status !== 'Archived');
+    const cands = ENTITIES.filter(e => e.axis !== 'movement' && !e.parent_movement && e.status !== 'Archived').slice(0, 60);
+    return `<div class="clb mvb" data-mv="${esc(m.entity_id)}">
+      <div class="tt"><b>#</b><input class="mvTitle" data-e="${esc(m.entity_id)}" value="${esc(m.name_kr||m.name_en)}"></div>
+      ${kids.map(k => `<div class="clline" draggable="true" data-kt="${esc(k.entity_id)}" data-from="${esc(m.entity_id)}">
+        <span>— ${esc(k.name_kr||k.name_en)}</span>
+        <span class="x2" data-unmv="${esc(k.entity_id)}" title="이 흐름에서 빼기">×</span>
+      </div>`).join('') || '<div class="mini" style="padding:2px 4px">속한 KEY TREND 없음</div>'}
+      <div class="cladd">＋ KEY TREND 추가:
+        <select data-addkt="${esc(m.entity_id)}"><option value="">선택…</option>
+          ${cands.map(c=>`<option value="${esc(c.entity_id)}">${esc(c.name_kr||c.name_en)}</option>`).join('')}</select></div>
+    </div>`;
+  }).join('') : '<div class="mini">MOVEMENT 가 없습니다 — 수집 세션 바 ＋ 로 등록</div>';
+
+  bindClusterDnD();
+}
+
+function bindClusterDnD(){
+  document.querySelectorAll('#ktCluster .clline').forEach(el => {
+    el.ondragstart = ev => ev.dataTransfer.setData('text/plain', 'F|' + el.dataset.lk + '|' + el.dataset.from);
+  });
+  document.querySelectorAll('#mvCluster .clline').forEach(el => {
+    el.ondragstart = ev => ev.dataTransfer.setData('text/plain', 'K|' + el.dataset.kt + '|' + el.dataset.from);
+  });
+  document.querySelectorAll('#ktCluster .clb').forEach(box => {
+    box.ondragover = ev => { ev.preventDefault(); box.classList.add('dragover'); };
+    box.ondragleave = () => box.classList.remove('dragover');
+    box.ondrop = async ev => {
+      ev.preventDefault(); box.classList.remove('dragover');
+      const [tp, lk, from] = ev.dataTransfer.getData('text/plain').split('|');
+      if(tp !== 'F' || from === box.dataset.ent) return;
+      const [kind, id] = lk.split(':');
+      await clRelink(kind, id, from, box.dataset.ent);
+    };
+  });
+  document.querySelectorAll('#mvCluster .clb').forEach(box => {
+    box.ondragover = ev => { ev.preventDefault(); box.classList.add('dragover'); };
+    box.ondragleave = () => box.classList.remove('dragover');
+    box.ondrop = async ev => {
+      ev.preventDefault(); box.classList.remove('dragover');
+      const [tp, kt, from] = ev.dataTransfer.getData('text/plain').split('|');
+      if(tp !== 'K' || from === box.dataset.mv) return;
+      const { error } = await sb.from('entities').update({ parent_movement: box.dataset.mv }).eq('entity_id', kt);
+      if(error) return die(error, '흐름 이동');
+      await loadAll(); drawCluster();
+      toast('옮겼습니다');
+    };
+  });
+}
+
+async function clLink(kind, id, eid){
+  if(kind === 'image')
+    return sb.from('asset_entities').upsert({ image_id:id, entity_id:eid, role:'evidence', sort_order:95, mapping_method:'cluster', created_by:ME });
+  if(kind === 'doc')
+    return sb.from('document_entities').upsert({ doc_id:id, entity_id:eid, relation_type:'mentioned', mapping_method:'cluster', approved:true, created_by:ME });
+  return sb.from('ranking_entities').upsert({ ranking_id:+id, entity_id:eid }, { onConflict:'ranking_id,entity_id' });
+}
+async function clUnlink(kind, id, eid){
+  if(kind === 'image') return sb.from('asset_entities').delete().eq('image_id', id).eq('entity_id', eid);
+  if(kind === 'doc')   return sb.from('document_entities').delete().eq('doc_id', id).eq('entity_id', eid);
+  return sb.from('ranking_entities').delete().eq('ranking_id', +id).eq('entity_id', eid);
+}
+async function clRelink(kind, id, from, to){
+  const r1 = await clLink(kind, id, to); if(r1.error) return die(r1.error, '연결');
+  const r2 = await clUnlink(kind, id, from); if(r2.error) return die(r2.error, '기존 연결 해제');
+  await loadCluster();
+  toast('옮겼습니다 — 수치·승격도 새 키워드 기준으로 다시 계산됩니다');
+}
+
+document.addEventListener('click', async e => {
+  const un = e.target.closest('[data-un]');
+  if(un){ const [kind,id,eid] = un.dataset.un.split(':');
+    const r = await clUnlink(kind, id, eid); if(r.error) return die(r.error, '연결 끊기');
+    await loadCluster(); return; }
+  const um = e.target.closest('[data-unmv]');
+  if(um){ const { error } = await sb.from('entities').update({ parent_movement: null }).eq('entity_id', um.dataset.unmv);
+    if(error) return die(error, '흐름에서 빼기');
+    await loadAll(); drawCluster(); return; }
+  const bd = e.target.closest('[data-board]');
+  if(bd){
+    const eid = bd.dataset.board;
+    const { data:ex } = await sb.from('map_nodes').select('node_id').eq('view_id','monthly').eq('entity_id', eid).limit(1);
+    if(ex && ex.length) return toast('이미 메인보드(맵)에 있습니다 — 맵 탭에서 위치를 조정하세요');
+    const { error } = await sb.from('map_nodes').insert({ view_id:'monthly', kind:'key', entity_id:eid, t:ymNow(), x:60, y:60, created_by:ME });
+    if(error) return die(error, '메인보드 업로드');
+    toast('메인보드(맵 월별)에 올렸습니다 — 맵 탭에서 끌어다 배치');
+    return; }
+});
+document.addEventListener('change', async e => {
+  const af = e.target.closest('[data-addfeed]');
+  if(af && af.value){ const [kind,id] = af.value.split(':');
+    const r = await clLink(kind, id, af.dataset.addfeed);
+    if(r.error) return die(r.error, '피드 연결');
+    await loadCluster(); toast('연결했습니다'); return; }
+  const ak = e.target.closest('[data-addkt]');
+  if(ak && ak.value){
+    const { error } = await sb.from('entities').update({ parent_movement: ak.dataset.addkt }).eq('entity_id', ak.value);
+    if(error) return die(error, 'KEY TREND 추가');
+    await loadAll(); drawCluster(); return; }
+});
+document.addEventListener('keydown', async e => {
+  if(e.key !== 'Enter') return;
+  const t = e.target;
+  if(t.classList?.contains('ktTitle') || t.classList?.contains('mvTitle')){
+    e.preventDefault();
+    const nm = t.value.trim(); if(!nm) return;
+    const { error } = await sb.from('entities').update({ name_kr: nm }).eq('entity_id', t.dataset.e);
+    if(error) return die(error, '제목 수정');
+    await loadAll(); toast(`이름 변경: ${nm} — 맵·피드에도 반영됩니다`);
+  }
+});
+
+async function loadClusterTab(){ if(!FEED.length) await renderFeed(); await loadCluster(); }
+
+const LOADERS = { feed:renderFeed, queue:renderQueue, conf:renderAdmins, map:loadMap, cluster:loadClusterTab };
 $('#tabs').onclick = e => {
   const b = e.target.closest('button'); if(!b) return;
   $$('#tabs button').forEach(x=>x.classList.toggle('on', x===b));
-  ['intake','feed','dict','brand','celeb','map','queue','conf'].forEach(v=>
+  ['intake','feed','dict','brand','celeb','cluster','map','queue','conf'].forEach(v=>
     $('#'+v+'View').classList.toggle('on', b.dataset.v===v));
   LOADERS[b.dataset.v]?.();
 };

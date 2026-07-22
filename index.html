@@ -29,7 +29,12 @@ header h1{font-family:'Playfair Display',serif; font-size:22px}
 .dgroup{margin-bottom:36px}
 .dgroup h2{font-family:'Playfair Display',serif; font-size:26px; border-bottom:1px solid var(--ink); padding-bottom:8px; margin-bottom:16px}
 .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:20px}
-.fcard{background:#fff; border:1px solid var(--hair); cursor:pointer; text-decoration:none; color:var(--ink); display:block; position:relative; transition:transform .15s}
+.feedgrid{columns:4 250px; column-gap:14px}
+.fcard{break-inside:avoid; margin-bottom:14px; background:#fff; border:1px solid var(--hair); cursor:pointer;
+  text-decoration:none; color:var(--ink); display:block; position:relative; transition:transform .15s}
+.fcard img.ph{width:100%; display:block; background:#efeae1}
+.fcard .tags{padding:8px 12px 0; display:flex; flex-wrap:wrap; gap:4px}
+.fcard .tags span{font-size:9px; background:#f4efe6; color:#6b675e; padding:2px 7px; border-radius:2px}
 .fcard:hover{transform:translateY(-3px)}
 .fcard:focus-visible{outline:2px solid var(--rising); outline-offset:2px}
 .fcard .th{height:210px; background-size:cover; background-position:top center; background-color:#efeae1}
@@ -99,6 +104,7 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
   <div class="tabs">
     <button data-v="board" class="on">MAIN BOARD</button>
     <button data-v="feed">LIVE FEED</button>
+    <button data-v="signal">TREND SIGNAL</button>
     <button data-v="brand">KEY BRAND</button>
     <a href="admin.html">+ 수집</a>
   </div>
@@ -111,6 +117,10 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
   <nav id="dateRail"></nav>
   <div id="feedMain"></div>
 </div></div>
+
+<div id="signalView" class="view" style="height:calc(100vh - 57px)">
+  <iframe id="signalFrame" data-src="signal.html" style="width:100%;height:100%;border:0;display:block"></iframe>
+</div>
 
 <div id="brandView" class="view"><div id="brandMain">
   <h2>Key Brands <span style="font-size:12px;color:var(--sub);font-family:'Noto Sans KR'">— 수집 자료에서 언급된 브랜드 · 클릭하면 검증 노트와 관련 사진</span></h2>
@@ -129,8 +139,8 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ═══════════ 설정 — admin.html 과 같은 값 ═══════════ */
-const SUPABASE_URL  = 'https://piifytwflubdtkzaiisi.supabase.co';
-const SUPABASE_ANON  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBpaWZ5dHdmbHViZHRremFpaXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQwODI5NDcsImV4cCI6MjA5OTY1ODk0N30.cVrgt7YQ99R-slePt8U2r_GmtDxetejZdqHcnqJmwhc';
+const SUPABASE_URL  = 'https://YOUR-PROJECT.supabase.co';
+const SUPABASE_ANON = 'YOUR-ANON-KEY';
 /* ═════════════════════════════════════════════════ */
 
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
@@ -327,13 +337,17 @@ function renderFeed(){
 
     const sec = document.createElement('section');
     sec.className = 'dgroup'; sec.id = 'g-' + d;
-    sec.innerHTML = `<h2>${esc(d)}</h2><div class="grid">` + items.map(it => {
+    sec.innerHTML = `<h2>${esc(d)}</h2><div class="feedgrid">` + items.map(it => {
       const tag = ['KR','GL','CN'].includes(it.region) ? it.region : 'KR';
+      const words = String(it.meta || '').split(/\s+/);
+      const tags = words.filter(w => w.startsWith('#')).slice(0, 8);
+      const rest = words.filter(w => w && !w.startsWith('#')).join(' ');
       return `<a class="fcard" href="#" data-fk="${esc(it.kind)}:${esc(it.id)}">
         <span class="badge ${it.badge}">${it.badge === 'MAIN' ? 'MAIN BOARD' : it.badge}</span>
-        <div class="th" style="${thumbCss(it.thumb_url)}"></div>
+        ${it.thumb_url ? `<img class="ph" src="${esc(it.thumb_url)}" loading="lazy" alt="">` : ''}
+        ${tags.length ? `<div class="tags">${tags.map(t=>`<span>${esc(t)}</span>`).join('')}</div>` : ''}
         <div class="bd"><h3>${esc(it.title)}<span class="ntag ${tag}">${tag}</span></h3>
-          <div class="meta">${esc(it.meta || '')}</div></div>
+          <div class="meta">${esc(rest.slice(0, 140))}</div></div>
       </a>`;
     }).join('') + '</div>';
     main.appendChild(sec);
@@ -375,7 +389,7 @@ function renderBrands(){
 }
 
 /* ═══ 탭 ═══ */
-const TABNOTE = {
+const TABNOTE = { signal:'FEED 키워드의 검색량 — 네이버 · 구글 · 썸트렌드',
   board: '서로 다른 출처 3개+ 연결만 승격',
   feed:  '피드 = 전체 노출 · 날짜 클릭 = 점프',
   brand: '카드 클릭 = 검증 노트 · 대표사진'
@@ -383,7 +397,8 @@ const TABNOTE = {
 document.querySelector('.tabs').addEventListener('click', e => {
   const b = e.target.closest('button'); if(!b) return;
   document.querySelectorAll('.tabs button').forEach(x => x.classList.toggle('on', x === b));
-  ['board','feed','brand'].forEach(v => $('#' + v + 'View').classList.toggle('on', b.dataset.v === v));
+  ['board','feed','signal','brand'].forEach(v => $('#' + v + 'View').classList.toggle('on', b.dataset.v === v));
+  if(b.dataset.v === 'signal'){ const f = $('#signalFrame'); if(!f.src) f.src = f.dataset.src; }
   $('#noteTxt').textContent = TABNOTE[b.dataset.v];
 });
 
