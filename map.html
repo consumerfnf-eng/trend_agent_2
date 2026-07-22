@@ -165,14 +165,22 @@ footer b{color:var(--sticky)}
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ══ 설정 — admin.html · index.html 과 같은 값이어야 합니다 ══ */
-const SUPABASE_URL  = 'https://piifytwflubdtkzaiisi.supabase.co';
-const SUPABASE_ANON  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBpaWZ5dHdmbHViZHRremFpaXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQwODI5NDcsImV4cCI6MjA5OTY1ODk0N30.cVrgt7YQ99R-slePt8U2r_GmtDxetejZdqHcnqJmwhc';
+const SUPABASE_URL  = 'https://YOUR-PROJECT.supabase.co';
+const SUPABASE_ANON = 'YOUR-ANON-KEY';
 /* ═══════════════════════════════════════════════════ */
 
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 const $  = s => document.querySelector(s);
 const esc = x => String(x ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const el = h => { const d = document.createElement('div'); d.innerHTML = h; return d.firstElementChild; };
+
+/* brand_fit 의 ALL = 브랜드 전체. 태그 'ALL' 하나가 아니라 4개 브랜드로 펼쳐서 보여주고 필터도 겁니다 */
+const ALL_BRANDS = ['MLB','DISCOVERY','SERGIO TACCHINI','DUVETICA'];
+const expandTags = tags => {
+  const out = [];
+  for(const t of (tags || [])) (t === 'ALL' ? ALL_BRANDS : [t]).forEach(x => { if(!out.includes(x)) out.push(x); });
+  return out;
+};
 
 let VIEWS = [], NODES = [], EDGES = [], ENTS = {}, BUNDLE_IMGS = {}, curView = null, curTimeIdx = null, TAGFILTER = null;
 
@@ -225,8 +233,9 @@ function fail(msg){
 
 /* ── 노드 마크업 — mockup 과 동일 ── */
 function nodeHtml(n){
-  const tagHtml = (n.r_tags && n.r_tags.length)
-    ? `<div class="ntags">${n.r_tags.map(t => `<span class="ntag ${esc(t)}" data-t="${esc(t)}">${t==='SERGIO TACCHINI'?'ST':esc(t)}</span>`).join('')}</div>` : '';
+  const xt = expandTags(n.r_tags);
+  const tagHtml = xt.length
+    ? `<div class="ntags">${xt.map(t => `<span class="ntag ${t==='SERGIO TACCHINI'?'ST':esc(t)}" data-t="${esc(t)}">${t==='SERGIO TACCHINI'?'ST':esc(t)}</span>`).join('')}</div>` : '';
   const when = `<span class="when">${esc(n.t)}</span>${tagHtml}`;
   const id = `n-${esc(n.node_id)}`, pos = `left:${n.x}px;top:${n.y}px` + (n.w ? `;width:${n.w}px` : '');
   const img = n.r_img ? `<img src="${esc(n.r_img)}" loading="lazy" alt="">` : '';
@@ -346,7 +355,7 @@ function applyTagFilter(){
   document.querySelectorAll('.node').forEach(node => {
     if(!node.classList.contains('show')) return;
     const n = NODES.find(x => 'n-' + x.node_id === node.id);
-    const pass = !TAGFILTER || (n?.r_tags || []).includes(TAGFILTER);
+    const pass = !TAGFILTER || expandTags(n?.r_tags).includes(TAGFILTER);
     node.style.opacity = pass ? 1 : .12;
   });
   $('#filterBar').innerHTML = TAGFILTER

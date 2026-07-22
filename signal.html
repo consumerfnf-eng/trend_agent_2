@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trend Signal — Trend Agent</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#faf7f2; --card:#ffffff; --hair:#e4ded2; --tx:#1d1d1b; --sub:#8a8578;
+  --up:#1a7a4a; --dn:#c8451f; --acc:#c8451f}
+*{box-sizing:border-box; margin:0}
+body{background:var(--bg); color:var(--tx); font-family:'Noto Sans KR','Inter',sans-serif; font-size:13px}
+header{display:flex; align-items:center; gap:14px; padding:14px 22px; border-bottom:1px solid var(--tx); position:sticky; top:0; background:var(--bg); z-index:10}
+header h1{font-family:'Playfair Display',serif; font-size:22px; font-weight:700; letter-spacing:.01em}
+header h1 span{color:var(--sub); font-weight:600; font-size:11px; margin-left:8px}
+nav{display:flex; gap:4px; margin-left:20px}
+nav button{border:0; background:none; color:var(--sub); padding:7px 12px; cursor:pointer; font:inherit; border-radius:6px}
+nav button.on{background:var(--tx); color:#fff; font-weight:700}
+#mSel{margin-left:auto; background:#fff; color:var(--tx); border:1px solid var(--hair); border-radius:6px; padding:6px 10px; font:inherit}
+main{padding:20px 22px; max-width:1200px; margin:0 auto}
+.view{display:none} .view.on{display:block}
+h2{font-size:16px; margin-bottom:2px}
+.sub{color:var(--sub); font-size:11px; margin-bottom:16px}
+.top5{display:grid; grid-template-columns:repeat(5,1fr); gap:10px; margin-bottom:18px}
+.tcard{background:var(--card); border:1px solid var(--hair); border-radius:10px; padding:12px; cursor:pointer; position:relative; min-height:150px; display:flex; flex-direction:column}
+.tcard:hover{border-color:var(--acc)}
+.tcard .rk{position:absolute; top:10px; left:10px; width:20px; height:20px; border-radius:5px; background:var(--tx); color:#fff; font-size:11px; font-weight:800; display:flex; align-items:center; justify-content:center}
+.tcard .st{position:absolute; top:10px; right:10px; font-size:9px; font-weight:800; letter-spacing:.08em}
+.st.Rising{color:var(--up)} .st.New{color:var(--acc)} .st.Falling{color:var(--dn)}
+.tcard img{width:100%; height:84px; object-fit:cover; border-radius:6px; margin:24px 0 8px; background:#efeae1}
+.tcard .nm{font-weight:700; font-size:13px; margin-top:auto}
+.tcard .ct{color:var(--sub); font-size:10px}
+.panelrow{display:grid; grid-template-columns:1.5fr 1fr; gap:14px}
+.card{background:var(--card); border:1px solid var(--hair); border-radius:10px; padding:14px}
+.card h3{font-size:11px; letter-spacing:.1em; color:var(--sub); margin-bottom:10px; font-weight:700}
+.chg{display:flex; justify-content:space-between; align-items:center; padding:7px 2px; border-top:1px solid var(--hair); font-size:12px}
+.chg:first-of-type{border-top:0}
+.chg .v{font-weight:800}
+.up{color:var(--up)} .dn{color:var(--dn)} .fl{color:var(--sub)}
+svg.spark{display:block}
+table{width:100%; border-collapse:collapse}
+th{font-size:9px; letter-spacing:.14em; color:var(--sub); text-align:left; padding:8px 10px; border-bottom:1px solid var(--hair)}
+td{padding:10px; border-bottom:1px solid var(--hair); font-size:12px; vertical-align:middle}
+tr.krow{cursor:pointer} tr.krow:hover{background:#faf6ec}
+.pillb{display:inline-block; font-size:9px; font-weight:800; padding:2px 8px; border-radius:10px}
+.pillb.New{background:#e7efe9; color:#1a7a4a} .pillb.Rising{background:#1a7a4a; color:#fff}
+.pillb.PEAK{background:#f3e7cf; color:#8a6a1f} .pillb.DESCEND{background:#f7e2dc; color:#c8451f}
+.fbar{display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap}
+.fbar button{border:1px solid var(--hair); background:none; color:var(--sub); padding:5px 12px; border-radius:14px; cursor:pointer; font:inherit; font-size:11px}
+.fbar button.on{background:var(--tx); color:#fff; font-weight:700; border-color:var(--tx)}
+.fbar input{margin-left:auto; background:#fff; border:1px solid var(--hair); color:var(--tx); border-radius:6px; padding:6px 10px; font:inherit}
+#detail{position:fixed; right:-560px; top:0; bottom:0; width:540px; max-width:96vw; background:var(--bg);
+  border-left:1px solid var(--hair); transition:right .28s; z-index:40; overflow-y:auto; padding:20px}
+#detail.open{right:0}
+#dim{position:fixed; inset:0; background:#0004; opacity:0; pointer-events:none; transition:.28s; z-index:35}
+#dim.open{opacity:1; pointer-events:auto}
+#detail .x{position:absolute; top:12px; right:14px; background:none; border:0; color:var(--sub); font-size:20px; cursor:pointer}
+#detail .hero{width:100%; max-height:330px; object-fit:cover; border-radius:10px; background:#efeae1}
+#detail h2{font-family:'Playfair Display',serif; font-size:24px; margin:12px 0 2px}
+#detail .k{font-size:10px; letter-spacing:.16em; color:var(--sub); text-transform:uppercase}
+.stats{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:14px 0}
+.stats .s{background:#faf7f2; border:1px solid var(--hair); border-radius:8px; padding:10px}
+.stats .s b{display:block; font-size:16px}
+.stats .s span{font-size:9px; letter-spacing:.1em; color:var(--sub); text-transform:uppercase}
+#detail h4{font-size:10px; letter-spacing:.16em; color:var(--sub); margin:16px 0 8px; border-top:1px solid var(--hair); padding-top:12px}
+.ref{display:flex; gap:8px; align-items:center; padding:6px 0; border-top:1px solid var(--hair); font-size:12px}
+.ref:first-of-type{border-top:0}
+.ref .r{color:var(--acc); font-weight:800; min-width:34px}
+.looks{display:grid; grid-template-columns:repeat(4,1fr); gap:6px}
+.looks figure{margin:0}
+.looks img{width:100%; height:110px; object-fit:cover; border-radius:6px; background:#efeae1}
+.looks figcaption{font-size:9px; color:var(--sub); padding-top:2px}
+.apply{background:#fdf3ef; border:1px solid #ecc9bc; border-radius:8px; padding:12px; font-size:12px; line-height:1.6}
+.empty{color:var(--sub); padding:30px 0; text-align:center}
+.mini{color:var(--sub); font-size:11px}
+a{color:var(--acc)}
+</style>
+</head>
+<body>
+<header>
+  <h1>TREND SIGNAL<span>F&F Trend Intelligence</span></h1>
+  <nav id="nav">
+    <button data-v="over" class="on">Overview</button>
+    <button data-v="keys">Keywords</button>
+  </nav>
+  <a href="index.html" id="backLink" style="font-size:11px;letter-spacing:.12em;font-weight:700;color:var(--acc);text-decoration:none;border:1px solid var(--acc);padding:6px 12px">← DASHBOARD</a>
+  <select id="mSel"></select>
+</header>
+
+<main>
+  <section id="overView" class="view on">
+    <h2 id="ovTitle"></h2>
+    <div class="sub">FEED 기준 상위 키워드 — KR: 네이버/썸트렌드 · GL/CN: 구글 (주간 · 자동 또는 관리자 붙여넣기)</div>
+    <div id="ovKR"></div>
+    <div id="ovGL"></div>
+  </section>
+
+  <section id="keysView" class="view">
+    <h2>키워드 전체 보기</h2>
+    <div class="sub">이번 달 포착된 모든 키워드 — 탭·검색으로 필터링</div>
+    <div class="fbar" id="fCat"></div>
+    <div class="fbar" id="fBrand"></div>
+    <div class="card" style="padding:0"><table>
+      <thead><tr><th>KEYWORD</th><th>CATEGORY</th><th>STAGE</th><th>검색량 추이 · 16주</th><th>변화 · 최근 4주</th></tr></thead>
+      <tbody id="kBody"></tbody>
+    </table></div>
+  </section>
+</main>
+
+<aside id="detail"><button class="x">×</button><div id="dBody"></div></aside>
+<div id="dim"></div>
+
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+/* ══ 설정 — 다른 파일들과 같은 값 ══ */
+const SUPABASE_URL  = 'https://YOUR-PROJECT.supabase.co';
+const SUPABASE_ANON = 'YOUR-ANON-KEY';
+/* ═══════════════════════════════ */
+
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
+const $ = s => document.querySelector(s);
+const esc = x => String(x ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const norm = v => String(v||'').toLowerCase().replace(/[\s#_-]/g,'');
+
+let ENTS = [], SIG = [], CNT = {}, COVER = {}, month = new Date().toISOString().slice(0,7);
+let catF = 'All', brandF = 'All';
+
+const SRC_PRI = ['naver','google','sometrend','manual'];
+const sigOf = (eid, region) => {
+  const all = SIG.filter(s => s.entity_id === eid && (!region || s.region === region));
+  const src = SRC_PRI.find(x => all.filter(r => r.source === x).length >= 2) || all[0]?.source;
+  return all.filter(r => r.source === src).sort((a,b) => a.week.localeCompare(b.week));
+};
+const pct = (a,b) => b ? Math.round((a-b)/b*100) : null;
+
+/* 최근 4주 vs 이전 4주 */
+function change4(eid, region){
+  const rows = sigOf(eid, region); if(rows.length < 2) return null;
+  const last8 = rows.slice(-8);
+  const prev = last8.slice(0, Math.max(0, last8.length-4)).reduce((s,x)=>s+ +x.volume, 0);
+  const cur  = last8.slice(-4).reduce((s,x)=>s+ +x.volume, 0);
+  if(!prev) return null;
+  return pct(cur, prev);
+}
+const chgHtml = v => v == null ? '<span class="fl">—</span>'
+  : v > 3 ? `<span class="up">▲ +${v}%</span>` : v < -3 ? `<span class="dn">▼ ${v}%</span>` : `<span class="fl">${v}%</span>`;
+
+function spark(eid, region, w=150, h=34){
+  const rows = sigOf(eid, region).slice(-16);
+  if(rows.length < 2) return '<span class="fl">—</span>';
+  const vs = rows.map(r => +r.volume), mx = Math.max(...vs, 1), mn = Math.min(...vs, 0);
+  const pts = vs.map((v,i) => `${(i/(vs.length-1)*w).toFixed(1)},${(h-3-(v-mn)/(mx-mn||1)*(h-6)).toFixed(1)}`).join(' ');
+  const up = vs[vs.length-1] >= vs[0];
+  return `<svg class="spark" width="${w}" height="${h}"><polyline points="${pts}" fill="none"
+    stroke="${up?'#1a7a4a':'#c8451f'}" stroke-width="1.6"/></svg>`;
+}
+
+function stageOf(eid){
+  const c = change4(eid,'KR') ?? change4(eid,'GL');
+  const rows = sigOf(eid);
+  if(!rows.length) return 'New';
+  if(c != null && c > 10) return 'Rising';
+  if(c != null && c < -15) return 'DESCEND';
+  return 'New';
+}
+
+async function load(){
+  const [e2, s2, c2, ae] = await Promise.all([
+    sb.from('entities').select('entity_id,name_kr,name_en,axis,category_l1,brand_fit,notes,proposal,first_seen,pinned,parent_movement,status'),
+    sb.from('search_signals').select('*').order('week'),
+    sb.from('v_entity_source_count').select('*'),
+    sb.from('asset_entities').select('entity_id,role,images(thumb_url,is_celeb,celeb_name,account)').limit(1500)
+  ]);
+  ENTS = (e2.data||[]).filter(x => x.status !== 'Archived' && x.axis !== 'movement');
+  SIG = s2.data || [];
+  CNT = Object.fromEntries((c2.data||[]).map(r => [r.entity_id, r.source_count]));
+  COVER = {}; window.LOOKS = {};
+  for(const r of (ae.data||[])){
+    if(!r.images?.thumb_url) continue;
+    COVER[r.entity_id] ||= r.images.thumb_url;
+    (window.LOOKS[r.entity_id] ||= []).push(r.images);
+  }
+  const { data:mm } = await sb.from('search_signals').select('week').order('week',{ascending:false}).limit(1);
+  const months = [...new Set([month, ...SIG.map(x => x.week.slice(0,7))])].sort().reverse().slice(0,12);
+  $('#mSel').innerHTML = months.map(m => `<option ${m===month?'selected':''}>${m}</option>`).join('');
+  draw();
+}
+$('#mSel').onchange = () => { month = $('#mSel').value; draw(); };
+
+/* FEED 기준(연결 1건+) 키워드 중 검색량 상위 5 */
+function top5(region){
+  return ENTS.filter(e => (CNT[e.entity_id]||0) >= 1)
+    .map(e => { const rows = sigOf(e.entity_id, region).filter(r => r.week.slice(0,7) <= month);
+      return { e, v: rows.length ? +rows[rows.length-1].volume : -1, c: change4(e.entity_id, region) }; })
+    .sort((a,b) => b.v - a.v)
+    .slice(0, 5);
+}
+
+function ovBlock(title, region, note){
+  const list = top5(region);
+  const has = list.some(x => x.v >= 0);
+  return `<div class="card" style="margin-bottom:14px">
+    <h3>${title} <span class="mini" style="float:right">${note}</span></h3>
+    <div class="top5">${list.map((x,i) => `
+      <div class="tcard" data-open="${esc(x.e.entity_id)}">
+        <span class="rk">${i+1}</span>
+        <span class="st ${stageOf(x.e.entity_id)}">${stageOf(x.e.entity_id)}</span>
+        ${COVER[x.e.entity_id] ? `<img src="${esc(COVER[x.e.entity_id])}" loading="lazy" alt="">` : '<div style="height:84px;margin:24px 0 8px"></div>'}
+        <div class="nm">${esc(x.e.name_kr||x.e.name_en)}</div>
+        <div class="ct">${esc(x.e.category_l1||x.e.axis||'')}</div>
+      </div>`).join('')}</div>
+    <div class="panelrow">
+      <div class="card"><h3>검색량 추이 — TOP 5 · 16주</h3>
+        ${list.map(x => `<div class="chg"><span>${esc(x.e.name_kr||x.e.name_en)}</span>${spark(x.e.entity_id, region, 220, 30)}</div>`).join('')}
+        ${has ? '' : '<div class="empty">검색량 데이터가 아직 없습니다 — 아래 "주간 갱신" 안내를 보세요</div>'}
+      </div>
+      <div class="card"><h3>검색량 변화 — 최근 4주 vs 이전 4주</h3>
+        ${list.map(x => `<div class="chg"><span>${esc(x.e.name_kr||x.e.name_en)}</span><span class="v">${chgHtml(x.c)}</span></div>`).join('')}
+      </div>
+    </div>
+  </div>`;
+}
+
+function draw(){
+  $('#ovTitle').textContent = `${month.replace('-', '년 ')}월 트렌드 시그널`;
+  $('#ovKR').innerHTML = ovBlock('KR TOP 5 — 네이버', 'KR', 'FEED 포착 키워드 중 검색량 상위');
+  $('#ovGL').innerHTML = ovBlock('GL / CN TOP 5 — 구글', 'GL', '구글 트렌드 상대 지수');
+  drawKeys();
+}
+
+function drawKeys(){
+  const cats = ['All', ...new Set(ENTS.map(e => e.category_l1 || e.axis).filter(Boolean))].slice(0, 9);
+  $('#fCat').innerHTML = cats.map(c => `<button class="${c===catF?'on':''}" data-c="${esc(c)}">${esc(c)}</button>`).join('')
+    + `<input id="kq" placeholder="키워드 검색" value="">`;
+  const brands = ['All','MLB','DISCOVERY','SERGIO TACCHINI','DUVETICA'];
+  $('#fBrand').innerHTML = brands.map(b => `<button class="${b===brandF?'on':''}" data-b="${esc(b)}">${b==='SERGIO TACCHINI'?'ST':esc(b)}</button>`).join('');
+  $('#fCat').onclick = e => { const b=e.target.closest('[data-c]'); if(b){ catF=b.dataset.c; drawKeys(); } };
+  $('#fBrand').onclick = e => { const b=e.target.closest('[data-b]'); if(b){ brandF=b.dataset.b; drawKeys(); } };
+  $('#kq').oninput = e => renderRows(e.target.value);
+  renderRows('');
+}
+
+function renderRows(q){
+  const rows = ENTS
+    .filter(e => catF==='All' || (e.category_l1||e.axis)===catF)
+    .filter(e => brandF==='All' || (e.brand_fit||[]).includes('ALL') || (e.brand_fit||[]).includes(brandF))
+    .filter(e => !q || norm(e.name_kr).includes(norm(q)) || norm(e.name_en||'').includes(norm(q)))
+    .sort((a,b) => (CNT[b.entity_id]||0) - (CNT[a.entity_id]||0))
+    .slice(0, 80);
+  $('#kBody').innerHTML = rows.length ? rows.map(e => `
+    <tr class="krow" data-open="${esc(e.entity_id)}">
+      <td><b>${esc(e.name_kr||e.name_en)}</b><div class="mini">${esc((e.notes||'').slice(0,44))}</div></td>
+      <td>${esc(e.category_l1||e.axis||'')}</td>
+      <td><span class="pillb ${stageOf(e.entity_id)}">${stageOf(e.entity_id)}</span></td>
+      <td>${spark(e.entity_id, 'KR')}</td>
+      <td>${chgHtml(change4(e.entity_id,'KR'))}</td>
+    </tr>`).join('') : '<tr><td colspan="5" class="empty">해당하는 키워드가 없습니다</td></tr>';
+}
+
+/* ── 키워드 상세 (이미지 5) ── */
+document.addEventListener('click', async e => {
+  const t = e.target.closest('[data-open]'); if(!t) return;
+  const ent = ENTS.find(x => x.entity_id === t.dataset.open); if(!ent) return;
+  openDetail(ent);
+});
+$('#detail .x').onclick = () => { $('#detail').classList.remove('open'); $('#dim').classList.remove('open'); };
+$('#dim').onclick = () => $('#detail .x').onclick();
+
+async function openDetail(ent){
+  $('#detail').classList.add('open'); $('#dim').classList.add('open');
+  $('#dBody').innerHTML = '<div class="empty">불러오는 중…</div>';
+  const eid = ent.entity_id;
+  const [rk, dk] = await Promise.all([
+    sb.from('ranking_entities').select('rankings(rank,product_name,platform,price,year_month)').eq('entity_id', eid).limit(12),
+    sb.from('document_entities').select('documents(title,publisher,year_month,source_url)').eq('entity_id', eid).limit(6)
+  ]);
+  const prods = (rk.data||[]).map(x=>x.rankings).filter(Boolean).sort((a,b)=>a.rank-b.rank).slice(0,8);
+  const docs  = (dk.data||[]).map(x=>x.documents).filter(Boolean);
+  const looks = (window.LOOKS[eid]||[]).slice(0, 8);
+  const celebs = looks.filter(l => l.is_celeb && l.celeb_name);
+  const cKR = change4(eid,'KR'), cGL = change4(eid,'GL');
+  const src = CNT[eid] || 0;
+  const vol = src >= 8 ? 'High' : src >= 3 ? 'Mid' : src ? 'Low' : '—';
+
+  $('#dBody').innerHTML = `
+    ${COVER[eid] ? `<img class="hero" src="${esc(COVER[eid])}" alt="">` : ''}
+    <div class="k">${esc(ent.category_l1||ent.axis||'')} · first seen ${esc(ent.first_seen||'—')}</div>
+    <h2>${esc(ent.name_kr||ent.name_en)}</h2>
+    <div class="stats">
+      <div class="s"><b class="${(cKR??0)>0?'up':(cKR??0)<0?'dn':''}">${cKR!=null?(cKR>0?'+':'')+cKR+'%':'—'}</b><span>KR 검색 4주</span></div>
+      <div class="s"><b class="${(cGL??0)>0?'up':(cGL??0)<0?'dn':''}">${cGL!=null?(cGL>0?'+':'')+cGL+'%':'—'}</b><span>GL 검색 4주</span></div>
+      <div class="s"><b>${vol}</b><span>Volume · 출처 ${src}곳</span></div>
+      <div class="s"><b>${esc(stageOf(eid))}</b><span>Stage</span></div>
+    </div>
+    <div>${spark(eid, 'KR', 490, 46)}</div>
+
+    <h4>DATA REFERENCE</h4>
+    ${prods.length ? prods.map(p => `<div class="ref"><span class="r">${p.rank}위</span>
+        <span style="flex:1">${esc(p.product_name||'')}</span>
+        <span class="mini">${esc(p.platform||'')} · ${esc(p.year_month||'')}</span></div>`).join('')
+      : docs.length ? docs.map(d => `<div class="ref"><span style="flex:1">${esc(d.title||'')}</span>
+        <span class="mini">${esc(d.publisher||'')} · ${esc(d.year_month||'')}</span></div>`).join('')
+      : '<div class="mini">연결된 랭킹·기사가 아직 없습니다</div>'}
+
+    <h4>STYLE DIRECTION</h4>
+    ${looks.length ? `<div class="looks">${looks.map(l => `<figure><img src="${esc(l.thumb_url)}" loading="lazy" alt="">
+        <figcaption>${esc(l.celeb_name || (l.account ? '@'+l.account.replace(/^@/,'') : ''))}</figcaption></figure>`).join('')}</div>`
+      : '<div class="mini">착장 사진이 아직 없습니다</div>'}
+    ${celebs.length ? `<div class="mini" style="margin-top:6px">셀럽 착장 ${celebs.length}건 — ${celebs.slice(0,3).map(c=>esc(c.celeb_name)).join(' · ')}</div>` : ''}
+
+    <h4>${esc((ent.brand_fit||['ALL']).includes('ALL') ? 'F&F' : (ent.brand_fit||[]).join(' · '))} 적용 제안</h4>
+    <div class="apply">${esc(ent.proposal || '적용 제안이 아직 없습니다 — 관리자 → 사전에서 채우면 여기 나옵니다')}</div>`;
+}
+
+$('#nav').onclick = e => {
+  const b = e.target.closest('button'); if(!b) return;
+  document.querySelectorAll('#nav button').forEach(x => x.classList.toggle('on', x===b));
+  $('#overView').classList.toggle('on', b.dataset.v==='over');
+  $('#keysView').classList.toggle('on', b.dataset.v==='keys');
+};
+
+if(window.self !== window.top) $('#backLink').style.display = 'none';   // 대시보드 탭 안에서는 숨김
+load();
+</script>
+</body>
+</html>
