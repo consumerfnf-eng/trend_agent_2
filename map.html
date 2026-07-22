@@ -161,12 +161,13 @@ footer b{color:var(--sticky)}
 <footer><span>🗺 노드 = 원장의 documents · images · brands · entities 그대로 · 화살표 = 연결 · 시간축 = year_month</span>
 <span style="margin-left:auto">시간 버튼을 눌러 맵이 자라나는 걸 보세요 <b>▶</b></span></footer>
 
+<script src="config.js"></script>
 <script type="module">
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ══ 설정 — admin.html · index.html 과 같은 값이어야 합니다 ══ */
-const SUPABASE_URL  = 'https://YOUR-PROJECT.supabase.co';
-const SUPABASE_ANON = 'YOUR-ANON-KEY';
+const SUPABASE_URL  = (window.TA_CONFIG && TA_CONFIG.url)  || 'https://YOUR-PROJECT.supabase.co';
+const SUPABASE_ANON = (window.TA_CONFIG && TA_CONFIG.anon) || 'YOUR-ANON-KEY';
 /* ═══════════════════════════════════════════════════ */
 
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);

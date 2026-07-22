@@ -194,7 +194,7 @@ tbody tr:hover{background:#fdfcf9}
 
 <!-- ═══ 로그인 ═══ -->
 <div id="gate" hidden>
-  <h1>TREND AGENT</h1>
+  <h1 style="font-size:20px">관리자 로그인</h1>
   <p>관리자 로그인 — 등록된 계정만 수집·수정할 수 있습니다.</p>
   <div class="row"><div>
     <label class="f">이메일</label>
@@ -215,18 +215,8 @@ tbody tr:hover{background:#fdfcf9}
   <div class="tabs" id="tabs">
     <button data-v="intake" class="on">업로드</button>
     <button data-v="cluster">클러스터</button>
-    <span class="advWrap">
-      <button type="button" id="advBtn">고급 ▾</button>
-      <span id="advMenu" hidden>
-        <button data-v="feed">피드</button>
-        <button data-v="dict">사전</button>
-        <button data-v="brand">브랜드</button>
-        <button data-v="celeb">셀럽</button>
-        <button data-v="map">맵</button>
-        <button data-v="queue">미매핑 큐</button>
-        <button data-v="conf">설정</button>
-      </span>
-    </span>
+    <button data-v="feed">피드</button>
+    <button data-v="conf">설정</button>
   </div>
   <div class="who"><span id="whoTxt"></span><button class="btn ghost sm" id="logout">로그아웃</button></div>
 </header>
@@ -758,14 +748,16 @@ tbody tr:hover{background:#fdfcf9}
 <div id="toast"></div>
 <div id="busy"><div class="spin"></div><span id="busyMsg">저장 중…</span></div>
 
+<script src="config.js"></script>
 <script type="module">
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ═══════════ 설정 — 여기 두 줄만 바꾸면 됩니다 ═══════════ */
 const SUPABASE_URL  = 'https://piifytwflubdtkzaiisi.supabase.co';
-const SUPABASE_ANON  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBpaWZ5dHdmbHViZHRremFpaXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQwODI5NDcsImV4cCI6MjA5OTY1ODk0N30.cVrgt7YQ99R-slePt8U2r_GmtDxetejZdqHcnqJmwhc';
-/* ════════════════════════════════════════════════════════ */
+const SUPABASE_ANON  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBpaWZ5dHdmbHViZHRremFpaXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQwODI5NDcsImV4cCI6MjA5OTY1ODk0N30.cVrgt7YQ99R-slePt8U2r_GmtDxetejZdqHcnqJmwhc';/* ════════════════════════════════════════════════════════ */
 
+if(SUPABASE_URL.includes('YOUR-PROJECT'))
+  alert('config.js 가 없거나 비어 있습니다.\n같은 폴더에 config.js 를 만들고 Supabase URL 과 anon 키를 넣어주세요.\n(한 번만 하면 파일을 교체해도 유지됩니다)');
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 const $  = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -1722,8 +1714,6 @@ $('#sigRun').onclick = async () => {
   busy(false);
 };
 
-$('#advBtn').onclick = e => { e.stopPropagation(); $('#advMenu').hidden = !$('#advMenu').hidden; };
-document.addEventListener('click', e => { if(!e.target.closest('.advWrap')) $('#advMenu').hidden = true; });
 
 $('#modes').onclick = e => {
   const b = e.target.closest('button[data-mode]'); if(!b) return;
@@ -2523,9 +2513,10 @@ for(const bid of ['radarBox','qClusterBox','clSugBox']){
       const { data:exN } = await sb.from('map_nodes').select('node_id')
         .eq('view_id','monthly').eq('entity_id', eid).limit(1);
       if(!exN || !exN.length){
+        const pos2 = await nextSlot('monthly', ymNow());
         const { data:kn, error:eN } = await sb.from('map_nodes').insert({
           view_id:'monthly', kind: g.is_movement ? 'mv' : 'key', entity_id: eid,
-          t: ymNow(), x: 60, y: 60, created_by: ME }).select('node_id').single();
+          t: ymNow(), ...pos2, created_by: ME }).select('node_id').single();
         if(!eN){
           mapMsg = ' · 맵(월별)에 올림';
           const pv = (!g.is_movement && (g.parent||'').trim()) ? (matchEntity(g.parent.trim())) : null;
@@ -2583,6 +2574,7 @@ $('#ktChips').onclick = async e => {
     : `${ent.name_kr} — 지정 해제`);
 };
 
+let FEED = [];
 async function renderFeed(){
   renderKtBar();
   busy(true,'피드 불러오는 중…');
@@ -2595,6 +2587,7 @@ async function renderFeed(){
     if($('#fQ').value.trim()) q = q.ilike('title', `%${$('#fQ').value.trim()}%`);
     const { data, error } = await q;
     if(error) throw error;
+    FEED = data || [];
     $('#fBody').innerHTML = data.length ? data.map(r=>`
       <tr>
         <td>${r.thumb_url ? `<img src="${esc(r.thumb_url)}" loading="lazy" style="width:56px;height:56px;object-fit:cover;border:1px solid var(--hair)">` : '<span class="mini">—</span>'}</td>
@@ -2626,8 +2619,9 @@ $('#fBody').onclick = async e => {
         await sb.from('map_nodes').update({ t: ym || ymNow() }).eq('node_id', ex[0].node_id);
         toast('이미 맵에 있어 등장 월만 갱신했습니다 — 제목·사진은 원장에서 자동 반영됩니다');
       } else {
+        const pos3 = await nextSlot('monthly', ym || ymNow());
         const row = { view_id:'monthly', kind: kind==='image' ? 'photo' : 'doc',
-                      t: ym || ymNow(), x: 60, y: 60, created_by: ME };
+                      t: ym || ymNow(), ...pos3, created_by: ME };
         row[col] = id;
         const { error } = await sb.from('map_nodes').insert(row);
         if(error) throw error;
@@ -3367,7 +3361,8 @@ $('#mAdd').onclick = async () => {
     }
   }
   await loadMap();
-  toast(`${KINDLBL[k]} 노드를 왼쪽 위에 놨습니다 — 끌어다 배치하세요${followed}`);
+  const vName = ({monthly:'월별', quarter:'분기', year:'연도'})[mCur] || mCur;
+  toast(`${KINDLBL[k]} 노드를 [${vName}] 뷰 왼쪽 위에 놨습니다${followed} — 지금 화면이 그 뷰인지 확인하세요. 메인보드(index)는 월별 뷰를 보여줍니다`);
 };
 
 function mnHtml(n){
@@ -3509,14 +3504,14 @@ $('#mDel').onclick = async () => {
 let CL_LINKS = {};   // entity_id → [{kind,id,date,src,txt}]
 
 async function loadCluster(){
-  const since = new Date(Date.now() - 120*86400e3).toISOString();
   const [ae, de, re2] = await Promise.all([
     sb.from('asset_entities').select('entity_id, images!inner(image_id,year_month,source_id,account,note,created_at)')
-      .gte('images.created_at', since).limit(1200),
+      .limit(2000),
     sb.from('document_entities').select('entity_id, documents!inner(doc_id,year_month,source_id,publisher,title,summary,created_at)')
-      .gte('documents.created_at', since).limit(600),
+      .limit(1000),
     sb.from('ranking_entities').select('entity_id, rankings!inner(id,year_month,platform,rank,product_name)').limit(600)
   ]);
+  for(const r of [ae, de, re2]) if(r.error) throw r.error;
   CL_LINKS = {};
   const put = (eid, l) => (CL_LINKS[eid] ||= []).push(l);
   for(const r of (ae.data||[])){ const i2=r.images; if(i2) put(r.entity_id,
@@ -3532,7 +3527,7 @@ function drawCluster(){
   const kts = ENTITIES.filter(e => e.axis !== 'movement' && e.status !== 'Archived')
     .filter(e => e.pinned || (CL_LINKS[e.entity_id]||[]).length)
     .sort((a,b) => (CL_LINKS[b.entity_id]||[]).length - (CL_LINKS[a.entity_id]||[]).length)
-    .slice(0, 24);
+    .slice(0, 60);
   const feedOpts = () => {
     const seen = new Set();
     return FEED.slice(0, 40).map(f => `<option value="${f.kind}:${f.id}">${esc((f.title||'').slice(0,42))}</option>`).join('');
@@ -3640,7 +3635,8 @@ document.addEventListener('click', async e => {
     const eid = bd.dataset.board;
     const { data:ex } = await sb.from('map_nodes').select('node_id').eq('view_id','monthly').eq('entity_id', eid).limit(1);
     if(ex && ex.length) return toast('이미 메인보드(맵)에 있습니다 — 맵 탭에서 위치를 조정하세요');
-    const { error } = await sb.from('map_nodes').insert({ view_id:'monthly', kind:'key', entity_id:eid, t:ymNow(), x:60, y:60, created_by:ME });
+    const pos = await nextSlot('monthly', ymNow());
+    const { error } = await sb.from('map_nodes').insert({ view_id:'monthly', kind:'key', entity_id:eid, t:ymNow(), ...pos, created_by:ME });
     if(error) return die(error, '메인보드 업로드');
     toast('메인보드(맵 월별)에 올렸습니다 — 맵 탭에서 끌어다 배치');
     return; }
@@ -3669,7 +3665,24 @@ document.addEventListener('keydown', async e => {
   }
 });
 
-async function loadClusterTab(){ if(!FEED.length) await renderFeed(); await loadCluster(); }
+async function loadClusterTab(){
+  try{
+    if(!FEED.length) await renderFeed();
+    await loadCluster();
+  }catch(e){
+    $('#ktCluster').innerHTML = `<div class="mini" style="color:#c8451f">불러오기 실패 — ${esc(e.message || e)}<br>
+      이 문구를 그대로 복사해서 알려주시면 바로 잡겠습니다</div>`;
+    die(e, '클러스터');
+  }
+}
+
+/* 맵 탭 없이도 노드가 안 겹치게 — 같은 뷰·같은 달의 노드 수를 세서 격자로 놓습니다 */
+async function nextSlot(viewId, t){
+  const { count } = await sb.from('map_nodes').select('node_id', { count:'exact', head:true })
+    .eq('view_id', viewId).eq('t', t);
+  const n = count || 0;
+  return { x: 60 + (n % 4) * 240, y: 60 + Math.floor(n / 4) * 200 };
+}
 
 const LOADERS = { feed:renderFeed, queue:renderQueue, conf:renderAdmins, map:loadMap, cluster:loadClusterTab };
 $('#tabs').onclick = e => {
@@ -3677,7 +3690,7 @@ $('#tabs').onclick = e => {
   $$('#tabs button').forEach(x=>x.classList.toggle('on', x===b));
   ['intake','feed','dict','brand','celeb','cluster','map','queue','conf'].forEach(v=>
     $('#'+v+'View').classList.toggle('on', b.dataset.v===v));
-  LOADERS[b.dataset.v]?.();
+  Promise.resolve(LOADERS[b.dataset.v]?.()).catch(e => die(e, '탭 로딩'));
 };
 
 boot();

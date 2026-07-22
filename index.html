@@ -111,7 +111,12 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
   <span class="note" id="noteTxt">서로 다른 출처 3개+ 연결만 승격</span>
 </header>
 
-<div id="boardView" class="view on"><div id="boardMain"></div></div>
+<div id="boardView" class="view on"><div id="boardMain"></div>
+  <div style="padding:10px 22px 26px">
+    <h2 style="font-family:'Playfair Display',serif;font-size:17px;margin:8px 0 10px">MAIN — 승격·지정된 피드</h2>
+    <div id="boardFeed" class="feedgrid"><span class="mini">아직 MAIN 으로 승격된 피드가 없습니다 — 출처 3곳+ 또는 KEY TREND 지정</span></div>
+  </div>
+</div>
 
 <div id="feedView" class="view"><div id="feedWrap">
   <nav id="dateRail"></nav>
@@ -135,12 +140,13 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
 <footer>TREND AGENT · LIVE FEED &amp; KEY BRAND · SUPABASE</footer>
 <div id="load"><div class="spin"></div><span>불러오는 중</span></div>
 
+<script src="config.js"></script>
 <script type="module">
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ═══════════ 설정 — admin.html 과 같은 값 ═══════════ */
-const SUPABASE_URL  = 'https://piifytwflubdtkzaiisi.supabase.co';
-const SUPABASE_ANON  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBpaWZ5dHdmbHViZHRremFpaXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQwODI5NDcsImV4cCI6MjA5OTY1ODk0N30.cVrgt7YQ99R-slePt8U2r_GmtDxetejZdqHcnqJmwhc';
+const SUPABASE_URL  = (window.TA_CONFIG && TA_CONFIG.url)  || 'https://YOUR-PROJECT.supabase.co';
+const SUPABASE_ANON = (window.TA_CONFIG && TA_CONFIG.anon) || 'YOUR-ANON-KEY';
 /* ═════════════════════════════════════════════════ */
 
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
@@ -311,6 +317,20 @@ function openBrandPanel(b){
     ${links ? `<div style="margin-top:6px">${links}</div>` : ''}`);
 }
 
+function fcardHtml(it){
+  const tag = ['KR','GL','CN'].includes(it.region) ? it.region : 'KR';
+  const words = String(it.meta || '').split(/\s+/);
+  const tags = words.filter(w => w.startsWith('#')).slice(0, 4);
+  const rest = words.filter(w => w && !w.startsWith('#')).join(' ');
+  return `<a class="fcard" href="#" data-fk="${esc(it.kind)}:${esc(it.id)}">
+    <span class="badge ${it.badge}">${it.badge === 'MAIN' ? 'MAIN BOARD' : it.badge}</span>
+    ${it.thumb_url ? `<img class="ph" src="${esc(it.thumb_url)}" loading="lazy" alt="">` : ''}
+    ${tags.length ? `<div class="tags">${tags.map(t=>`<span>${esc(t)}</span>`).join('')}</div>` : ''}
+    <div class="bd"><h3>${esc(it.title)}<span class="ntag ${tag}">${tag}</span></h3>
+      <div class="meta">${esc(rest.slice(0, 60))}</div></div>
+  </a>`;
+}
+
 /* ═══ LIVE FEED ═══ */
 function renderFeed(){
   const rail = $('#dateRail'), main = $('#feedMain');
@@ -337,29 +357,20 @@ function renderFeed(){
 
     const sec = document.createElement('section');
     sec.className = 'dgroup'; sec.id = 'g-' + d;
-    sec.innerHTML = `<h2>${esc(d)}</h2><div class="feedgrid">` + items.map(it => {
-      const tag = ['KR','GL','CN'].includes(it.region) ? it.region : 'KR';
-      const words = String(it.meta || '').split(/\s+/);
-      const tags = words.filter(w => w.startsWith('#')).slice(0, 4);
-      const rest = words.filter(w => w && !w.startsWith('#')).join(' ');
-      return `<a class="fcard" href="#" data-fk="${esc(it.kind)}:${esc(it.id)}">
-        <span class="badge ${it.badge}">${it.badge === 'MAIN' ? 'MAIN BOARD' : it.badge}</span>
-        ${it.thumb_url ? `<img class="ph" src="${esc(it.thumb_url)}" loading="lazy" alt="">` : ''}
-        ${tags.length ? `<div class="tags">${tags.map(t=>`<span>${esc(t)}</span>`).join('')}</div>` : ''}
-        <div class="bd"><h3>${esc(it.title)}<span class="ntag ${tag}">${tag}</span></h3>
-          <div class="meta">${esc(rest.slice(0, 60))}</div></div>
-      </a>`;
-    }).join('') + '</div>';
+    sec.innerHTML = `<h2>${esc(d)}</h2><div class="feedgrid">` + items.map(fcardHtml).join('') + '</div>';
     main.appendChild(sec);
   }
-  main.onclick = e => {
-    const a = e.target.closest('[data-fk]'); if(!a) return;
-    e.preventDefault();
-    const [kind, id] = a.dataset.fk.split(':');
-    const it = FEED.find(x => x.kind === kind && String(x.id) === id);
-    if(it) openFeedPanel(it);
-  };
+  /* 메인보드 하단 — MAIN 뱃지 피드만 */
+  const mains = FEED.filter(x => x.badge === 'MAIN').slice(0, 28);
+  if(mains.length) $('#boardFeed').innerHTML = mains.map(fcardHtml).join('');
 }
+document.addEventListener('click', e => {
+  const a = e.target.closest('[data-fk]'); if(!a) return;
+  e.preventDefault();
+  const [kind, id] = a.dataset.fk.split(':');
+  const it = FEED.find(x => x.kind === kind && String(x.id) === id);
+  if(it) openFeedPanel(it);
+});
 
 /* ═══ KEY BRAND ═══ */
 function renderBrands(){

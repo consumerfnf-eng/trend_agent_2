@@ -110,12 +110,13 @@ a{color:var(--acc)}
 <aside id="detail"><button class="x">×</button><div id="dBody"></div></aside>
 <div id="dim"></div>
 
+<script src="config.js"></script>
 <script type="module">
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ══ 설정 — 다른 파일들과 같은 값 ══ */
-const SUPABASE_URL  = 'https://piifytwflubdtkzaiisi.supabase.co';
-const SUPABASE_ANON  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBpaWZ5dHdmbHViZHRremFpaXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQwODI5NDcsImV4cCI6MjA5OTY1ODk0N30.cVrgt7YQ99R-slePt8U2r_GmtDxetejZdqHcnqJmwhc';
+const SUPABASE_URL  = (window.TA_CONFIG && TA_CONFIG.url)  || 'https://YOUR-PROJECT.supabase.co';
+const SUPABASE_ANON = (window.TA_CONFIG && TA_CONFIG.anon) || 'YOUR-ANON-KEY';
 /* ═══════════════════════════════ */
 
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
