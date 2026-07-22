@@ -213,15 +213,20 @@ tbody tr:hover{background:#fdfcf9}
 <header>
   <h1>TREND <em>AGENT</em></h1>
   <div class="tabs" id="tabs">
-    <button data-v="intake" class="on">수집</button>
-    <button data-v="feed">피드</button>
-    <button data-v="dict">사전</button>
-    <button data-v="brand">브랜드</button>
-    <button data-v="celeb">셀럽</button>
+    <button data-v="intake" class="on">업로드</button>
     <button data-v="cluster">클러스터</button>
-    <button data-v="map">맵</button>
-    <button data-v="queue">미매핑 큐</button>
-    <button data-v="conf">설정</button>
+    <span class="advWrap">
+      <button type="button" id="advBtn">고급 ▾</button>
+      <span id="advMenu" hidden>
+        <button data-v="feed">피드</button>
+        <button data-v="dict">사전</button>
+        <button data-v="brand">브랜드</button>
+        <button data-v="celeb">셀럽</button>
+        <button data-v="map">맵</button>
+        <button data-v="queue">미매핑 큐</button>
+        <button data-v="conf">설정</button>
+      </span>
+    </span>
   </div>
   <div class="who"><span id="whoTxt"></span><button class="btn ghost sm" id="logout">로그아웃</button></div>
 </header>
@@ -244,10 +249,21 @@ tbody tr:hover{background:#fdfcf9}
   <div class="sess">
     <h3>트렌드 수집 세션 <span class="mini" style="font-weight:400">— 여기서 정한 값이 아래 사진 전부에 붙습니다</span></h3>
     <div class="row">
+      <div style="max-width:150px"><label class="f">구분</label>
+        <select id="gubun">
+          <option value="SNS">SNS</option><option value="동영상">동영상</option>
+          <option value="NEWSLETTER">NEWSLETTER</option><option value="RUNWAY">RUNWAY</option>
+          <option value="WGSN">WGSN</option><option value="RANKING">RANKING</option>
+          <option value="WEB">WEB</option><option value="POSTIT">POST IT</option>
+          <option value="SIG">시그널 (검색량)</option>
+        </select></div>
+      <div style="max-width:170px" id="srcWrap"><label class="f">출처</label>
+        <select id="srcSel"></select>
+        <input id="srcTxt" placeholder="VOGUE, 하입비스트…" hidden></div>
       <div style="max-width:130px"><label class="f">귀속 월</label><input id="ym" type="month"></div>
       <div style="max-width:180px"><label class="f">소스</label><select id="source"></select></div>
       <div style="max-width:100px"><label class="f">시장</label>
-        <select id="region"><option>KR</option><option>GL</option><option>CN</option></select></div>
+        <select id="region"><option value="GL">GLOBAL</option><option value="KR" selected>KR</option><option value="CN">CN</option></select></div>
       <div><label class="f">관찰 브랜드</label>
         <div style="display:flex; gap:6px">
           <select id="sessBrand" style="flex:1"><option value="">브랜드 선택</option></select>
@@ -592,6 +608,10 @@ tbody tr:hover{background:#fdfcf9}
   <h2 class="sec">클러스터 <span>— KEY TREND 에 어떤 피드가 붙었는지 · MOVEMENT 에 어떤 KEY TREND 가 속하는지. 줄을 끌어서 옮길 수 있습니다</span></h2>
   <div style="display:grid; grid-template-columns:1.4fr 1fr; gap:18px; align-items:start">
     <div>
+      <div class="bar" style="margin-bottom:10px">
+        <button class="btn sm" id="clRadar">📡 AI 로 자동 묶기 — 피드가 모이면 트렌드 · MOVEMENT 제안</button>
+      </div>
+      <div id="clSugBox" hidden style="background:#fff;border:2px solid var(--ink);border-radius:4px;padding:12px 14px;margin-bottom:12px"></div>
       <div class="clh">KEY TREND CLUSTER</div>
       <div id="ktCluster"><span class="mini">불러오는 중…</span></div>
     </div>
@@ -674,6 +694,8 @@ tbody tr:hover{background:#fdfcf9}
 <section id="confView" class="view">
   <h2 class="sec">설정</h2>
 
+
+
   <h3 class="sub">연결</h3>
   <div class="tw"><table><tbody>
     <tr><th style="width:170px">Supabase 프로젝트</th><td id="cfUrl" class="mini"></td></tr>
@@ -732,8 +754,8 @@ tbody tr:hover{background:#fdfcf9}
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ═══════════ 설정 — 여기 두 줄만 바꾸면 됩니다 ═══════════ */
-const SUPABASE_URL  = 'https://piifytwflubdtkzaiisi.supabase.co';
-const SUPABASE_ANON  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBpaWZ5dHdmbHViZHRremFpaXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQwODI5NDcsImV4cCI6MjA5OTY1ODk0N30.cVrgt7YQ99R-slePt8U2r_GmtDxetejZdqHcnqJmwhc';
+const SUPABASE_URL  = 'https://YOUR-PROJECT.supabase.co';
+const SUPABASE_ANON  = 'YOUR-ANON-KEY';
 /* ════════════════════════════════════════════════════════ */
 
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
@@ -814,6 +836,7 @@ async function loadAll(){
     for(const c of CELEBS) for(const acc of (c.accounts||[])) celebIdx[norm(acc)]=c.celeb_name;
 
     $('#source').innerHTML = SOURCES.map(s=>`<option value="${s.source_id}">${esc(s.name_kr||s.source_id)}</option>`).join('');
+    if(!window._gubunInit){ window._gubunInit = true; applyGubun(); }
     $('#brandList').innerHTML = BRANDS.map(b=>`<option value="${esc(b.brand_name)}"></option>`).join('');
     const keepFMv = $('#fMv').value;
     $('#fMv').innerHTML = '<option value="">전체</option><option value="__none">— 흐름 없음 —</option>' +
@@ -1122,20 +1145,40 @@ drop.addEventListener('dragleave', () => drop.classList.remove('over'));
 drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('over'); intake(e.dataTransfer.files); });
 fileInp.addEventListener('change', e => intake(e.target.files));
 
+/* 동영상 첫 프레임 → jpeg blob */
+function videoFrame(file){
+  return new Promise((res, rej) => {
+    const v = document.createElement('video');
+    v.muted = true; v.playsInline = true; v.preload = 'metadata';
+    v.src = URL.createObjectURL(file);
+    v.onloadeddata = () => { v.currentTime = Math.min(0.5, (v.duration||1)/2); };
+    v.onseeked = () => {
+      const c = document.createElement('canvas');
+      c.width = v.videoWidth; c.height = v.videoHeight;
+      c.getContext('2d').drawImage(v, 0, 0);
+      c.toBlob(b => b ? res(new File([b], file.name + '.jpg', { type:'image/jpeg' })) : rej(new Error('프레임 추출 실패')), 'image/jpeg', .9);
+      URL.revokeObjectURL(v.src);
+    };
+    v.onerror = () => rej(new Error('영상을 읽지 못했습니다'));
+  });
+}
+
 async function intake(files){
-  const list = [...files].filter(f => f.type.startsWith('image/'));
+  const list = [...files].filter(f => f.type.startsWith('image/') || f.type.startsWith('video/'));
   if(!list.length) return;
-  busy(true, `사진 ${list.length}장 줄이는 중…`);
-  for(const f of list){
+  busy(true, `${list.length}개 준비 중…`);
+  for(let f of list){
     try{
+      let videoFile = null;
+      if(f.type.startsWith('video/')){ videoFile = f; f = await videoFrame(f); }
       const full  = await resize(f, SET.full,  SET.fullQ);
       const thumb = await resize(f, SET.thumb, SET.thumbQ);
-      const hash  = await sha256(full.blob);
+      const hash  = videoFile ? await sha256(videoFile) : await sha256(full.blob);
       if(QUEUE_IMGS.some(x => x.hash === hash)){ toast(`같은 사진 건너뜀 — ${f.name}`); continue; }
       QUEUE_IMGS.push({
-        name: f.name, hash, full, thumb,
+        name: f.name, hash, full, thumb, videoFile,
         preview: URL.createObjectURL(thumb.blob),
-        orig: f.size,
+        orig: (videoFile || f).size,
         sel: true,
         meta: { account:'', likes:'', brand: $('#sessBrand').value || '', movement: $('#sessMv').value || '', kwMeta:{}, category:'', note:'', source_url:'',
                 is_celeb:false, celeb_name:'', is_main:false, entities:[], tags:[] }
@@ -1169,7 +1212,7 @@ function renderImgCards(){
           <select data-k="category"><option value="">선택</option>
             ${CATEGORIES.map(v=>`<option>${v}</option>`).join('')}</select></div>
       </div>
-      <div class="row">
+      <div class="row catRow">
         <div style="max-width:120px"><label class="f">서브 (SHOES)</label>
           <select data-k="category_sub"><option value="">—</option>
             ${SHOE_SUBS.map(v=>`<option>${v}</option>`).join('')}</select></div>
@@ -1455,8 +1498,8 @@ $('#saveImgs').onclick = async () => {
         release_date: it.meta.release_date || null,
         quant_signal: it.meta.quant_signal || null,
         file_hash:   it.hash,
-        mime_type:   'image/jpeg',
-        file_size:   it.full.blob.size,
+        mime_type:   it.videoFile ? it.videoFile.type : 'image/jpeg',
+        file_size:   (it.videoFile || it.full.blob).size,
         width:       it.full.w,
         height:      it.full.h,
         upload_status: 'pending'
@@ -1464,13 +1507,16 @@ $('#saveImgs').onclick = async () => {
       if(e1) throw e1;
       const id = row.image_id;
 
-      // 3) 업로드
-      const p  = `images/${ym}/${id}.jpg`;
+      // 3) 업로드 (영상이면 원본 영상 + 프레임 썸네일)
+      const isVid = !!it.videoFile;
+      const ext = isVid ? (it.videoFile.name.split('.').pop() || 'mp4').toLowerCase() : 'jpg';
+      const p  = isVid ? `videos/${ym}/${id}.${ext}` : `images/${ym}/${id}.jpg`;
       const pt = `thumbs/${ym}/${id}.jpg`;
-      const up = { contentType:'image/jpeg', cacheControl:'604800', upsert:true };
+      const up = { cacheControl:'604800', upsert:true };
       const [u1,u2] = await Promise.all([
-        sb.storage.from('media').upload(p,  it.full.blob,  up),
-        sb.storage.from('media').upload(pt, it.thumb.blob, up)
+        sb.storage.from('media').upload(p,  isVid ? it.videoFile : it.full.blob,
+          { ...up, contentType: isVid ? it.videoFile.type : 'image/jpeg' }),
+        sb.storage.from('media').upload(pt, it.thumb.blob, { ...up, contentType:'image/jpeg' })
       ]);
       if(u1.error) throw u1.error;
       if(u2.error) throw u2.error;
@@ -1539,6 +1585,60 @@ const docChips = chipInput('#dEnt', '#dEntChips', docEnts, label, true, docMv);
 
 /* ── 모드 전환 ── */
 const PANES = { image:'#imgMode', doc:'#docMode', rank:'#rankMode', text:'#textMode', postit:'#postitMode', sig:'#sigMode' };
+/* ═══ 구분 — 하나의 셀렉트가 모드·출처·저장 소스를 전부 결정합니다 ═══ */
+const GUBUN = {
+  SNS:       { mode:'image', srcs:['INSTAGRAM','TIKTOK','X'] },
+  '동영상':   { mode:'image', srcs:['INSTAGRAM','TIKTOK','YOUTUBE','RUNWAY'] },
+  NEWSLETTER:{ mode:'doc',   free:true },
+  RUNWAY:    { mode:'doc',   srcs:['RUNWAY'] },
+  WGSN:      { mode:'doc',   srcs:['WGSN'] },
+  RANKING:   { mode:'rank',  srcs:['무신사','KREAM','LYST','29CM','기타'] },
+  WEB:       { mode:'doc',   free:true },
+  POSTIT:    { mode:'postit' },
+  SIG:       { mode:'sig' }
+};
+const slugSrc = n => norm(n).replace(/[^a-z0-9가-힣]/g,'').slice(0,24) || 'etc';
+
+async function ensureSource(name){
+  if(!name) return 'etc';
+  const hit = SOURCES.find(x => norm(x.name_kr||'') === norm(name) || norm(x.source_id) === norm(name));
+  if(hit) return hit.source_id;
+  const sid = slugSrc(name);
+  const { error } = await sb.from('sources').upsert(
+    { source_id: sid, name_kr: name, stage: 'early' }, { onConflict:'source_id' });
+  if(!error) SOURCES.push({ source_id: sid, name_kr: name, stage:'early' });
+  return sid;
+}
+async function syncSource(){
+  const g = GUBUN[$('#gubun').value] || {};
+  const nm = g.free ? $('#srcTxt').value.trim() : $('#srcSel').value;
+  const sid = await ensureSource(nm || $('#gubun').value);
+  const so = $('#source');
+  if(![...so.options].some(x => x.value === sid)){
+    const op = document.createElement('option'); op.value = sid; op.textContent = nm || sid; so.appendChild(op);
+  }
+  so.value = sid;
+}
+function applyGubun(){
+  const g = GUBUN[$('#gubun').value] || GUBUN.SNS;
+  /* 모드 전환 — 숨겨둔 기존 모드 버튼을 그대로 누릅니다 */
+  document.querySelector(`#modes [data-mode="${g.mode}"]`)?.click();
+  /* 출처 UI */
+  $('#srcWrap').style.display = (g.srcs || g.free) ? '' : 'none';
+  $('#srcSel').hidden = !g.srcs; $('#srcTxt').hidden = !g.free;
+  if(g.srcs) $('#srcSel').innerHTML = g.srcs.map(x=>`<option>${x}</option>`).join('');
+  /* 동영상이면 파일 입력이 영상도 받게 */
+  const fi = $('#file');
+  if(fi) fi.accept = $('#gubun').value === '동영상' ? 'video/*,image/*' : 'image/*';
+  syncSource();
+}
+$('#gubun').onchange = applyGubun;
+$('#srcSel').onchange = syncSource;
+$('#srcTxt').addEventListener('blur', syncSource);
+
+$('#advBtn').onclick = e => { e.stopPropagation(); $('#advMenu').hidden = !$('#advMenu').hidden; };
+document.addEventListener('click', e => { if(!e.target.closest('.advWrap')) $('#advMenu').hidden = true; });
+
 $('#modes').onclick = e => {
   const b = e.target.closest('button[data-mode]'); if(!b) return;
   [...$('#modes').children].forEach(x => x.classList.toggle('on', x === b));
@@ -1548,7 +1648,8 @@ $('#modes').onclick = e => {
 /* ═══ 시그널 붙여넣기 — 썸트렌드/데이터랩 엑셀 → search_signals ═══ */
 let SG_ROWS = [];
 const sgMonday = d => { const x = new Date(d); if(isNaN(x)) return null;
-  x.setDate(x.getDate() - ((x.getDay()+6)%7)); return x.toISOString().slice(0,10); };
+  x.setDate(x.getDate() - ((x.getDay()+6)%7));
+  return `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`; };
 const sgDate = t => {
   const m = String(t).trim().match(/(\d{4})[.\-\/년\s]+(\d{1,2})[.\-\/월\s]+(\d{1,2})/);
   return m ? `${m[1]}-${String(m[2]).padStart(2,'0')}-${String(m[3]).padStart(2,'0')}` : null;
@@ -1594,7 +1695,7 @@ $('#sgSave').onclick = async () => {
   try{
     const region = $('#sgRegion').value, source = $('#sgSrc').value;
     const { error } = await sb.from('search_signals').upsert(
-      SG_ROWS.map(r => ({ ...r, region, source })), { onConflict:'entity_id,region,week' });
+      SG_ROWS.map(r => ({ ...r, region, source })), { onConflict:'entity_id,region,week,source' });
     if(error) throw error;
     toast(`시그널 ${SG_ROWS.length}건 저장 — TREND SIGNAL 페이지에 바로 반영됩니다`);
     SG_ROWS = []; $('#sgRaw').value=''; $('#sgPrev').innerHTML=''; $('#sgStat').textContent=''; $('#sgSave').hidden = true;
@@ -2167,7 +2268,9 @@ function drawRadar(){
     }).join('');
 }
 
-$('#radar').onclick = async () => {
+$('#clRadar').onclick = () => { RADAR_BOX = 'clSugBox'; runRadar(); };
+$('#radar').onclick = () => { RADAR_BOX = 'radarBox'; runRadar(); };
+async function runRadar(){
   busy(true, '피드 전체 훑는 중…');
   try{
     const since = new Date(Date.now() - 62*86400e3).toISOString();
@@ -2219,13 +2322,13 @@ ${terms.map(t => `${t.text} (${t.n}건/${t.srcs.size}소스)`).join(', ')}` }],
       .map(g => ({ main:g.main, is_movement:!!g.is_movement, parent:g.parent||'', why:g.why, members:[...g.members], done:false }));
     RADAR.sort((a,b) => rEvidence(b).n - rEvidence(a).n);
     if(!RADAR.length){ busy(false); return toast('뚜렷한 메인 트렌드를 못 잡았습니다'); }
-    RADAR_BOX = 'radarBox'; drawRadar();
+    drawRadar();
   }catch(e){ die(e, '트렌드 레이더'); }
   busy(false);
-};
+}
 
 /* 편집 — 제목 · 종류 · 상위 흐름 · 연결. 레이더(피드 탭)와 흐름 제안(큐 탭)이 같은 UI 를 씁니다 */
-for(const bid of ['radarBox','qClusterBox']){
+for(const bid of ['radarBox','qClusterBox','clSugBox']){
   const B = $('#' + bid);
   B.addEventListener('input', e => {
     if(e.target.classList.contains('rMain')) RADAR[+e.target.dataset.i].main = e.target.value;
@@ -2358,6 +2461,7 @@ for(const bid of ['radarBox','qClusterBox']){
 
       await loadAll();
       if(typeof renderQueue === 'function' && RADAR_BOX === 'qClusterBox') renderQueue();
+      if(RADAR_BOX === 'clSugBox') loadCluster();
       g.done = true; drawRadar();
       toast(`"${name}" ${g.is_movement?'MOVEMENT':'KEY TREND'} 등록 · 표현 ${ali}개 통합${parentMsg}` +
             ` · 소급 연결: 사진 ${nImg} · 기사 ${nDoc} · 랭킹 ${nRnk}${mapMsg}`);
