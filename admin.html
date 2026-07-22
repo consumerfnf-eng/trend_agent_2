@@ -733,7 +733,9 @@ tbody tr:hover{background:#fdfcf9}
     <div><label class="f">Gemini API 키</label><input id="setGem" type="password" placeholder="AIza…"></div>
     <div style="max-width:200px"><label class="f">모델</label><input id="setGemModel" value="gemini-2.5-flash"></div>
     <div style="max-width:110px; align-self:flex-end"><button class="btn" id="gemSave">저장</button></div>
+    <div style="max-width:130px; align-self:flex-end"><button class="btn ghost" id="gemTest">키 테스트</button></div>
   </div>
+  <div class="mini" id="gemStat" style="margin:-6px 0 14px"></div>
 
   <h3 class="sub">관리자</h3>
   <div class="row">
@@ -799,6 +801,7 @@ async function boot(){
   $('#gate').hidden = true;
   $('#app').hidden  = false;
   $('#whoTxt').textContent = ME + (IS_ADMIN ? '' : ' — 읽기 전용');
+  await loadConfig();
   await loadAll();
 }
 
@@ -867,12 +870,36 @@ async function loadAll(){
       const el=$('#set'+k[0].toUpperCase()+k.slice(1)); if(el) el.value=SET[k];
       const lbl=$('#cf'+k[0].toUpperCase()+k.slice(1)); if(lbl) lbl.textContent=SET[k];
     });
-    $('#setGem').value = localStorage.getItem('ta_gem') || '';
-    $('#setGemModel').value = localStorage.getItem('ta_gem_model') || 'gemini-2.5-flash';
+    $('#setGem').value = GEMKEY;
+    gemStatLine();
+    $('#setGemModel').value = GEMMODEL;
     buildScan();
     toast(`사전 로드 — 엔티티 ${ENTITIES.length} · 별칭 ${sa.data.length}`);
   }catch(e){ die(e,'사전 로드'); }
   busy(false);
+}
+
+/* Gemini 키 — Supabase app_config 에 저장해서 세 명 누구든 · 어느 브라우저든 공유.
+   (예전 localStorage 값이 있으면 최초 1회 자동 이관합니다) */
+let GEMKEY = '', GEMMODEL = 'gemini-2.5-flash';
+async function loadConfig(){
+  const { data } = await sb.from('app_config').select('*');
+  const cfg = Object.fromEntries((data||[]).map(r => [r.key, r.value]));
+  GEMKEY = cfg.gemini_key || '';
+  GEMMODEL = cfg.gemini_model || 'gemini-2.5-flash';
+  if(!GEMKEY && localStorage.getItem('ta_gem')){        // 이관
+    GEMKEY = localStorage.getItem('ta_gem').trim();
+    GEMMODEL = localStorage.getItem('ta_gem_model') || GEMMODEL;
+    await saveConfig();
+    toast('이 브라우저에 있던 Gemini 키를 팀 공용(Supabase)으로 옮겼습니다');
+  }
+}
+async function saveConfig(){
+  const { error } = await sb.from('app_config').upsert([
+    { key:'gemini_key', value: GEMKEY },
+    { key:'gemini_model', value: GEMMODEL }
+  ]);
+  if(error) die(error, '설정 저장');
 }
 
 const matchEntity = t => aliasIdx[norm(t)] || entByName[norm(t)] || null;
@@ -1069,9 +1096,9 @@ function dictForAI(){
 }
 
 async function gemini(parts, schema, label){
-  const key = (localStorage.getItem('ta_gem') || '').trim();
+  const key = GEMKEY;
   if(!key) throw new Error('설정 탭에서 Gemini API 키를 먼저 넣어주세요');
-  const model = localStorage.getItem('ta_gem_model') || 'gemini-2.5-flash';
+  const model = GEMMODEL;
   const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`,
     { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({
       contents:[{ parts }],
@@ -1086,9 +1113,9 @@ const filePart = async f => ({ inline_data:{ mime_type: f.type || 'image/jpeg', 
 
 /* 구글 검색을 붙인 Gemini — 최신 정보 조사용. JSON 을 본문으로 요청하고 직접 파싱합니다 */
 async function geminiSearch(promptText, label2){
-  const key = (localStorage.getItem('ta_gem') || '').trim();
+  const key = GEMKEY;
   if(!key) throw new Error('설정 탭에서 Gemini API 키를 먼저 넣어주세요');
-  const model = localStorage.getItem('ta_gem_model') || 'gemini-2.5-flash';
+  const model = GEMMODEL;
   const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`,
     { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({
       contents:[{ parts:[{ text: promptText }] }],
@@ -1103,9 +1130,9 @@ async function geminiSearch(promptText, label2){
 }
 
 async function aiTag(it){
-  const key = (localStorage.getItem('ta_gem') || '').trim();
+  const key = GEMKEY;
   if(!key) throw new Error('설정 탭에서 Gemini API 키를 먼저 넣어주세요');
-  const model = localStorage.getItem('ta_gem_model') || 'gemini-2.5-flash';
+  const model = GEMMODEL;
   const r = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`,
     { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({
@@ -1367,7 +1394,7 @@ function selStat(){
   $('#selCount').textContent = `${n}장 선택`;
   $('#saveImgs').textContent = `선택 등록 (${n}/${m})`;
   $('#saveImgs').disabled = !n || !IS_ADMIN;
-  $('#aiAll').disabled    = !n || !localStorage.getItem('ta_gem');
+  $('#aiAll').disabled    = !n || !GEMKEY;
 }
 
 /* 연결 현황 — 몇 개가 사전에 붙었고 몇 개가 미매핑인지 바로 보이게 */
@@ -1642,6 +1669,30 @@ $('#gubun').onchange = applyGubun;
 $('#srcSel').onchange = syncSource;
 $('#srcTxt').addEventListener('blur', syncSource);
 
+/* 키 상태 — 이 브라우저·이 주소에 저장된 키인지 한눈에 */
+function gemStatLine(){
+  const k = (GEMKEY).trim();
+  $('#gemStat').innerHTML = k
+    ? `팀 공용으로 저장됨 — ${esc(k.slice(0,6))}…${esc(k.slice(-4))} · Supabase 에 있어서 <b>세 명 누구든 · 어느 브라우저든</b> 같이 씁니다`
+    : `키가 <b style="color:#c8451f">아직 없습니다</b> — 한 명이 여기 넣으면 팀 전체가 같이 씁니다 (aistudio.google.com 에서 무료 발급)`;
+}
+$('#gemTest').onclick = async () => {
+  $('#gemStat').textContent = '테스트 중…';
+  try{
+    const out = await gemini([{ text:'JSON 으로 {"ok":true} 만 출력' }],
+      { type:'OBJECT', properties:{ ok:{type:'BOOLEAN'} }, required:['ok'] }, '키 테스트');
+    gemStatLine();
+    $('#gemStat').innerHTML += out?.ok ? ' · <b style="color:#1a7a4a">테스트 성공 ✓ — AI 기능 전부 사용 가능</b>' : ' · 응답이 이상합니다';
+  }catch(e){
+    gemStatLine();
+    const m = String(e.message || e);
+    $('#gemStat').innerHTML += ` · <b style="color:#c8451f">실패</b> — ` + esc(
+      m.includes('400') && m.includes('API key') ? '키가 잘못됐습니다 (복사가 잘렸는지 확인)' :
+      m.includes('403') ? '이 키에 Generative Language API 권한이 없습니다 — aistudio.google.com 에서 발급한 키인지 확인' :
+      m.includes('429') ? '무료 한도 초과 — 잠시 후 다시' : m.slice(0,120));
+  }
+};
+
 $('#sigRun').onclick = async () => {
   busy(true, '검색량 수집 중… (키워드 수에 따라 1~2분)');
   try{
@@ -1830,7 +1881,7 @@ const kwCount = r => (r.entities||[]).length + (r.keywords||[]).length;
 async function aiRankKeywords(silent){
   const need = RANK_ROWS.filter(r => kwCount(r) < 2);
   if(!need.length){ if(!silent) toast('이미 전부 2개 이상 붙어 있습니다'); return; }
-  if(!localStorage.getItem('ta_gem')){
+  if(!GEMKEY){
     if(!silent) toast('설정 탭에서 Gemini API 키를 넣으면 나머지도 자동으로 채워집니다');
     return;
   }
@@ -1998,11 +2049,11 @@ const textChips = chipInput('#tEnt', '#tEntChips', textEnts, label, true);
 $('#tParse').onclick = async () => {
   const raw = $('#tRaw').value.trim();
   if(!raw) return toast('본문을 붙여넣어 주세요');
-  const key = (localStorage.getItem('ta_gem')||'').trim();
+  const key = GEMKEY;
   if(!key) return toast('설정 탭에서 Gemini API 키를 먼저 넣어주세요');
   busy(true, 'AI가 읽는 중…');
   try{
-    const model = localStorage.getItem('ta_gem_model') || 'gemini-2.5-flash';
+    const model = GEMMODEL;
     const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`,
       { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({
         contents:[{ parts:[{ text:
@@ -2148,7 +2199,7 @@ ${dictForAI()}` +
 
 /* 첨부를 고르면 바로 요약을 겁니다 — 버튼 한 번 덜 누르게 */
 $('#dFile').addEventListener('change', () => {
-  if($('#dFile').files[0] && localStorage.getItem('ta_gem')) $('#dAi').click();
+  if($('#dFile').files[0] && GEMKEY) $('#dAi').click();
 });
 
 $('#saveDoc').onclick = async () => {
@@ -3185,9 +3236,12 @@ $('#setSave').onclick = () => {
   $('#cfThumb').textContent=SET.thumb; $('#cfThumbQ').textContent=SET.thumbQ;
   toast('화질 설정을 저장했습니다. 다음 업로드부터 적용됩니다.');
 };
-$('#gemSave').onclick = () => {
-  localStorage.setItem('ta_gem', $('#setGem').value.trim());
-  localStorage.setItem('ta_gem_model', $('#setGemModel').value.trim() || 'gemini-2.5-flash');
+$('#gemSave').onclick = async () => {
+  GEMKEY = $('#setGem').value.trim();
+  GEMMODEL = $('#setGemModel').value.trim() || 'gemini-2.5-flash';
+  await saveConfig();
+  localStorage.removeItem('ta_gem'); localStorage.removeItem('ta_gem_model');
+  gemStatLine();
   toast('저장했습니다');
 };
 async function renderAdmins(){

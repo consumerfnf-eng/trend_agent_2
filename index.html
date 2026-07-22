@@ -29,20 +29,20 @@ header h1{font-family:'Playfair Display',serif; font-size:22px}
 .dgroup{margin-bottom:36px}
 .dgroup h2{font-family:'Playfair Display',serif; font-size:26px; border-bottom:1px solid var(--ink); padding-bottom:8px; margin-bottom:16px}
 .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:20px}
-.feedgrid{columns:4 250px; column-gap:14px}
-.fcard{break-inside:avoid; margin-bottom:14px; background:#fff; border:1px solid var(--hair); cursor:pointer;
+.feedgrid{columns:7 150px; column-gap:9px}
+.fcard{break-inside:avoid; margin-bottom:9px; background:#fff; border:1px solid var(--hair); cursor:pointer;
   text-decoration:none; color:var(--ink); display:block; position:relative; transition:transform .15s}
 .fcard img.ph{width:100%; display:block; background:#efeae1}
-.fcard .tags{padding:8px 12px 0; display:flex; flex-wrap:wrap; gap:4px}
-.fcard .tags span{font-size:9px; background:#f4efe6; color:#6b675e; padding:2px 7px; border-radius:2px}
+.fcard .tags{padding:5px 8px 0; display:flex; flex-wrap:wrap; gap:3px}
+.fcard .tags span{font-size:7.5px; background:#f4efe6; color:#6b675e; padding:1px 5px; border-radius:2px}
 .fcard:hover{transform:translateY(-3px)}
 .fcard:focus-visible{outline:2px solid var(--rising); outline-offset:2px}
 .fcard .th{height:210px; background-size:cover; background-position:top center; background-color:#efeae1}
 .fcard:hover .th{filter:brightness(1.04)}
-.fcard .bd{padding:12px 14px}
-.fcard h3{font-family:'Playfair Display',serif; font-size:18px; margin-bottom:4px; word-break:keep-all}
-.fcard .meta{font-size:11px; color:var(--sub); line-height:1.5}
-.badge{position:absolute; top:10px; left:10px; font-size:9px; font-weight:800; letter-spacing:.12em; padding:4px 9px; color:#fff; z-index:1}
+.fcard .bd{padding:7px 9px}
+.fcard h3{font-family:'Playfair Display',serif; font-size:12.5px; margin-bottom:2px; word-break:keep-all}
+.fcard .meta{font-size:9px; color:var(--sub); line-height:1.45}
+.badge{position:absolute; top:6px; left:6px; font-size:9px; font-weight:800; letter-spacing:.12em; padding:4px 9px; color:#fff; z-index:1}
 .badge.MAIN{background:var(--rising)} .badge.FEED{background:#9a938a} .badge.NEW{background:var(--new)}
 #dpanel{position:fixed; right:-420px; top:0; bottom:0; width:400px; max-width:92vw; background:var(--paper);
   border-left:1px solid var(--ink); z-index:60; overflow-y:auto; transition:right .28s; padding:20px 22px 30px}
@@ -139,8 +139,8 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ═══════════ 설정 — admin.html 과 같은 값 ═══════════ */
-const SUPABASE_URL  = 'https://piifytwflubdtkzaiisi.supabase.co';
-const SUPABASE_ANON  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBpaWZ5dHdmbHViZHRremFpaXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQwODI5NDcsImV4cCI6MjA5OTY1ODk0N30.cVrgt7YQ99R-slePt8U2r_GmtDxetejZdqHcnqJmwhc';
+const SUPABASE_URL  = 'https://YOUR-PROJECT.supabase.co';
+const SUPABASE_ANON = 'YOUR-ANON-KEY';
 /* ═════════════════════════════════════════════════ */
 
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
@@ -319,7 +319,7 @@ function renderFeed(){
 
   const groups = new Map();
   for(const it of FEED){
-    const d = it.content_date || String(it.posted_at).slice(0,10);
+    const d = it.year_month || String(it.content_date || it.posted_at).slice(0,7);   // 월 단위
     if(!groups.has(d)) groups.set(d, []);
     groups.get(d).push(it);
   }
@@ -340,14 +340,14 @@ function renderFeed(){
     sec.innerHTML = `<h2>${esc(d)}</h2><div class="feedgrid">` + items.map(it => {
       const tag = ['KR','GL','CN'].includes(it.region) ? it.region : 'KR';
       const words = String(it.meta || '').split(/\s+/);
-      const tags = words.filter(w => w.startsWith('#')).slice(0, 8);
+      const tags = words.filter(w => w.startsWith('#')).slice(0, 4);
       const rest = words.filter(w => w && !w.startsWith('#')).join(' ');
       return `<a class="fcard" href="#" data-fk="${esc(it.kind)}:${esc(it.id)}">
         <span class="badge ${it.badge}">${it.badge === 'MAIN' ? 'MAIN BOARD' : it.badge}</span>
         ${it.thumb_url ? `<img class="ph" src="${esc(it.thumb_url)}" loading="lazy" alt="">` : ''}
         ${tags.length ? `<div class="tags">${tags.map(t=>`<span>${esc(t)}</span>`).join('')}</div>` : ''}
         <div class="bd"><h3>${esc(it.title)}<span class="ntag ${tag}">${tag}</span></h3>
-          <div class="meta">${esc(rest.slice(0, 140))}</div></div>
+          <div class="meta">${esc(rest.slice(0, 60))}</div></div>
       </a>`;
     }).join('') + '</div>';
     main.appendChild(sec);
