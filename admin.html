@@ -599,18 +599,21 @@ tbody tr:hover{background:#fdfcf9}
 
 <!-- ── 미매핑 큐 ── -->
 <section id="clusterView" class="view">
-  <h2 class="sec">클러스터 <span>— KEY TREND 에 어떤 피드가 붙었는지 · MOVEMENT 에 어떤 KEY TREND 가 속하는지. 줄을 끌어서 옮길 수 있습니다</span></h2>
+  <h2 class="sec">클러스터 <span>— <b>KEY TREND = 피드에서 ★ 별표 친 것</b> (AI 아님) · <b>MOVEMENT = AI 가 제안하는 큰 흐름</b>. 줄을 끌어서 옮길 수 있습니다</span></h2>
   <div style="display:grid; grid-template-columns:1.4fr 1fr; gap:18px; align-items:start">
     <div>
       <div class="bar" style="margin-bottom:10px">
-        <button class="btn sm" id="clRadar">📡 AI 로 자동 묶기 — 피드가 모이면 트렌드 · MOVEMENT 제안</button>
+        <button class="btn sm" id="clRadar">📡 AI 로 MOVEMENT 제안 — 큰 흐름</button>
+        <button class="btn ghost sm" id="clKt">🔗 AI 로 KEY TREND 후보 제안 — 피드끼리 이어지는 이야기</button>
+        <button class="btn ghost sm" id="clSync" title="피드에 있는데 사전에 없는 키워드를 등록해 시그널 추적 대상으로">＋ 피드 키워드 사전 등록 — 시그널에 잡히게</button>
       </div>
       <div id="clSugBox" hidden style="background:#fff;border:2px solid var(--ink);border-radius:4px;padding:12px 14px;margin-bottom:12px"></div>
-      <div class="clh">KEY TREND CLUSTER</div>
+      <div id="ktSugBox" hidden style="background:#fff;border:2px solid #c8451f;border-radius:4px;padding:12px 14px;margin-bottom:12px"></div>
+      <div class="clh">KEY TREND CLUSTER <span style="font-weight:400;letter-spacing:0;color:var(--sub)">— 별표 친 것</span></div>
       <div id="ktCluster"><span class="mini">불러오는 중…</span></div>
     </div>
     <div>
-      <div class="clh">MOVEMENT CLUSTER</div>
+      <div class="clh">MOVEMENT CLUSTER <span style="font-weight:400;letter-spacing:0;color:var(--sub)">— AI 제안 + 속한 KEY TREND</span></div>
       <div id="mvCluster"></div>
     </div>
   </div>
@@ -673,7 +676,7 @@ tbody tr:hover{background:#fdfcf9}
   <h2 class="sec">미매핑 큐 <span>— 사전에 없던 표현. 등장 횟수가 높으면 새 엔티티 후보</span></h2>
   <div class="bar" style="margin-bottom:10px">
     <button class="btn ghost sm" id="qMerge">AI 로 표현 합치기 — 비슷한 키워드를 대표 키워드 하나로</button>
-    <button class="btn ghost sm" id="qCluster">AI 로 흐름 제안 — KEY TREND · MOVEMENT 구분해서</button>
+    <button class="btn ghost sm" id="qCluster">AI 로 MOVEMENT 제안</button>
     <span class="mini">합치기: #sports_to_street_style · #sport_luxe → "스포티 스트리트" 하나로 · 나머지는 별칭</span>
   </div>
   <div id="qClusterBox" hidden style="background:#fff;border:1px solid var(--hair);border-radius:4px;padding:12px 14px;margin-bottom:12px"></div>
@@ -1079,7 +1082,10 @@ const MOVEMENTS = () => ENTITIES.filter(e => e.axis === 'movement' && e.status !
 const mvOptions = (sel) => '<option value="">— 관련 없음 —</option>' +
   MOVEMENTS().map(m => `<option value="${esc(m.entity_id)}" ${sel===m.entity_id?'selected':''}>${esc(m.name_kr || m.name_en)}</option>`).join('');
 
-const CATEGORIES = ['아우터','상의','하의','원피스·스커트','신발','가방','모자','ACC','기타'];
+/* v2 수집 구조 — 기존에 저장된 한글 값도 데이터로는 그대로 유효합니다 */
+const CATEGORIES  = ['TOP','BOTTOM','OUTERWEAR','DRESS','BAG','SHOES','OTHER ACC'];
+const TREND_KINDS = ['STYLE TREND','LIFESTYLE','HOT BRAND'];
+const SEASON_OPTS = ['27SS','27/28FW','28SS','28/29FW'];
 
 /* ── AI 자동 채우기 (Gemini · 설정 탭에서 키를 넣으면 켜집니다) ── */
 const blobB64 = blob => new Promise((res, rej) => {
@@ -1759,7 +1765,7 @@ function parseCsvLine(line){
 $('#sgCsv').onchange = async e => {
   const files = [...e.target.files]; if(!files.length) return;
   busy(true, 'CSV 읽는 중…');
-  let saved = 0, skipped = [], kws = [];
+  let saved = 0, skipped = [], kws = [], newKws = [];
   try{
     for(const f of files){
       const text = (await f.text()).replace(/^\ufeff/, '');
@@ -1778,9 +1784,7 @@ $('#sgCsv').onchange = async e => {
         if(src === 'total') continue;                    // 합계는 저장 안 함 — 그래프에서 매체 합산
         const wk = sgMonday(c[iB]); const v = parseFloat(c[iM]);
         if(!wk || isNaN(v)) continue;
-        const eid = matchEntity(kw) || scanEntities(kw, 1)[0];
-        if(!eid){ continue; }
-        rows.push({ entity_id: eid, region: 'KR', week: wk, volume: v, source: src });
+        rows.push({ _kw: kw, region: 'KR', week: wk, volume: v, source: src });
       }
       /* 같은 매체·같은 주가 여러 줄이면 합산 (뉴스 계열 통합 등) */
       const agg = {};
@@ -1788,16 +1792,20 @@ $('#sgCsv').onchange = async e => {
         agg[k2] ? agg[k2].volume += r.volume : agg[k2] = r; }
       rows.length = 0; rows.push(...Object.values(agg));
       if(!kw){ skipped.push(`${f.name}: weekly 행 없음`); continue; }
-      if(!rows.length){
-        skipped.push(`${f.name}: "${kw}" 가 사전에 없습니다 — 먼저 등록(승격)하고 다시 올려주세요`);
-        await addToQueue(kw);
-        continue;
-      }
+      if(!rows.length){ skipped.push(`${f.name}: 읽을 수 있는 주간 데이터가 없습니다`); continue; }
+      /* 사전에 없으면 자동 등록 — 피드에 있든 없든 시그널에 잡히게 */
+      let eid = matchEntity(kw) || scanEntities(kw, 1)[0];
+      let isNew = false;
+      if(!eid){ eid = await ensureEntity(kw); isNew = true; }
+      if(!eid){ skipped.push(`${f.name}: "${kw}" 등록 실패`); continue; }
+      rows.forEach(r => { r.entity_id = eid; delete r._kw; });
+      if(isNew) newKws.push(kw);
       const { error } = await sb.from('search_signals').upsert(rows, { onConflict:'entity_id,region,week,source' });
       if(error) throw error;
       saved += rows.length; kws.push(kw);
     }
     $('#sgCsvStat').innerHTML = `저장 ${saved}건 — ${kws.map(esc).join(', ')}` +
+      (newKws.length ? `<br>사전에 새로 등록: ${newKws.map(esc).join(', ')}` : '') +
       (skipped.length ? `<br><span style="color:#c8451f">${skipped.map(esc).join('<br>')}</span>` : '');
     toast(saved ? `검색량 ${saved}건 저장 — TREND SIGNAL 에 반영됩니다` : '저장된 것이 없습니다');
   }catch(err){ die(err, 'CSV 저장'); }
@@ -2395,8 +2403,7 @@ function drawRadar(){
           <input class="rMain" data-i="${i}" value="${esc(g.main)}" ${g.done?'disabled':''}
             style="font-weight:700;font-size:15px;max-width:240px;padding:5px 8px">
           <select class="rType" data-i="${i}" ${g.done?'disabled':''} style="max-width:140px;padding:5px 6px">
-            <option value="mv" ${g.is_movement?'selected':''}>↗ MOVEMENT</option>
-            <option value="kw" ${!g.is_movement?'selected':''}>KEY TREND</option>
+            <option value="mv" selected>↗ MOVEMENT</option>
           </select>
           ${g.is_movement ? '' : `<select class="rPar" data-i="${i}" ${g.done?'disabled':''} title="상위 MOVEMENT — 자동 연결"
             style="max-width:170px;padding:5px 6px">
@@ -2408,7 +2415,7 @@ function drawRadar(){
           <span class="pill RISING">${ev.n}건 · 소스 ${ev.s}곳</span>
           <span class="sp"></span>
           ${g.done ? '<span class="mini">등록됨 ✓</span>'
-                   : `<button class="btn sm" data-rr="${i}">${g.is_movement?'MOVEMENT':'KEY TREND'} 등록 + 통합</button>
+                   : `<button class="btn sm" data-rr="${i}">MOVEMENT 등록 + 통합</button>
                       <button class="btn ghost sm" data-rx="${i}" title="이 후보 버리기">버리기</button>`}
         </div>
         <div class="mini" style="margin:4px 0">${esc(g.why||'')}</div>
@@ -2448,13 +2455,12 @@ async function runRadar(){
 
     const out = await gemini(
       [{ text: `패션 트렌드 수집 시스템의 최근 2개월 키워드 통계입니다. "건수 x 소스수" 와 의미를 함께 보고,
-지금 실제로 움직이는 **메인 트렌드**를 묶어서 잡아주세요.
-- 같은 뜻·같은 흐름의 표현은 한 묶음으로 (예: y2k / retro training set / vintage trainingset → Y2K Revival)
+지금 실제로 움직이는 **MOVEMENT(큰 흐름)** 만 잡아주세요.
+- MOVEMENT 는 여러 아이템군을 관통하는 상위 개념입니다 (예: Y2K Revival, Customizing, Wellness & Comfort).
+  특정 아이템 하나(젤리슈즈, 카고팬츠)는 MOVEMENT 가 아닙니다 — 그런 건 담당자가 직접 고릅니다.
 - main: 짧은 대표 이름. [사전] 에 같은 뜻이 있으면 그 표현으로.
-- is_movement: 여러 아이템군을 관통하는 큰 흐름(MOVEMENT)이면 true, 특정 아이템·스타일(KEY TREND)이면 false
-  ★ MOVEMENT 가 더 큰 개념입니다 — Y2K Revival(움직임) 아래에 벨벳 트레이닝셋(키 트렌드)이 속합니다.
-- parent: is_movement=false 일 때, 이 KEY TREND 가 속하는 상위 MOVEMENT 이름. 위 목록이나 기존 MOVEMENT 중에서. 없으면 ""
-- why: 왜 메인이라고 판단했는지 한 줄
+- members: 이 흐름에 속하는 표현들 — 아래 통계에 있는 것만.
+- why: 왜 지금 이 흐름이 움직인다고 봤는지 한 줄
 - 강한 것부터 최대 6개. 억지로 채우지 마세요.
 
 [사전]
@@ -2463,10 +2469,11 @@ ${dictForAI()}
 [키워드 통계 — 표현 (건수/소스수)]
 ${terms.map(t => `${t.text} (${t.n}건/${t.srcs.size}소스)`).join(', ')}` }],
       { type:'ARRAY', items:{ type:'OBJECT', properties:{
-          main:{type:'STRING'}, is_movement:{type:'BOOLEAN'}, parent:{type:'STRING'}, why:{type:'STRING'},
+          main:{type:'STRING'}, why:{type:'STRING'},
           members:{ type:'ARRAY', items:{type:'STRING'} }
-        }, required:['main','is_movement','parent','why','members'] } },
+        }, required:['main','why','members'] } },
       '트렌드 레이더');
+    for(const g of (out||[])){ g.is_movement = true; g.parent = ''; }   // 제안은 MOVEMENT 만
 
     RADAR = (out||[]).filter(g => g.main && (g.members||[]).length)
       .map(g => ({ main:g.main, is_movement:!!g.is_movement, parent:g.parent||'', why:g.why, members:[...g.members], done:false }));
@@ -2645,7 +2652,8 @@ async function renderFeed(){
         <td>${esc(r.region||'')}</td>
         <td class="mini">${esc(r.content_date||'')}</td>
         <td>${r.src_cnt}</td>
-        <td style="white-space:nowrap"><button class="btn ghost sm" data-edit="${r.kind}:${r.id}">수정</button>
+        <td style="white-space:nowrap"><button class="btn ghost sm" data-star="${r.kind}:${r.id}" title="이 자료의 키워드를 KEY TREND 로 지정 (별표)">★</button>
+            <button class="btn ghost sm" data-edit="${r.kind}:${r.id}">수정</button>
             <button class="btn ghost sm" data-tomap="${r.kind}:${r.id}:${esc(r.year_month||'')}" title="맵에 올리기 · 이미 있으면 갱신">맵+</button>
             <button class="btn danger sm" data-del="${r.kind}:${r.id}">삭제</button></td>
       </tr>`).join('')
@@ -2654,6 +2662,35 @@ async function renderFeed(){
   busy(false);
 }
 $('#fBody').onclick = async e => {
+  /* ★ — 이 자료에 붙은 키워드를 KEY TREND 로 (여러 개면 고르게) */
+  const st = e.target.closest('[data-star]');
+  if(st){
+    const [kind, id] = st.dataset.star.split(':');
+    const q = kind === 'image'
+      ? sb.from('asset_entities').select('entity_id').eq('image_id', id)
+      : sb.from('document_entities').select('entity_id').eq('doc_id', id);
+    const { data:links } = await q;
+    const eids = [...new Set((links||[]).map(x => x.entity_id))]
+      .filter(x => (ENTITIES.find(z => z.entity_id === x)?.axis) !== 'movement');
+    if(!eids.length) return toast('이 자료에 아직 키워드가 없습니다 — [수정] 에서 키워드를 넣어주세요');
+    let eid = eids[0];
+    if(eids.length > 1){
+      const names = eids.map((x,i) => `${i+1}. ${ENTITIES.find(z=>z.entity_id===x)?.name_kr || x}`).join('\n');
+      const pick = prompt(`어느 키워드를 KEY TREND 로 지정할까요?\n${names}\n\n번호 입력:`, '1');
+      const n = parseInt(pick, 10);
+      if(!n || n < 1 || n > eids.length) return;
+      eid = eids[n-1];
+    }
+    const ent = ENTITIES.find(z => z.entity_id === eid);
+    const { error } = await sb.from('entities').update({ pinned: !ent.pinned }).eq('entity_id', eid);
+    if(error) return die(error, 'KEY TREND 지정');
+    ent.pinned = !ent.pinned;
+    renderKtBar(); renderFeed();
+    toast(ent.pinned
+      ? `★ ${ent.name_kr || ent.name_en} — KEY TREND 지정. 클러스터 탭에 올라갑니다`
+      : `${ent.name_kr || ent.name_en} — 지정 해제`);
+    return;
+  }
   const tm = e.target.closest('[data-tomap]');
   if(tm){
     const [kind, id, ym] = tm.dataset.tomap.split(':');
@@ -3546,6 +3583,163 @@ $('#mDel').onclick = async () => {
   await loadMap();
 };
 
+$('#clSync').onclick = async () => {
+  busy(true, '피드 키워드 훑는 중…');
+  try{
+    const since = new Date(Date.now() - 180*86400e3).toISOString();
+    const [at, dk, rk] = await Promise.all([
+      sb.from('asset_tags').select('tag_value, images!inner(created_at)').gte('images.created_at', since).limit(3000),
+      sb.from('documents').select('keywords').gte('created_at', since).not('keywords','is',null).limit(800),
+      sb.from('rankings').select('keywords').not('keywords','is',null).limit(800)
+    ]);
+    const cnt = {};
+    const add = t => { const k = norm(t); if(!k || matchEntity(t)) return;
+      (cnt[k] ||= { text:String(t).replace(/^#/,'').replace(/_/g,' ').trim(), n:0 }).n++; };
+    for(const r of (at.data||[])) add(r.tag_value);
+    for(const r of (dk.data||[])) for(const k of (r.keywords||[])) add(k);
+    for(const r of (rk.data||[])) for(const k of (r.keywords||[])) add(k);
+
+    const list = Object.values(cnt).filter(x => x.text.length >= 2).sort((a,b)=>b.n-a.n).slice(0, 60);
+    if(!list.length){ busy(false); return toast('사전에 없는 피드 키워드가 없습니다 — 이미 전부 잡히고 있습니다'); }
+    busy(false);
+    const ok = confirm(`사전에 없는 피드 키워드 ${list.length}개를 등록할까요?\n등록하면 TREND SIGNAL 에서 추적·비교 대상이 됩니다.\n\n` +
+      list.slice(0,25).map(x => `· ${x.text} (${x.n}건)`).join('\n') + (list.length>25 ? `\n… 외 ${list.length-25}개` : ''));
+    if(!ok) return;
+    busy(true, '등록 중…');
+    let n = 0;
+    for(const x of list){ if(await ensureEntity(x.text)) n++; }
+    await loadAll();
+    toast(`${n}개 등록 완료 — TREND SIGNAL 키워드 목록에 나옵니다. 검색량은 CSV 업로드나 [검색량 지금 갱신]으로 채우세요`);
+  }catch(e){ die(e, '피드 키워드 등록'); }
+  busy(false);
+};
+
+/* 이름으로 사전 항목을 찾고, 없으면 만들어 줍니다 (피드 키워드가 시그널에 잡히도록) */
+async function ensureEntity(name, axis){
+  const hit = matchEntity(name);
+  if(hit) return hit;
+  const nm = String(name).replace(/^#/,'').replace(/_/g,' ').trim();
+  if(!nm) return null;
+  const { data:en, error } = await sb.from('entities').insert({
+    name_kr: nm, name_en: nm, axis: axis || 'style', first_seen: ymNow(),
+    status:'Active', brand_fit:['ALL'], created_by: ME
+  }).select('entity_id').single();
+  if(error){ console.warn('ensureEntity', error); return null; }
+  await sb.from('aliases').upsert({ alias: nm, entity_id: en.entity_id, created_by: ME }, { onConflict:'alias' });
+  return en.entity_id;
+}
+
+/* ═══ AI KEY TREND 후보 — 제안만 하고, 지정은 담당자가 ═══ */
+let KTSUG = [];
+
+$('#clKt').onclick = async () => {
+  busy(true, '피드에서 이어지는 이야기를 찾는 중…');
+  try{
+    if(!FEED.length) await renderFeed();
+    const pinnedIds = new Set(ENTITIES.filter(e => e.pinned).map(e => e.entity_id));
+    /* 이미 별표 친 키워드가 붙은 자료는 제외 — 새 후보만 */
+    const pool = FEED.filter(f => f.badge !== 'MAIN').slice(0, 70);
+    if(pool.length < 4){ busy(false); return toast('아직 피드가 부족합니다 — 자료를 더 올려주세요'); }
+
+    const listTxt = pool.map((f,i) =>
+      `${i}. [${f.year_month||f.content_date||''}] ${(f.title||'').slice(0,60)} — ${(f.meta||'').slice(0,80)}`).join('\n');
+
+    const out = await gemini(
+      [{ text: `패션 트렌드 수집 피드 목록입니다. 서로 **같은 이야기로 이어지는 자료들**을 묶어
+KEY TREND 후보를 제안해 주세요.
+
+- KEY TREND 는 구체적인 아이템·스타일 단위입니다 (예: 젤리슈즈 참, 카프리 팬츠, 레이스 스커트).
+  큰 흐름(Y2K Revival 같은 MOVEMENT)은 여기서 제외하세요.
+- 서로 다른 출처·다른 달의 자료가 함께 묶일수록 좋은 후보입니다.
+- main: 짧은 대표 이름. [사전] 에 같은 뜻이 있으면 그 표현을 쓰세요.
+- members: 위 목록의 **번호**만 배열로. 최소 2개 이상 묶이는 것만.
+- story: 이 자료들이 왜 하나의 이야기인지 한 줄.
+- 확실한 것부터 최대 5개. 억지로 만들지 마세요.
+
+[사전]
+${dictForAI()}
+
+[피드 목록]
+${listTxt}` }],
+      { type:'ARRAY', items:{ type:'OBJECT', properties:{
+          main:{type:'STRING'}, story:{type:'STRING'},
+          members:{ type:'ARRAY', items:{type:'INTEGER'} }
+        }, required:['main','story','members'] } },
+      'KEY TREND 후보');
+
+    KTSUG = (out||[]).map(g => ({
+      main: g.main, story: g.story,
+      items: (g.members||[]).map(i => pool[i]).filter(Boolean), done:false
+    })).filter(g => g.items.length >= 2);
+
+    if(!KTSUG.length){ busy(false); return toast('묶을 만한 이야기를 못 찾았습니다 — 자료가 더 모이면 다시 눌러보세요'); }
+    drawKtSug();
+  }catch(e){ die(e, 'KEY TREND 후보'); }
+  busy(false);
+};
+
+function drawKtSug(){
+  const box = $('#ktSugBox'); box.hidden = false;
+  box.innerHTML = `<div style="font-weight:800;margin-bottom:2px">🔗 KEY TREND 후보 — 연결할지 담당자가 결정</div>
+    <div class="mini" style="margin-bottom:10px">제목은 고쳐 쓰고 · 빼려면 × · [지정]을 눌러야 반영됩니다</div>` +
+    KTSUG.map((g,i) => g.done
+      ? `<div style="border-top:1px solid var(--hair);padding:10px 0"><b>★ ${esc(g.main)}</b> <span class="mini">— 지정 완료</span></div>`
+      : `<div style="border-top:1px solid var(--hair);padding:10px 0">
+        <div class="row" style="align-items:center;gap:8px">
+          <input class="ktSugT" data-i="${i}" value="${esc(g.main)}" style="font-weight:700;max-width:260px">
+          <span class="mini" style="flex:1">${esc(g.story)}</span>
+          <button class="btn sm" data-ktok="${i}">★ KEY TREND 지정 + 연결</button>
+          <button class="btn ghost sm" data-ktno="${i}">버리기</button>
+        </div>
+        <div style="margin-top:6px">${g.items.map((f,j) => `
+          <div class="clline" style="cursor:default">
+            <span class="d">${esc(f.year_month||f.content_date||'')}</span>
+            <span class="s">${esc(f.source_id||'')}</span>
+            <span>${esc((f.title||'').slice(0,52))}</span>
+            <span class="x2" data-ktx="${i}:${j}" title="이 자료 빼기">×</span>
+          </div>`).join('')}</div>
+      </div>`).join('');
+}
+
+document.addEventListener('click', async e => {
+  const x = e.target.closest('[data-ktx]');
+  if(x){ const [i,j] = x.dataset.ktx.split(':').map(Number);
+    KTSUG[i].items.splice(j,1); drawKtSug(); return; }
+  const no = e.target.closest('[data-ktno]');
+  if(no){ KTSUG.splice(+no.dataset.ktno,1); drawKtSug(); return; }
+
+  const ok = e.target.closest('[data-ktok]');
+  if(ok){
+    const i = +ok.dataset.ktok, g = KTSUG[i];
+    const name = ($(`.ktSugT[data-i="${i}"]`)?.value || g.main).trim();
+    if(!name || !g.items.length) return toast('이름과 자료가 있어야 합니다');
+    busy(true, '지정하는 중…');
+    try{
+      /* 사전에 있으면 그것을, 없으면 새로 만들고 — 별표(pinned)까지 */
+      let eid = matchEntity(name);
+      if(!eid){
+        const { data:en, error } = await sb.from('entities').insert({
+          name_kr: name, name_en: name, axis: 'style', first_seen: ymNow(),
+          status: 'Active', pinned: true, brand_fit: ['ALL'], created_by: ME
+        }).select('entity_id').single();
+        if(error) throw error;
+        eid = en.entity_id;
+        await sb.from('aliases').upsert({ alias: name, entity_id: eid, created_by: ME }, { onConflict:'alias' });
+      }else{
+        const { error } = await sb.from('entities').update({ pinned: true }).eq('entity_id', eid);
+        if(error) throw error;
+      }
+      /* 고른 자료들을 이 키워드에 연결 */
+      for(const f of g.items) await clLink(f.kind, f.id, eid);
+      g.done = true;
+      await loadAll(); await loadCluster(); drawKtSug();
+      toast(`★ ${name} — KEY TREND 지정 · 자료 ${g.items.length}건 연결. 맵 게시는 [메인보드 업로드]로`);
+    }catch(err){ die(err, 'KEY TREND 지정'); }
+    busy(false);
+    return;
+  }
+});
+
 /* ═══════════ 클러스터 — KEY TREND ↔ 피드 · MOVEMENT ↔ KEY TREND ═══════════ */
 let CL_LINKS = {};   // entity_id → [{kind,id,date,src,txt}]
 
@@ -3571,7 +3765,7 @@ async function loadCluster(){
 
 function drawCluster(){
   const kts = ENTITIES.filter(e => e.axis !== 'movement' && e.status !== 'Archived')
-    .filter(e => e.pinned || (CL_LINKS[e.entity_id]||[]).length)
+    .filter(e => e.pinned)                       /* ★ 별표 친 것만 = KEY TREND */
     .sort((a,b) => (CL_LINKS[b.entity_id]||[]).length - (CL_LINKS[a.entity_id]||[]).length)
     .slice(0, 60);
   const feedOpts = () => {
@@ -3594,7 +3788,8 @@ function drawCluster(){
       <div class="cladd">＋ 피드 연결 추가:
         <select data-addfeed="${esc(e.entity_id)}"><option value="">최근 피드에서 선택…</option>${feedOpts()}</select></div>
     </div>`;
-  }).join('') : '<div class="mini">피드가 연결된 KEY TREND 가 아직 없습니다</div>';
+  }).join('') : `<div class="mini">아직 별표(★) 친 KEY TREND 가 없습니다 —
+    <b>피드 탭</b>에서 올린 자료의 키워드를 클릭해 ★ 지정하면 여기에 올라옵니다</div>`;
 
   const mvs = MOVEMENTS();
   $('#mvCluster').innerHTML = mvs.length ? mvs.map(m => {
@@ -3602,10 +3797,16 @@ function drawCluster(){
     const cands = ENTITIES.filter(e => e.axis !== 'movement' && !e.parent_movement && e.status !== 'Archived').slice(0, 60);
     return `<div class="clb mvb" data-mv="${esc(m.entity_id)}">
       <div class="tt"><b>#</b><input class="mvTitle" data-e="${esc(m.entity_id)}" value="${esc(m.name_kr||m.name_en)}"></div>
-      ${kids.map(k => `<div class="clline" draggable="true" data-kt="${esc(k.entity_id)}" data-from="${esc(m.entity_id)}">
-        <span>— ${esc(k.name_kr||k.name_en)}</span>
-        <span class="x2" data-unmv="${esc(k.entity_id)}" title="이 흐름에서 빼기">×</span>
-      </div>`).join('') || '<div class="mini" style="padding:2px 4px">속한 KEY TREND 없음</div>'}
+      ${kids.map(k => {
+        const fl = (CL_LINKS[k.entity_id]||[]).sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+        return `<div class="clline" draggable="true" data-kt="${esc(k.entity_id)}" data-from="${esc(m.entity_id)}">
+          <span>${k.pinned ? '★ ' : '— '}${esc(k.name_kr||k.name_en)}</span>
+          <span class="s">${fl.length}건</span>
+          <span class="x2" data-unmv="${esc(k.entity_id)}" title="이 흐름에서 빼기">×</span>
+        </div>` + fl.slice(0, 6).map(l => `<div class="clline" style="padding-left:18px; cursor:default">
+          <span class="d">${esc(l.date||'')}</span><span class="s">${esc(l.src||'')}</span>
+          <span>${esc(String(l.txt).slice(0,34))}</span></div>`).join('');
+      }).join('') || '<div class="mini" style="padding:2px 4px">속한 KEY TREND 없음</div>'}
       <div class="cladd">＋ KEY TREND 추가:
         <select data-addkt="${esc(m.entity_id)}"><option value="">선택…</option>
           ${cands.map(c=>`<option value="${esc(c.entity_id)}">${esc(c.name_kr||c.name_en)}</option>`).join('')}</select></div>
