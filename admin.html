@@ -219,7 +219,7 @@ tbody tr:hover{background:#fdfcf9}
 <div id="app" hidden>
 <header>
   <h1>TREND <em>AGENT</em></h1>
-  <span class="mini" id="verStamp" style="margin-left:8px;opacity:.55">v260723-14</span>
+  <span class="mini" id="verStamp" style="margin-left:8px;opacity:.55">v260723-17</span>
   <div class="tabs" id="tabs">
     <button data-v="intake" class="on">업로드</button>
     <button data-v="cluster">클러스터</button>
@@ -613,6 +613,7 @@ tbody tr:hover{background:#fdfcf9}
       <div class="bar" style="margin-bottom:10px">
         <button class="btn sm" id="clRadar">📡 AI 로 MOVEMENT 제안 — 큰 흐름</button>
         <button class="btn ghost sm" id="clKt">🔗 AI 로 KEY TREND 후보 제안 — 피드끼리 이어지는 이야기</button>
+        <button class="btn ghost sm" id="clPropAll" title="별표 친 KEY TREND 전부에 대해 브랜드 DNA 기반 제안을 만듭니다">💡 적용 제안 일괄 생성</button>
         <button class="btn ghost sm" id="clSync" title="피드에 있는데 사전에 없는 키워드를 등록해 시그널 추적 대상으로">＋ 피드 키워드 사전 등록 — 시그널에 잡히게</button>
       </div>
       <div id="clSugBox" hidden style="background:#fff;border:2px solid var(--ink);border-radius:4px;padding:12px 14px;margin-bottom:12px"></div>
@@ -783,7 +784,7 @@ tbody tr:hover{background:#fdfcf9}
 <div id="busy"><div class="spin"></div><span id="busyMsg">저장 중…</span></div>
 
 <script src="config.js"></script>
-<script>console.log("TREND AGENT admin v260723-14");</script>
+<script>console.log("TREND AGENT admin v260723-17");</script>
 <script type="module">
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -3699,6 +3700,27 @@ $('#clSync').onclick = async () => {
   busy(false);
 };
 
+$('#clPropAll').onclick = async () => {
+  if(!Object.keys(DNA).length) await loadDna();
+  const brands = ['MLB','DISCOVERY','SERGIO TACCHINI','DUVETICA']
+    .filter(b => DNA[b]?.style_guide || (DNA[b]?.lifestyles||[]).length);
+  if(!brands.length) return toast('설정 탭에서 브랜드 DNA 를 먼저 채워주세요');
+
+  const targets = ENTITIES.filter(e => e.axis !== 'movement' && e.status !== 'Archived' && e.pinned);
+  if(!targets.length) return toast('별표(★) 친 KEY TREND 가 없습니다 — 피드 탭에서 ★ 를 눌러 지정하세요');
+  if(!confirm(`KEY TREND ${targets.length}개 × 브랜드 ${brands.length}개 = 제안 ${targets.length*brands.length}건을 만듭니다.\n키워드당 몇 초 걸립니다. 진행할까요?`)) return;
+
+  let done = 0, fail = 0;
+  for(const ent of targets){
+    busy(true, `적용 제안 ${done+1}/${targets.length} — ${ent.name_kr || ent.name_en}`);
+    try{ await genProposals(ent, brands); done++; }
+    catch(e){ console.warn(e); fail++; }
+  }
+  busy(false);
+  await loadCluster();
+  toast(`완료 — ${done}개 키워드 생성${fail?` · 실패 ${fail}개`:''}. LIVE FEED · TREND SIGNAL 에 바로 나옵니다`);
+};
+
 /* ═══ AI 적용 제안 — 브랜드 DNA × 키워드 ═══ */
 document.addEventListener('click', async e => {
   const pb = e.target.closest('[data-prop]'); if(!pb) return;
@@ -3713,6 +3735,15 @@ document.addEventListener('click', async e => {
 
   busy(true, '적용 제안 만드는 중…');
   try{
+    const results = await genProposals(ent, withDna);
+    busy(false);
+    showProposals(ent, results);
+  }catch(err){ busy(false); die(err, '적용 제안'); }
+});
+
+async function genProposals(ent, withDna){
+  const eid = ent.entity_id;
+  {
     /* 이 키워드의 근거 — 붙은 피드 · 정량 신호 · 최근 수치 */
     const links = (CL_LINKS[eid]||[]).slice(0, 12);
     const { data:imgs } = await sb.from('asset_entities')
@@ -3757,10 +3788,9 @@ ${lsTxt}
     }
     const { error } = await sb.from('entity_proposals').upsert(results, { onConflict:'entity_id,brand' });
     if(error) throw error;
-    busy(false);
-    showProposals(ent, results);
-  }catch(err){ busy(false); die(err, '적용 제안'); }
-});
+    return results;
+  }
+}
 
 function showProposals(ent, rows){
   const box = $('#ktSugBox'); box.hidden = false;
@@ -3977,9 +4007,20 @@ function drawCluster(){
           <span class="d">${esc(l.date||'')}</span><span class="s">${esc(l.src||'')}</span>
           <span>${esc(String(l.txt).slice(0,34))}</span></div>`).join('');
       }).join('') || '<div class="mini" style="padding:2px 4px">속한 KEY TREND 없음</div>'}
+      ${(() => {
+        const own = (CL_LINKS[m.entity_id]||[]).sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+        return own.length ? `<div class="mini" style="padding:6px 4px 2px">이 흐름에 직접 붙은 자료</div>` +
+          own.map(l => `<div class="clline" draggable="true" data-lk="${l.kind}:${esc(l.id)}" data-from="${esc(m.entity_id)}">
+            <span class="d">${esc(l.date||'')}</span><span class="s">${esc(l.src||'')}</span>
+            <span>${esc(String(l.txt).slice(0,34))}</span>
+            <span class="x2" data-un="${l.kind}:${esc(l.id)}:${esc(m.entity_id)}" title="연결 끊기">×</span>
+          </div>`).join('') : '';
+      })()}
       <div class="cladd">＋ KEY TREND 추가:
         <select data-addkt="${esc(m.entity_id)}"><option value="">선택…</option>
           ${cands.map(c=>`<option value="${esc(c.entity_id)}">${esc(c.name_kr||c.name_en)}</option>`).join('')}</select></div>
+      <div class="cladd">＋ 피드 연결 추가:
+        <select data-addfeed="${esc(m.entity_id)}"><option value="">최근 피드에서 선택…</option>${feedOpts()}</select></div>
     </div>`;
   }).join('') : '<div class="mini">MOVEMENT 가 없습니다 — 수집 세션 바 ＋ 로 등록</div>';
 
@@ -3991,7 +4032,9 @@ function bindClusterDnD(){
     el.ondragstart = ev => ev.dataTransfer.setData('text/plain', 'F|' + el.dataset.lk + '|' + el.dataset.from);
   });
   document.querySelectorAll('#mvCluster .clline').forEach(el => {
-    el.ondragstart = ev => ev.dataTransfer.setData('text/plain', 'K|' + el.dataset.kt + '|' + el.dataset.from);
+    el.ondragstart = ev => ev.dataTransfer.setData('text/plain',
+      el.dataset.kt ? 'K|' + el.dataset.kt + '|' + el.dataset.from
+                    : 'F|' + el.dataset.lk + '|' + el.dataset.from);
   });
   document.querySelectorAll('#ktCluster .clb').forEach(box => {
     box.ondragover = ev => { ev.preventDefault(); box.classList.add('dragover'); };
@@ -4009,12 +4052,18 @@ function bindClusterDnD(){
     box.ondragleave = () => box.classList.remove('dragover');
     box.ondrop = async ev => {
       ev.preventDefault(); box.classList.remove('dragover');
-      const [tp, kt, from] = ev.dataTransfer.getData('text/plain').split('|');
-      if(tp !== 'K' || from === box.dataset.mv) return;
-      const { error } = await sb.from('entities').update({ parent_movement: box.dataset.mv }).eq('entity_id', kt);
-      if(error) return die(error, '흐름 이동');
-      await loadAll(); drawCluster();
-      toast('옮겼습니다');
+      const [tp, val, from] = ev.dataTransfer.getData('text/plain').split('|');
+      if(from === box.dataset.mv) return;
+      if(tp === 'K'){
+        const { error } = await sb.from('entities').update({ parent_movement: box.dataset.mv }).eq('entity_id', val);
+        if(error) return die(error, '흐름 이동');
+        await loadAll(); drawCluster();
+        return toast('옮겼습니다');
+      }
+      if(tp === 'F'){                       // 피드를 MOVEMENT 에 직접 붙이기
+        const [kind, id] = val.split(':');
+        await clRelink(kind, id, from, box.dataset.mv);
+      }
     };
   });
 }

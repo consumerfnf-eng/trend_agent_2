@@ -53,6 +53,32 @@ header h1{font-family:'Playfair Display',serif; font-size:22px}
   padding:3px 8px; border-radius:9px; color:#fff; z-index:2}
 .stg.PEAK{background:#c8451f} .stg.ONGOING{background:#1a7a4a}
 .stg.CLASSIC{background:#5a6b7d} .stg.DECREASING{background:#a39a8b} .stg.NEW{background:#b8860b}
+.boardtop{display:flex;justify-content:flex-end;padding:12px 22px 0}
+.boardtop a{font-size:10px;letter-spacing:.12em;font-weight:700;color:var(--rising);text-decoration:none;
+  border:1px solid var(--rising);padding:5px 11px}
+.mblk{padding:6px 22px 26px}
+.mhd{font-family:'Playfair Display',serif;font-size:26px;border-bottom:1px solid var(--ink);
+  padding-bottom:6px;margin:16px 0 14px}
+.gblk{margin-bottom:22px}
+.gblk .ghd{display:flex;align-items:baseline;gap:9px;margin-bottom:9px}
+.gblk .gk{font-size:8.5px;letter-spacing:.14em;font-weight:800;background:#e9e2d5;color:#7d7566;padding:3px 8px}
+.gblk.mv .gk{background:var(--rising);color:#fff}
+.gblk.etc .gk{background:#f2ede4;color:#a39a8b}
+.gblk .ghd h3{font-family:'Playfair Display',serif;font-size:19px}
+.gblk.etc .ghd h3{font-family:'Noto Sans KR',sans-serif;font-size:13px;color:var(--sub);font-weight:400}
+.gblk .gn{font-size:10px;color:var(--sub)}
+.ggrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:12px}
+.bc{position:relative;display:block;background:#fff;border:1px solid var(--hair);text-decoration:none;
+  color:var(--ink);overflow:hidden;transition:.16s}
+.bc:hover{box-shadow:0 5px 16px #00000014;transform:translateY(-2px)}
+.bc img{width:100%;aspect-ratio:3/4;object-fit:cover;display:block;background:#efeae1}
+.bc .noimg{width:100%;aspect-ratio:3/4;background:repeating-linear-gradient(45deg,#f5f0e7,#f5f0e7 6px,#efe8dd 6px,#efe8dd 12px)}
+.bcb{padding:8px 9px 10px}
+.bcb h4{font-size:11.5px;font-weight:700;line-height:1.35;display:flex;align-items:center;gap:5px;
+  word-break:keep-all;margin-bottom:3px}
+.bcs{font-size:9px;color:#a39a8b;letter-spacing:.04em;margin-bottom:5px}
+.bc .tags{display:flex;flex-wrap:wrap;gap:3px}
+.bc .tags span{font-size:8px;background:#f7f2e9;color:#8a8172;padding:2px 6px;border-radius:8px}
 .fcard .tags{display:flex; flex-wrap:wrap; gap:4px}
 .fcard .tags span{font-size:9px; background:#f7f2e9; color:#8a8172; padding:2.5px 8px; border-radius:9px}
 .fcard .ph{width:104px; flex:0 0 104px; object-fit:cover; align-self:stretch; background:#f0ebe2}
@@ -167,7 +193,7 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
 
 <script src="config.js"></script>
 <script type="module">
-console.log("TREND AGENT index.html v260723-12");
+console.log("TREND AGENT index.html v260723-16");
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ═══════════ 설정 — admin.html 과 같은 값 ═══════════ */
@@ -254,38 +280,90 @@ async function load(){
 }
 
 /* ═══ MAIN BOARD ═══ */
-function renderBoard(){
-  const cards = RISING.length ? RISING.map(e => {
-    const badge = e.src >= 3 ? 'MAIN' : (e.first_seen === ymNow() ? 'NEW' : 'FEED');
-    const meta = [
-      esc(e.axis),
-      esc([e.category_l1, e.category_l2].filter(Boolean).join(' › ')),
-      `sources <b style="color:var(--rising)">${e.src}</b>`,
-      e.first_seen ? `First seen ${esc(e.first_seen)}` : ''
-    ].filter(Boolean).join(' · ');
-    return `<div class="fcard" style="cursor:default">
-      <span class="badge ${badge}">${badge === 'MAIN' ? 'MAIN BOARD' : badge}</span>
-      <div class="th" style="${thumbCss(e.img)}"></div>
-      <div class="bd"><h3>${esc(e.name_en || e.name_kr)}</h3><div class="meta">${meta}</div></div>
-    </div>`;
-  }).join('') : '<div class="empty" style="grid-column:1/-1">아직 올라온 트렌드가 없습니다.</div>';
+/* ═══ MAIN BOARD — 선 대신 묶음 카드
+   월별 → 그 달에 3건 이상 잡힌 MOVEMENT / KEY TREND 로 카드를 몰아서 보여줍니다.
+   2건 이하는 아래 '미분류'에 그대로 둡니다. ═══ */
+const GROUP_MIN = 3;
 
-  const mini = BRANDS.filter(b => b.signal === 'RISING' || b.pinned).slice(0, 6);
-  const miniHtml = mini.length ? mini.map(b => `
-    <div class="bcard" style="cursor:default">
-      <div class="k">${esc(b.tier || '')} · ${esc(b.origin || '')}</div>
-      <h3>${esc(b.brand_name)}</h3>
-      <div class="li">${b.headline || '<span style="color:var(--sub)">연결된 트렌드 정보 없음</span>'}</div>
-      <div class="foot"><span class="pill ${esc(b.signal)}">${esc(b.signal)}</span>
-        <span class="pct">${esc(b.growth_pct || '')}</span></div>
-    </div>`).join('') : '<div class="empty" style="grid-column:1/-1">떠오르는 브랜드가 아직 없습니다.</div>';
+function renderBoard(){
+  const byName = Object.fromEntries(ENTS.map(e => [e.entity_id, e]));
+  const items = FEED.filter(ffPass);
+
+  /* 월별 */
+  const months = new Map();
+  for(const it of items){
+    const m = it.year_month || String(it.content_date || it.posted_at).slice(0,7);
+    (months.get(m) || months.set(m, []).get(m)).push(it);
+  }
+  const ordered = [...months.entries()].sort((a,b) => b[0].localeCompare(a[0]));
+
+  let html = '';
+  for(const [ym, list] of ordered){
+    /* 이 달 자료가 어느 키워드에 몇 건씩 붙었는지 — MOVEMENT 는 자식까지 합산 */
+    const hit = {};
+    for(const it of list){
+      for(const eid of (EOF_[`${it.kind}:${it.id}`] || [])){
+        (hit[eid] ||= new Set()).add(`${it.kind}:${it.id}`);
+        const pm = byName[eid]?.parent_movement;
+        if(pm) (hit[pm] ||= new Set()).add(`${it.kind}:${it.id}`);
+      }
+    }
+    /* 3건 이상만 묶음으로. 큰 것부터, MOVEMENT 우선 */
+    const groups = Object.entries(hit)
+      .filter(([, set]) => set.size >= GROUP_MIN)
+      .map(([eid, set]) => ({ eid, n:set.size, keys:set, ent: byName[eid] }))
+      .filter(g => g.ent)
+      .sort((a,b) => (b.ent.axis === 'movement') - (a.ent.axis === 'movement') || b.n - a.n);
+
+    const taken = new Set();
+    const blocks = [];
+    for(const g of groups){
+      const mine = list.filter(it => g.keys.has(`${it.kind}:${it.id}`) && !taken.has(`${it.kind}:${it.id}`));
+      if(mine.length < GROUP_MIN) continue;
+      mine.forEach(it => taken.add(`${it.kind}:${it.id}`));
+      const kind = g.ent.axis === 'movement' ? 'MOVEMENT' : 'KEY TREND';
+      blocks.push(`<section class="gblk ${kind === 'MOVEMENT' ? 'mv' : ''}">
+        <div class="ghd"><span class="gk">${kind}</span>
+          <h3>${esc(g.ent.name_kr || g.ent.name_en)}</h3>
+          <span class="gn">${mine.length}건</span></div>
+        <div class="ggrid">${mine.map((it,i) => bcardHtml(it, i)).join('')}</div>
+      </section>`);
+    }
+    const rest = list.filter(it => !taken.has(`${it.kind}:${it.id}`));
+    if(rest.length) blocks.push(`<section class="gblk etc">
+      <div class="ghd"><span class="gk">미분류</span>
+        <h3>아직 묶이지 않은 자료</h3><span class="gn">${rest.length}건</span></div>
+      <div class="ggrid">${rest.map((it,i) => bcardHtml(it, i)).join('')}</div></section>`);
+
+    if(blocks.length) html += `<div class="mblk"><h2 class="mhd">${esc(ym)}</h2>${blocks.join('')}</div>`;
+  }
 
   $('#boardMain').innerHTML = `
-    <div style="position:relative">
-      <a href="map.html" target="_blank" rel="noopener"
-         style="position:absolute;top:10px;right:22px;z-index:5;font-size:11px;letter-spacing:.1em;color:var(--rising);text-decoration:none;border-bottom:1px solid var(--rising);font-weight:700;background:var(--paper);padding:2px 6px">새 창으로 크게 ↗</a>
-      <div id="mapWrap"><iframe id="mapFrame" src="map.html" title="Trend Map"></iframe></div>
-    </div>`;
+    <div class="boardtop">
+      <a href="map.html" target="_blank" rel="noopener">선 연결 맵 보기 ↗</a>
+    </div>
+    ${html || '<div class="empty">아직 올라온 자료가 없습니다.</div>'}`;
+}
+
+/* 보드용 카드 — 사진을 크게 */
+function bcardHtml(it, i){
+  const rgn = ['KR','GL','CN'].includes(it.region) ? it.region : 'KR';
+  const words = String(it.meta || '').split(/\s+/);
+  const tags = words.filter(w => w.startsWith('#')).slice(0, 3);
+  const eids = EOF_[`${it.kind}:${it.id}`] || [];
+  const eid  = eids.find(x => MSTAT[x]) || eids[0];
+  const st   = eid ? MSTAT[eid] : null;
+  const stg  = stageOf(st);
+  return `<a class="bc" href="#" data-fk="${esc(it.kind)}:${esc(it.id)}">
+    ${it.thumb_url ? `<img src="${esc(it.thumb_url)}" loading="lazy" alt="">`
+                   : '<div class="noimg"></div>'}
+    ${stg ? `<span class="stg ${stg.replace('-','')}">${stg}</span>` : ''}
+    <div class="bcb">
+      <h4>${esc(String(it.title).slice(0,26))}<span class="ntag ${rgn}">${rgn}</span></h4>
+      <div class="bcs">${esc([it.source_id, it.category].filter(Boolean).join(' · '))}</div>
+      ${tags.length ? `<div class="tags">${tags.map(t=>`<span>${esc(t)}</span>`).join('')}</div>` : ''}
+    </div>
+  </a>`;
 }
 
 /* ═══ 우측 슬라이드 패널 — 피드·브랜드 카드 클릭 상세 ═══ */
@@ -376,11 +454,11 @@ const FF_CATS   = ['ALL','OUTERWEAR','TOP','BOTTOM','DRESS','BAG','SHOES','OTHER
 
 let FFOPEN = null;
 const FF_GROUPS = [
-  { key:'brand',  label:'브랜드',  opts:FF_BRANDS },
-  { key:'region', label:'지역',    opts:['ALL','KR','GL','CN'] },
-  { key:'cat',    label:'아이템',  opts:FF_CATS }
+  { key:'brand',  label:'BRANDS',        opts:FF_BRANDS },
+  { key:'region', label:'COUNTRY',       opts:['ALL','KR','GL','CN'] },
+  { key:'cat',    label:'ITEM CATEGORY', opts:FF_CATS }
 ];
-const ffLabel = (k, v) => v === 'ALL' ? '전체' : (v === 'SERGIO TACCHINI' ? 'ST' : v);
+const ffLabel = (k, v) => v === 'ALL' ? 'ALL' : (v === 'SERGIO TACCHINI' ? 'ST' : v);
 
 function drawFfBar(){
   const boxes = FF_GROUPS.map(g => `<button class="ffbox ${FFOPEN===g.key?'open':''} ${FF[g.key]!=='ALL'?'set':''}"
