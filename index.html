@@ -343,6 +343,9 @@ function renderFeed(){
     if(!groups.has(d)) groups.set(d, []);
     groups.get(d).push(it);
   }
+  /* 최신 월이 맨 위 — 아래로 갈수록 예전 */
+  const sortedGroups = new Map([...groups.entries()].sort((a,b) => b[0].localeCompare(a[0])));
+  groups.clear(); sortedGroups.forEach((v,k) => groups.set(k, v));
 
   let first = true;
   for(const [d, items] of groups){

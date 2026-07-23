@@ -127,12 +127,34 @@ const norm = v => String(v||'').toLowerCase().replace(/[\s#_-]/g,'');
 let ENTS = [], SIG = [], CNT = {}, COVER = {}, TAGS = [], month = new Date().toISOString().slice(0,7);
 let catF = 'All', brandF = 'All';
 
-const SRC_PRI = ['naver','google','sometrend','manual'];
-const sigOf = (eid, region) => {
+const SRC_PRI = ['instagram','naver','sometrend','naver_blog','community','google','manual'];
+const sigOf = (eid, region, srcOnly) => {
   const all = SIG.filter(s => s.entity_id === eid && (!region || s.region === region));
+  if(srcOnly) return all.filter(r => r.source === srcOnly).sort((a,b) => a.week.localeCompare(b.week));
   const src = SRC_PRI.find(x => all.filter(r => r.source === x).length >= 2) || all[0]?.source;
   return all.filter(r => r.source === src).sort((a,b) => a.week.localeCompare(b.week));
 };
+const MEDIA = [['instagram','인스타그램','#c8451f'],['youtube','유튜브','#8a2be2'],
+               ['naver_blog','네이버 블로그','#1a7a4a'],['community','커뮤니티','#4a6fb5']];
+const LINE5 = ['#c8451f','#1a7a4a','#4a6fb5','#8a2be2','#b8860b'];
+
+/* 여러 계열 멀티라인 차트 */
+function multiLine(series, w=560, h=150){
+  const S = series.filter(x => x.rows.length >= 2);
+  if(!S.length) return '<div class="empty">데이터가 아직 없습니다 — 수집 탭에서 CSV 를 올리거나 검색량 갱신을 돌려주세요</div>';
+  const weeks = [...new Set(S.flatMap(x => x.rows.map(r => r.week)))].sort();
+  const mx = Math.max(...S.flatMap(x => x.rows.map(r => +r.volume)), 1);
+  const X = wk => 34 + weeks.indexOf(wk) / Math.max(weeks.length-1,1) * (w-44);
+  const Y = v => h-18 - (v/mx)*(h-30);
+  const grid = [0,.5,1].map(f => `<line x1="34" x2="${w-10}" y1="${Y(mx*f)}" y2="${Y(mx*f)}" stroke="var(--hair)"/>` +
+    `<text x="30" y="${Y(mx*f)+3}" text-anchor="end" font-size="8" fill="var(--sub)">${Math.round(mx*f)}</text>`).join('');
+  const lines = S.map(x => `<polyline fill="none" stroke="${x.color}" stroke-width="1.8"
+      points="${x.rows.map(r=>`${X(r.week).toFixed(1)},${Y(+r.volume).toFixed(1)}`).join(' ')}"/>`).join('');
+  const xlabels = weeks.filter((_,i) => i % Math.ceil(weeks.length/6) === 0)
+    .map(wk => `<text x="${X(wk)}" y="${h-4}" font-size="8" fill="var(--sub)" text-anchor="middle">${wk.slice(5)}</text>`).join('');
+  const legend = S.map(x => `<span style="font-size:10px;margin-right:12px"><span style="display:inline-block;width:16px;height:3px;background:${x.color};vertical-align:middle;margin-right:4px"></span>${esc(x.name)}</span>`).join('');
+  return `<div style="margin-bottom:4px">${legend}</div><svg width="${w}" height="${h}" style="max-width:100%">${grid}${lines}${xlabels}</svg>`;
+}
 const pct = (a,b) => b ? Math.round((a-b)/b*100) : null;
 
 /* 최근 4주 vs 이전 4주 */
@@ -172,19 +194,26 @@ async function load(){
     sb.from('entities').select('entity_id,name_kr,name_en,axis,category_l1,brand_fit,notes,proposal,first_seen,pinned,parent_movement,status'),
     sb.from('search_signals').select('*').order('week'),
     sb.from('v_entity_source_count').select('*'),
-    sb.from('asset_entities').select('entity_id,role,images(thumb_url,is_celeb,celeb_name,account)').limit(1500),
+    sb.from('asset_entities').select('entity_id,role,images(thumb_url,is_celeb,celeb_name,account,category)').limit(1500),
     sb.from('asset_tags').select('tag_value, images!inner(created_at)').gte('images.created_at', since).limit(1000),
     sb.from('documents').select('keywords,created_at').gte('created_at', since).not('keywords','is',null).limit(400)
   ]);
   ENTS = (e2.data||[]).filter(x => x.status !== 'Archived' && x.axis !== 'movement');
   SIG = s2.data || [];
   CNT = Object.fromEntries((c2.data||[]).map(r => [r.entity_id, r.source_count]));
-  COVER = {}; window.LOOKS = {};
+  COVER = {}; window.LOOKS = {}; window.ECAT = {};
+  const catVote = {};
   for(const r of (ae.data||[])){
+    if(r.images?.category){
+      const cv = catVote[r.entity_id] ||= {};
+      cv[r.images.category] = (cv[r.images.category]||0) + 1;
+    }
     if(!r.images?.thumb_url) continue;
     COVER[r.entity_id] ||= r.images.thumb_url;
     (window.LOOKS[r.entity_id] ||= []).push(r.images);
   }
+  for(const [eid2, cv] of Object.entries(catVote))
+    window.ECAT[eid2] = Object.entries(cv).sort((a,b)=>b[1]-a[1])[0][0];
   /* 사전에 없는 #태그 — 피드에서만 잡힌 표현. 등록해야 검색량 추적이 시작됩니다 */
   const entNorms = new Set(ENTS.flatMap(e => [norm(e.name_kr), norm(e.name_en||'')]));
   const tagCnt = {};
@@ -202,16 +231,16 @@ async function load(){
 $('#mSel').onchange = () => { month = $('#mSel').value; draw(); };
 
 /* FEED 기준(연결 1건+) 키워드 중 검색량 상위 5 */
-function top5(region){
+function top5(region, srcOnly){
   return ENTS.filter(e => (CNT[e.entity_id]||0) >= 1)
-    .map(e => { const rows = sigOf(e.entity_id, region).filter(r => r.week.slice(0,7) <= month);
+    .map(e => { const rows = sigOf(e.entity_id, region, srcOnly).filter(r => r.week.slice(0,7) <= month);
       return { e, v: rows.length ? +rows[rows.length-1].volume : -1, c: change4(e.entity_id, region) }; })
     .sort((a,b) => b.v - a.v)
     .slice(0, 5);
 }
 
 function ovBlock(title, region, note){
-  const list = top5(region);
+  const list = top5(region, region==='KR' ? 'instagram' : undefined);
   const has = list.some(x => x.v >= 0);
   return `<div class="card" style="margin-bottom:14px">
     <h3>${title} <span class="mini" style="float:right">${note}</span></h3>
@@ -224,9 +253,9 @@ function ovBlock(title, region, note){
         <div class="ct">${esc(x.e.category_l1||x.e.axis||'')}</div>
       </div>`).join('')}</div>
     <div class="panelrow">
-      <div class="card"><h3>검색량 추이 — TOP 5 · 16주</h3>
-        ${list.map(x => `<div class="chg"><span>${esc(x.e.name_kr||x.e.name_en)}</span>${spark(x.e.entity_id, region, 220, 30)}</div>`).join('')}
-        ${has ? '' : '<div class="empty">검색량 데이터가 아직 없습니다 — 아래 "주간 갱신" 안내를 보세요</div>'}
+      <div class="card"><h3>${region==='KR' ? '인스타그램 언급량 — TOP 5 한 그래프' : '검색량 추이 — TOP 5'}</h3>
+        ${multiLine(list.map((x,i) => ({ name: x.e.name_kr||x.e.name_en, color: LINE5[i],
+          rows: sigOf(x.e.entity_id, region, region==='KR' ? 'instagram' : undefined) })))}
       </div>
       <div class="card"><h3>검색량 변화 — 최근 4주 vs 이전 4주</h3>
         ${list.map(x => `<div class="chg"><span>${esc(x.e.name_kr||x.e.name_en)}</span><span class="v">${chgHtml(x.c)}</span></div>`).join('')}
@@ -237,13 +266,14 @@ function ovBlock(title, region, note){
 
 function draw(){
   $('#ovTitle').textContent = `${month.replace('-', '년 ')}월 트렌드 시그널`;
-  $('#ovKR').innerHTML = ovBlock('KR TOP 5 — 네이버', 'KR', 'FEED 포착 키워드 중 검색량 상위');
+  $('#ovKR').innerHTML = ovBlock('KR TOP 5 — 인스타그램 언급량 기준', 'KR', 'FEED 포착 키워드 중 상위 5');
   $('#ovGL').innerHTML = ovBlock('GL / CN TOP 5 — 구글', 'GL', '구글 트렌드 상대 지수');
   drawKeys();
 }
 
+const catOf = e => window.ECAT?.[e.entity_id] || e.category_l1 || '기타';
 function drawKeys(){
-  const cats = ['All', ...new Set(ENTS.map(e => e.category_l1 || e.axis).filter(Boolean))].slice(0, 9);
+  const cats = ['All','OUTERWEAR','TOP','BOTTOM','DRESS','BAG','SHOES','OTHER ACC','기타'];
   $('#fCat').innerHTML = cats.map(c => `<button class="${c===catF?'on':''}" data-c="${esc(c)}">${esc(c)}</button>`).join('')
     + `<input id="kq" placeholder="키워드 검색" value="">`;
   const brands = ['All','MLB','DISCOVERY','SERGIO TACCHINI','DUVETICA'];
@@ -256,7 +286,7 @@ function drawKeys(){
 
 function renderRows(q){
   const rows = ENTS
-    .filter(e => catF==='All' || (e.category_l1||e.axis)===catF)
+    .filter(e => catF==='All' || catOf(e)===catF)
     .filter(e => brandF==='All' || (e.brand_fit||[]).includes('ALL') || (e.brand_fit||[]).includes(brandF))
     .filter(e => !q || norm(e.name_kr).includes(norm(q)) || norm(e.name_en||'').includes(norm(q)))
     .sort((a,b) => (CNT[b.entity_id]||0) - (CNT[a.entity_id]||0))
@@ -271,7 +301,7 @@ function renderRows(q){
   $('#kBody').innerHTML = (rows.length || tagRows) ? rows.map(e => `
     <tr class="krow" data-open="${esc(e.entity_id)}">
       <td><b>${esc(e.name_kr||e.name_en)}</b><div class="mini">${esc((e.notes||'').slice(0,44))}</div></td>
-      <td>${esc(e.category_l1||e.axis||'')}</td>
+      <td>${esc(catOf(e))}</td>
       <td><span class="pillb ${stageOf(e.entity_id)}">${stageOf(e.entity_id)}</span></td>
       <td>${spark(e.entity_id, 'KR')}</td>
       <td>${chgHtml(change4(e.entity_id,'KR'))}</td>
@@ -305,7 +335,7 @@ async function openDetail(ent){
 
   $('#dBody').innerHTML = `
     ${COVER[eid] ? `<img class="hero" src="${esc(COVER[eid])}" alt="">` : ''}
-    <div class="k">${esc(ent.category_l1||ent.axis||'')} · first seen ${esc(ent.first_seen||'—')}</div>
+    <div class="k">${esc(catOf(ent))} · first seen ${esc(ent.first_seen||'—')}</div>
     <h2>${esc(ent.name_kr||ent.name_en)}</h2>
     <div class="stats">
       <div class="s"><b class="${(cKR??0)>0?'up':(cKR??0)<0?'dn':''}">${cKR!=null?(cKR>0?'+':'')+cKR+'%':'—'}</b><span>KR 검색 4주</span></div>
@@ -313,7 +343,8 @@ async function openDetail(ent){
       <div class="s"><b>${vol}</b><span>Volume · 출처 ${src}곳</span></div>
       <div class="s"><b>${esc(stageOf(eid))}</b><span>Stage</span></div>
     </div>
-    <div>${spark(eid, 'KR', 490, 46)}</div>
+    <h4>매체별 언급량 — 인스타 · 유튜브 · 블로그 · 커뮤니티</h4>
+    ${multiLine(MEDIA.map(([src, nm, col]) => ({ name: nm, color: col, rows: sigOf(eid, 'KR', src) })), 500, 140)}
 
     <h4>DATA REFERENCE</h4>
     ${prods.length ? prods.map(p => `<div class="ref"><span class="r">${p.rank}위</span>

@@ -399,7 +399,11 @@ tbody tr:hover{background:#fdfcf9}
         <select id="sgSrc"><option value="sometrend">썸트렌드 (언급량)</option>
           <option value="naver">네이버 데이터랩</option><option value="manual">기타 수동</option></select></div>
     </div>
-    <div><label class="f">엑셀 내용 붙여넣기</label>
+    <div style="margin-bottom:10px"><label class="f">썸트렌드 CSV 업로드 — 키워드당 1파일 · 여러 개 한 번에 (record_type/weekly 형식)</label>
+      <input id="sgCsv" type="file" accept=".csv" multiple>
+      <div class="mini" id="sgCsvStat">weekly 행의 매체별 언급량이 매체별로 나뉘어 저장됩니다 — 인스타그램·유튜브·네이버 블로그·커뮤니티…</div>
+    </div>
+    <div><label class="f">또는 엑셀 내용 붙여넣기</label>
       <textarea id="sgRaw" rows="10" placeholder="날짜	젤리슈즈	카고팬츠
 2026-06-01	1240	880
 2026-06-08	1890	760"></textarea></div>
@@ -744,6 +748,11 @@ tbody tr:hover{background:#fdfcf9}
 </div>
 
 <datalist id="entList"></datalist>
+<datalist id="subCatList">
+  <option>TSHIRTS</option><option>SWEATSHIRTS</option><option>HOODIE</option><option>KNIT</option>
+  <option>SHIRTS</option><option>DENIM</option><option>SKIRT</option><option>SLACKS</option>
+  <option>LINER</option><option>SNEAKERS</option><option>SANDALS</option><option>BOOTS</option><option>LOAFERS</option>
+</datalist>
 <datalist id="brandList"></datalist>
 <div id="toast"></div>
 <div id="busy"><div class="spin"></div><span id="busyMsg">저장 중…</span></div>
@@ -1253,9 +1262,8 @@ function renderImgCards(){
             ${CATEGORIES.map(v=>`<option>${v}</option>`).join('')}</select></div>
       </div>
       <div class="row catRow">
-        <div style="max-width:120px"><label class="f">서브 (SHOES)</label>
-          <select data-k="category_sub"><option value="">—</option>
-            ${SHOE_SUBS.map(v=>`<option>${v}</option>`).join('')}</select></div>
+        <div style="max-width:150px"><label class="f">서브 — 직접 입력</label>
+          <input data-k="category_sub" list="subCatList" placeholder="TSHIRTS, SWEATSHIRTS…"></div>
         <div><label class="f">트렌드 구분 — 중복</label>
           <div class="tkRow">${TREND_KINDS.map(v=>`<label class="tk"><input type="checkbox" data-tk="${v}">${v}</label>`).join('')}</div></div>
       </div>
@@ -1730,6 +1738,71 @@ const sgMonday = d => { const x = new Date(d); if(isNaN(x)) return null;
 const sgDate = t => {
   const m = String(t).trim().match(/(\d{4})[.\-\/년\s]+(\d{1,2})[.\-\/월\s]+(\d{1,2})/);
   return m ? `${m[1]}-${String(m[2]).padStart(2,'0')}-${String(m[3]).padStart(2,'0')}` : null;
+};
+
+/* 썸트렌드 CSV: record_type=weekly 행 → search_signals (매체별) */
+const MEDIA_SLUG = { '인스타그램':'instagram', '유튜브':'youtube', '네이버 블로그':'naver_blog',
+  '커뮤니티':'community', '네이버 카페':'naver_cafe', '다음 카페':'daum_cafe',
+  '언론사 뉴스':'news', '네이버뉴스':'news', '다음뉴스':'news', '티스토리':'tistory',
+  'X':'x', '트위터':'x', '전체(매체별 단순합)':'total', '전체':'total' };
+
+function parseCsvLine(line){
+  const out=[]; let cur='', q=false;
+  for(const ch of line){
+    if(ch === '"'){ q = !q; continue; }
+    if(ch === ',' && !q){ out.push(cur); cur=''; continue; }
+    cur += ch;
+  }
+  out.push(cur); return out.map(x=>x.trim());
+}
+
+$('#sgCsv').onchange = async e => {
+  const files = [...e.target.files]; if(!files.length) return;
+  busy(true, 'CSV 읽는 중…');
+  let saved = 0, skipped = [], kws = [];
+  try{
+    for(const f of files){
+      const text = (await f.text()).replace(/^\ufeff/, '');
+      const lines = text.split(/\r?\n/).filter(Boolean);
+      const head = parseCsvLine(lines[0]);
+      const ix = k => head.indexOf(k);
+      const iT=ix('record_type'), iK=ix('keyword'), iS=ix('source'), iB=ix('bucket_start'), iM=ix('mentions');
+      if(iT<0 || iK<0 || iS<0 || iB<0 || iM<0){ skipped.push(`${f.name}: 형식이 다릅니다`); continue; }
+      const rows = [];
+      let kw = null;
+      for(const line of lines.slice(1)){
+        const c = parseCsvLine(line);
+        if(c[iT] !== 'weekly') continue;
+        kw = c[iK];
+        const src = MEDIA_SLUG[c[iS]] || norm(c[iS]).slice(0,20);
+        if(src === 'total') continue;                    // 합계는 저장 안 함 — 그래프에서 매체 합산
+        const wk = sgMonday(c[iB]); const v = parseFloat(c[iM]);
+        if(!wk || isNaN(v)) continue;
+        const eid = matchEntity(kw) || scanEntities(kw, 1)[0];
+        if(!eid){ continue; }
+        rows.push({ entity_id: eid, region: 'KR', week: wk, volume: v, source: src });
+      }
+      /* 같은 매체·같은 주가 여러 줄이면 합산 (뉴스 계열 통합 등) */
+      const agg = {};
+      for(const r of rows){ const k2 = r.entity_id+'|'+r.source+'|'+r.week;
+        agg[k2] ? agg[k2].volume += r.volume : agg[k2] = r; }
+      rows.length = 0; rows.push(...Object.values(agg));
+      if(!kw){ skipped.push(`${f.name}: weekly 행 없음`); continue; }
+      if(!rows.length){
+        skipped.push(`${f.name}: "${kw}" 가 사전에 없습니다 — 먼저 등록(승격)하고 다시 올려주세요`);
+        await addToQueue(kw);
+        continue;
+      }
+      const { error } = await sb.from('search_signals').upsert(rows, { onConflict:'entity_id,region,week,source' });
+      if(error) throw error;
+      saved += rows.length; kws.push(kw);
+    }
+    $('#sgCsvStat').innerHTML = `저장 ${saved}건 — ${kws.map(esc).join(', ')}` +
+      (skipped.length ? `<br><span style="color:#c8451f">${skipped.map(esc).join('<br>')}</span>` : '');
+    toast(saved ? `검색량 ${saved}건 저장 — TREND SIGNAL 에 반영됩니다` : '저장된 것이 없습니다');
+  }catch(err){ die(err, 'CSV 저장'); }
+  $('#sgCsv').value = '';
+  busy(false);
 };
 
 $('#sgParse').onclick = () => {
@@ -2509,40 +2582,12 @@ for(const bid of ['radarBox','qClusterBox','clSugBox']){
         if(!eR) nRnk = rnkIds.length;
       }
 
-      /* ── 맵에 자동 배치: 월별 뷰에 노드가 없으면 만듭니다. KEY TREND 면 상위 흐름 선까지 */
-      let mapMsg = '';
-      const { data:exN } = await sb.from('map_nodes').select('node_id')
-        .eq('view_id','monthly').eq('entity_id', eid).limit(1);
-      if(!exN || !exN.length){
-        const pos2 = await nextSlot('monthly', ymNow());
-        const { data:kn, error:eN } = await sb.from('map_nodes').insert({
-          view_id:'monthly', kind: g.is_movement ? 'mv' : 'key', entity_id: eid,
-          t: ymNow(), ...pos2, created_by: ME }).select('node_id').single();
-        if(!eN){
-          mapMsg = ' · 맵(월별)에 올림';
-          const pv = (!g.is_movement && (g.parent||'').trim()) ? (matchEntity(g.parent.trim())) : null;
-          if(pv){
-            let { data:pm } = await sb.from('map_nodes').select('node_id')
-              .eq('view_id','monthly').eq('kind','mv').eq('entity_id', pv).limit(1);
-            let pmId = pm && pm[0]?.node_id;
-            if(!pmId){
-              const { data:pm2 } = await sb.from('map_nodes').insert({
-                view_id:'monthly', kind:'mv', entity_id: pv, t: ymNow(), x: 380, y: 80, created_by: ME
-              }).select('node_id').single();
-              pmId = pm2?.node_id;
-            }
-            if(pmId) await sb.from('map_edges').upsert(
-              { view_id:'monthly', a: kn.node_id, b: pmId, is_key: true }, { onConflict:'a,b' });
-          }
-        }
-      }
-
+      const mapMsg = '';
       await loadAll();
       if(typeof renderQueue === 'function' && RADAR_BOX === 'qClusterBox') renderQueue();
       if(RADAR_BOX === 'clSugBox') loadCluster();
       g.done = true; drawRadar();
-      toast(`"${name}" ${g.is_movement?'MOVEMENT':'KEY TREND'} 등록 · 표현 ${ali}개 통합${parentMsg}` +
-            ` · 소급 연결: 사진 ${nImg} · 기사 ${nDoc} · 랭킹 ${nRnk}${mapMsg}`);
+      toast(`"${name}" ${g.is_movement?'MOVEMENT':'KEY TREND'} 등록${parentMsg} · 소급 연결: 사진 ${nImg} · 기사 ${nDoc} · 랭킹 ${nRnk} — 맵 게시는 클러스터에서 [메인보드 업로드]로 결정하세요`);
     }catch(e2){ die(e2, '제안 등록'); }
     busy(false);
   });
@@ -2982,7 +3027,7 @@ $('#bSave').onclick = async () => {
       const hash = await sha256(full.blob);
       const ymn  = ymNow();
       const { data:row, error:eI } = await sb.from('images').insert({
-        year_month: ymn, source_id:'etc', region:'KR', brand: name, is_main: true,
+        year_month: ymn, source_id:'etc', region:'KR', brand: name, is_main: true, feed_hide: true,
         note: `${name} 대표 사진`, brand_fit:['ALL'], uploaded_by: ME,
         file_hash: hash, mime_type:'image/jpeg', file_size: full.blob.size,
         width: full.w, height: full.h, upload_status:'pending'

@@ -166,8 +166,8 @@ footer b{color:var(--sticky)}
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ══ 설정 — admin.html · index.html 과 같은 값이어야 합니다 ══ */
-const SUPABASE_URL  = 'https://piifytwflubdtkzaiisi.supabase.co';
-const SUPABASE_ANON  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBpaWZ5dHdmbHViZHRremFpaXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQwODI5NDcsImV4cCI6MjA5OTY1ODk0N30.cVrgt7YQ99R-slePt8U2r_GmtDxetejZdqHcnqJmwhc';
+const SUPABASE_URL  = (window.TA_CONFIG && TA_CONFIG.url)  || 'https://piifytwflubdtkzaiisi.supabase.co';
+const SUPABASE_ANON = (window.TA_CONFIG && TA_CONFIG.anon) || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBpaWZ5dHdmbHViZHRremFpaXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQwODI5NDcsImV4cCI6MjA5OTY1ODk0N30.cVrgt7YQ99R-slePt8U2r_GmtDxetejZdqHcnqJmwhc';
 /* ═══════════════════════════════════════════════════ */
 
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
@@ -183,7 +183,7 @@ const expandTags = tags => {
   return out;
 };
 
-let VIEWS = [], NODES = [], EDGES = [], ENTS = {}, BUNDLE_IMGS = {}, curView = null, curTimeIdx = null, TAGFILTER = null;
+let VIEWS = [], NODES = [], EDGES = [], ENTS = {}, BUNDLE_IMGS = {}, SRCCNT = {}, curView = null, curTimeIdx = null, TAGFILTER = null;
 
 /* ── 시간축: 뷰에 times 가 비어 있으면 노드의 t 에서 자동으로 만듭니다 ── */
 const timesOf = v => {
@@ -204,6 +204,9 @@ async function load(){
   SRCMAP = Object.fromEntries(sr.data.map(x => [x.source_id, x.stage]));
   VIEWS = vw.data; NODES = nd.data; EDGES = eg.data;
   ENTS = Object.fromEntries(en.data.map(e => [e.entity_id, e]));
+
+  const { data:sc } = await sb.from('v_entity_source_count').select('*');
+  SRCCNT = Object.fromEntries((sc||[]).map(r => [r.entity_id, r.source_count]));
 
   /* 묶음 노드에 엔티티가 걸려 있으면 그 키워드의 사진들을 안에 채웁니다 */
   const bids = [...new Set(NODES.filter(n => n.kind === 'bundle' && n.entity_id).map(n => n.entity_id))];
@@ -233,6 +236,27 @@ function fail(msg){
 }
 
 /* ── 노드 마크업 — mockup 과 동일 ── */
+/* ═══ 자동 레이아웃 — 저장된 좌표 대신 규칙으로 배치합니다 ═══
+   가로: 등장 월 (왼쪽=예전 → 오른쪽=최신)
+   세로: MOVEMENT 맨 위 → KEY TREND (피드 연결 많은 순) → 사진·기사·메모 */
+function autoLayout(list, allMonths){
+  const months = [...allMonths].sort();
+  const colX = Object.fromEntries(months.map((m,i) => [m, 50 + i * 330]));
+  const yCur = {};
+  const H = { mv:150, key:210, brand:130, bundle:260, photo:290, doc:230, sticky:150 };
+  const band = k => k === 'mv' ? 0 : (k === 'key' ? 1 : 2);
+  const sorted = [...list].sort((a,b) =>
+    band(a.kind) - band(b.kind) ||
+    (band(a.kind) === band(b.kind) && band(a.kind) === 1
+      ? (SRCCNT[b.entity_id]||0) - (SRCCNT[a.entity_id]||0) : 0));
+  for(const n of sorted){
+    const c = n.t;
+    if(band(n.kind) >= 1 && (yCur[c]||0) < 190) yCur[c] = 190;   // MOVEMENT 띠는 위 190px 전용
+    n.x = colX[c] ?? 50; n.y = 60 + (yCur[c] || 0);
+    yCur[c] = (yCur[c] || 0) + (H[n.kind] || 230);
+  }
+}
+
 function nodeHtml(n){
   const xt = expandTags(n.r_tags);
   const tagHtml = xt.length
@@ -288,6 +312,7 @@ function render(){
   $('#timeSel').querySelectorAll('button').forEach(b =>
     b.onclick = () => { curTimeIdx = +b.dataset.i; render(); });
 
+  autoLayout(mine, times);
   const nz = $('#nodes'); nz.innerHTML = '';
   mine.forEach(n => { const e = el(nodeHtml(n)); if(e) nz.appendChild(e); });
 
