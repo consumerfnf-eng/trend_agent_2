@@ -26,6 +26,9 @@ header h1 small{font-family:'Inter'; font-weight:600; font-size:10px; letter-spa
 #stage{position:relative; width:2100px; height:1150px}
 svg#edges{position:absolute; inset:0; width:100%; height:100%; pointer-events:none}
 .edge.tree{stroke:#c9c2b4; stroke-width:1.4; fill:none; opacity:.9}
+.node.unlinked{outline:1.5px dashed #e0b0a0; outline-offset:3px}
+.node.unlinked::after{content:'키워드 없음'; position:absolute; bottom:-16px; left:0;
+  font-size:8.5px; letter-spacing:.06em; color:#c8451f}
 .edge{fill:none; stroke:#9a968c; stroke-width:2}
 .edge.key{stroke:var(--rising); stroke-width:2.5}
 .edgelabel{font-size:10px; fill:var(--sub); font-family:'Inter'}
@@ -165,13 +168,13 @@ footer b{color:var(--sticky)}
 
 <script src="config.js"></script>
 <script type="module">
-console.log("TREND AGENT map.html v260723-13");
+console.log("TREND AGENT map.html v260723-15");
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ══ 설정 — admin.html · index.html 과 같은 값이어야 합니다 ══ */
 const SUPABASE_URL  = 'https://piifytwflubdtkzaiisi.supabase.co';
 const SUPABASE_ANON  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBpaWZ5dHdmbHViZHRremFpaXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQwODI5NDcsImV4cCI6MjA5OTY1ODk0N30.cVrgt7YQ99R-slePt8U2r_GmtDxetejZdqHcnqJmwhc';
-/* ═══════════════════════════════════════════════════ */
+ /* ═══════════════════════════════════════════════════ */
 
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 const $  = s => document.querySelector(s);
@@ -447,7 +450,6 @@ function render(){
     .map(a => ({ ...a, view_id: curView, t: a.t || real.find(r => r.entity_id === a.entity_id)?.t || '' }));
   const mine = [...real, ...autoHere];
   const times = [...new Set([...timesOf(V), ...mine.map(n => n.t).filter(Boolean)])].sort();
-  $('#legend').textContent = V.legend || '';
 
   if(!mine.length){ fail('이 뷰에 놓인 노드가 없습니다.'); $('#timeSel').innerHTML=''; $('#sideList').innerHTML=''; return; }
   if(curTimeIdx === null || curTimeIdx >= times.length) curTimeIdx = times.length - 1;   // 처음엔 최신 달 — 방금 올린 게 바로 보입니다
@@ -486,7 +488,8 @@ function render(){
         <path d="M0,0 L7,3 L0,6" fill="none" stroke="#c8451f" stroke-width="1.6"/></marker></defs>`;
     let paths = '';
     /* 데이터에서 나오는 부모→자식 연결 (마인드맵 가지) */
-    treeLinks(mine).forEach(([P, C]) => {
+    const tl = treeLinks(mine);
+    tl.forEach(([P, C]) => {
       if(!visible[P.node_id] || !visible[C.node_id]) return;
       const A = center(P.node_id), B = center(C.node_id);
       const mx = A.x + (B.x - A.x) * 0.55;
@@ -501,6 +504,16 @@ function render(){
       if(e2.label) paths += `<text class="edgelabel" x="${mx}" y="${my+8}" text-anchor="middle">${esc(e2.label)}</text>`;
     });
     $('#edges').innerHTML = defs + paths;
+
+    /* 진단 — 왜 선이 없는지 바로 보이게 */
+    const hosts = new Set(mine.filter(n => (n.kind==='key'||n.kind==='mv') && n.entity_id).map(n => n.entity_id));
+    const leaves = mine.filter(n => n.kind !== 'key' && n.kind !== 'mv');
+    const unlinked = leaves.filter(n => !hostEnt(n, hosts));
+    unlinked.forEach(n => document.getElementById('n-' + n.node_id)?.classList.add('unlinked'));
+    $('#legend').innerHTML = (V.legend ? esc(V.legend) + ' · ' : '') +
+      `연결선 <b>${tl.length}</b>개` +
+      (unlinked.length ? ` · <b style="color:#c8451f">연결 안 된 자료 ${unlinked.length}개</b>
+         <span title="이 자료들은 사전에서 어떤 키워드에도 붙어 있지 않습니다. 관리자 → 피드 탭에서 [수정] 으로 키워드를 넣어주세요">(?)</span>` : '');
   });
 }
 

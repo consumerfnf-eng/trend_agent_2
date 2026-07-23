@@ -37,12 +37,22 @@ header h1{font-family:'Playfair Display',serif; font-size:22px}
 .fcard .hd{display:flex; align-items:baseline; gap:8px; margin-bottom:3px}
 .fcard .rk{font-family:'Playfair Display',serif; font-size:19px; font-weight:700; color:#dcd2c2; line-height:1}
 .fcard h3{font-size:14.5px; font-weight:700; line-height:1.3; word-break:keep-all; display:flex; align-items:center; gap:6px}
-.fcard .sub{font-size:10.5px; color:var(--sub); margin-bottom:9px; line-height:1.45;
-  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden}
 .fcard .bar{height:5px; border-radius:3px; background:#f3ede3; overflow:hidden; margin-bottom:7px}
 .fcard .bar i{display:block; height:100%; border-radius:3px}
 .fcard .stat{font-size:10.5px; color:#6b675e; line-height:1.5; margin-bottom:8px}
 .fcard .stat b{font-weight:700; color:var(--ink)}
+.fcard .sub{font-size:10px; color:#a39a8b; letter-spacing:.04em; margin-bottom:4px}
+.fcard .line{font-size:11.5px; color:#5d594f; line-height:1.5; margin-bottom:9px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.fcard .apply{font-size:10.5px; color:#5d594f; background:#fdf6f1; border:1px solid #f0e0d4;
+  border-radius:7px; padding:6px 9px; margin-bottom:8px; line-height:1.45}
+.fcard .apply b{color:#c8451f}
+.fcard .apply.muted{background:#f9f6f0; border-color:#ece5d9; color:#a39a8b}
+.fcard .apply.muted b{color:#8a8172}
+.stg{position:absolute; top:8px; right:8px; font-size:8.5px; font-weight:800; letter-spacing:.1em;
+  padding:3px 8px; border-radius:9px; color:#fff; z-index:2}
+.stg.PEAK{background:#c8451f} .stg.ONGOING{background:#1a7a4a}
+.stg.CLASSIC{background:#5a6b7d} .stg.DECREASING{background:#a39a8b} .stg.NEW{background:#b8860b}
 .fcard .tags{display:flex; flex-wrap:wrap; gap:4px}
 .fcard .tags span{font-size:9px; background:#f7f2e9; color:#8a8172; padding:2.5px 8px; border-radius:9px}
 .fcard .ph{width:104px; flex:0 0 104px; object-fit:cover; align-self:stretch; background:#f0ebe2}
@@ -157,7 +167,7 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
 
 <script src="config.js"></script>
 <script type="module">
-console.log("TREND AGENT index.html v260723-11");
+console.log("TREND AGENT index.html v260723-12");
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ═══════════ 설정 — admin.html 과 같은 값 ═══════════ */
@@ -174,11 +184,11 @@ const thumbCss = url => url
   : 'background:linear-gradient(160deg,#d8cfc0,#a99a82)';
 
 /* ═══ 데이터 ═══ */
-let FEED = [], BRANDS = [], RISING = [], ENTS = [], EOF_ = {}, MSTAT = {}, SRCCNT = {};
+let FEED = [], BRANDS = [], RISING = [], ENTS = [], EOF_ = {}, MSTAT = {}, SRCCNT = {}, PROPS = {};
 
 async function load(){
   try{
-    const [f, b, ents, cnts, ae, de, sg] = await Promise.all([
+    const [f, b, ents, cnts, ae, de, sg, pp] = await Promise.all([
       sb.from('v_feed').select('*').order('content_date',{ascending:false}).order('posted_at',{ascending:false}).limit(300),
       sb.from('v_key_brands').select('*').neq('status','Archived')
         .order('pinned',{ascending:false}).order('brand_name'),
@@ -186,7 +196,8 @@ async function load(){
       sb.from('v_entity_source_count').select('*'),
       sb.from('asset_entities').select('entity_id,role,sort_order,images(image_id,thumb_url,is_main,created_at)'),
       sb.from('document_entities').select('doc_id,entity_id').limit(2000),
-      sb.from('search_signals').select('entity_id,week,volume,source').limit(8000)
+      sb.from('search_signals').select('entity_id,week,volume,source').limit(8000),
+      sb.from('entity_proposals').select('*').limit(1000)
     ]);
     for(const r of [f,b,ents,cnts,ae]) if(r.error) throw r.error;
     FEED = f.data; BRANDS = b.data; ENTS = ents.data;
@@ -216,6 +227,8 @@ async function load(){
       MSTAT[eid] = { months, top:{ ym:topM, v:months[topM] }, curYm:keys[keys.length-1], cur,
         chg: prev ? Math.round((cur-prev)/prev*100) : null, src:pick };
     }
+    PROPS = {};
+    for(const r of (pp.data||[])) (PROPS[r.entity_id] ||= []).push(r);
     const cover = {};
     for(const r of ae.data){
       if(!r.images?.thumb_url) continue;
@@ -361,16 +374,29 @@ let FF = { brand:'ALL', region:'ALL', cat:'ALL' };
 const FF_BRANDS = ['ALL','MLB','DISCOVERY','SERGIO TACCHINI','DUVETICA'];
 const FF_CATS   = ['ALL','OUTERWEAR','TOP','BOTTOM','DRESS','BAG','SHOES','OTHER ACC'];
 
+let FFOPEN = null;
+const FF_GROUPS = [
+  { key:'brand',  label:'브랜드',  opts:FF_BRANDS },
+  { key:'region', label:'지역',    opts:['ALL','KR','GL','CN'] },
+  { key:'cat',    label:'아이템',  opts:FF_CATS }
+];
+const ffLabel = (k, v) => v === 'ALL' ? '전체' : (v === 'SERGIO TACCHINI' ? 'ST' : v);
+
 function drawFfBar(){
-  const b = (arr, key) => arr.map(v =>
-    `<button class="${FF[key]===v?'on':''}" data-ff="${key}:${v}">${v==='SERGIO TACCHINI'?'ST':(v==='ALL'?(key==='brand'?'전체 브랜드':key==='region'?'전체 지역':'전체 아이템'):v)}</button>`).join('');
-  $('#ffBar').innerHTML = b(FF_BRANDS,'brand') + '<span class="sep"></span>' +
-    b(['ALL','KR','GL','CN'],'region') + '<span class="sep"></span>' + b(FF_CATS,'cat');
+  const boxes = FF_GROUPS.map(g => `<button class="ffbox ${FFOPEN===g.key?'open':''} ${FF[g.key]!=='ALL'?'set':''}"
+      data-ffg="${g.key}"><span class="k">${g.label}</span><span class="v">${esc(ffLabel(g.key, FF[g.key]))}</span>
+      <span class="ar">${FFOPEN===g.key?'▴':'▾'}</span></button>`).join('');
+  const open = FF_GROUPS.find(g => g.key === FFOPEN);
+  const sub = open ? `<div class="ffsub">${open.opts.map(v =>
+      `<button class="${FF[open.key]===v?'on':''}" data-ff="${open.key}:${v}">${esc(ffLabel(open.key, v))}</button>`).join('')}</div>` : '';
+  $('#ffBar').innerHTML = `<div class="ffrow">${boxes}</div>${sub}`;
 }
 $('#ffBar').onclick = e => {
+  const g = e.target.closest('[data-ffg]');
+  if(g){ FFOPEN = FFOPEN === g.dataset.ffg ? null : g.dataset.ffg; drawFfBar(); return; }
   const t = e.target.closest('[data-ff]'); if(!t) return;
   const [k, v] = t.dataset.ff.split(':');
-  FF[k] = v; drawFfBar(); renderFeed();
+  FF[k] = v; FFOPEN = null; drawFfBar(); renderFeed();
 };
 const ffPass = it => {
   if(FF.region !== 'ALL' && (it.region || 'KR') !== FF.region) return false;
@@ -383,6 +409,28 @@ const ffPass = it => {
 };
 
 const BARC = ['#e8657f','#f0a94e','#48b39a'];        // 코랄 · 앰버 · 틸
+
+/* 월별 추이로 트렌드 단계를 판정합니다
+   PEAK       역대 최고 근처에서 상승세가 꺾여 평탄해짐
+   ON-GOING   아직 오르는 중
+   CLASSIC    6개월 이상 꾸준 — 기복이 작음
+   DECREASING 최근 뚜렷한 하락 */
+function stageOf(st){
+  if(!st) return null;
+  const ks = Object.keys(st.months).sort();
+  const vs = ks.map(k => st.months[k]);
+  if(vs.length < 2) return 'NEW';
+  const chg = st.chg ?? 0;
+  const ratio = st.cur / (st.top.v || 1);
+  if(vs.length >= 6){
+    const mean = vs.reduce((a,b)=>a+b,0) / vs.length;
+    const sd = Math.sqrt(vs.reduce((a,b)=>a+(b-mean)**2,0) / vs.length);
+    if(mean > 0 && sd/mean < 0.28 && chg > -15) return 'CLASSIC';
+  }
+  if(chg <= -20 || (ratio < 0.55 && chg < 0)) return 'DECREASING';
+  if(ratio >= 0.9) return chg >= 25 ? 'ON-GOING' : 'PEAK';   // 아직 가파르면 진행 중, 평탄해지면 정점
+  return 'ON-GOING';
+}
 const nf = n => Math.round(n).toLocaleString();
 
 function fcardHtml(it, i){
@@ -409,20 +457,38 @@ function fcardHtml(it, i){
     statLine = c ? `서로 다른 출처 <b>${c}곳</b>에서 포착` : `<span style="color:var(--sub)">수치 미연결 — 키워드를 붙이면 추이가 나옵니다</span>`;
   }
 
-  const sub = [it.source_id, it.category, it.brand].filter(Boolean).join(' · ');
+  const src  = [it.source_id, it.category].filter(Boolean).join(' · ');
+  /* 내용 요약 한 줄 — 노트에서 브랜드·해시태그를 걷어낸 부분 */
+  const line = (rest.replace(new RegExp(`^${it.brand || '_'}\\s*`,'i'), '').trim() || String(it.title))
+    .replace(/\s+/g, ' ').slice(0, 52);
+
+  /* 브랜드 적용 — 관리자에서 만든 제안이 있으면 그대로 */
+  const pr = (PROPS[eid] || [])[0];
+  const applyBrand = pr?.brand || ((it.brand_fit || []).find(x => x !== 'ALL')) || 'MLB';
+  const applyItem  = it.category_sub || it.category || '';
+  const point = pr?.body
+    ? String(pr.body).split(/[.。]\s|—|·/)[0].replace(/\s+/g,' ').trim().slice(0, 44)
+    : null;
+  const applyLine = point
+    ? `<div class="apply"><b>${esc(applyBrand)}${applyItem ? ' · '+esc(applyItem) : ''} 적용</b> — ${esc(point)}</div>`
+    : (eid ? `<div class="apply muted"><b>${esc(applyBrand)}${applyItem ? ' · '+esc(applyItem) : ''} 적용</b> — 관리자 [💡 적용 제안] 에서 생성</div>` : '');
+
+  const stg = stageOf(st);
 
   return `<a class="fcard" href="#" data-fk="${esc(it.kind)}:${esc(it.id)}">
     <div class="fl">
       <div class="hd"><span class="rk">${String(i+1).padStart(2,'0')}</span>
-        <h3>${esc(String(it.title).slice(0,40))}<span class="ntag ${rgn}">${rgn}</span></h3></div>
-      <div class="sub">${esc(sub || rest.slice(0,42))}</div>
+        <h3>${esc(String(it.title).slice(0,34))}<span class="ntag ${rgn}">${rgn}</span></h3></div>
+      <div class="sub">${esc(src)}</div>
+      <div class="line">${esc(line)}</div>
       <div class="bar"><i style="width:${barPct}%;background:${col}"></i></div>
       <div class="stat">${statLine}</div>
+      ${applyLine}
       ${tags.length ? `<div class="tags">${tags.map(t=>`<span>${esc(t)}</span>`).join('')}</div>` : ''}
     </div>
     ${it.thumb_url ? `<img class="ph" src="${esc(it.thumb_url)}" loading="lazy" alt="">`
                    : '<div class="ph noimg"></div>'}
-    ${it.badge === 'MAIN' ? '<span class="badge MAIN">MAIN</span>' : ''}
+    ${stg ? `<span class="stg ${stg.replace('-','')}">${stg}</span>` : ''}
   </a>`;
 }
 
