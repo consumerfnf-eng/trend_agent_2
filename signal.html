@@ -112,11 +112,12 @@ a{color:var(--acc)}
 
 <script src="config.js"></script>
 <script type="module">
+console.log("TREND AGENT signal.html v260723-10");
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ══ 설정 — 다른 파일들과 같은 값 ══ */
-const SUPABASE_URL  = 'https://piifytwflubdtkzaiisi.supabase.co';
-const SUPABASE_ANON  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBpaWZ5dHdmbHViZHRremFpaXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQwODI5NDcsImV4cCI6MjA5OTY1ODk0N30.cVrgt7YQ99R-slePt8U2r_GmtDxetejZdqHcnqJmwhc';
+const SUPABASE_URL  = (window.TA_CONFIG && TA_CONFIG.url)  || 'https://YOUR-PROJECT.supabase.co';
+const SUPABASE_ANON = (window.TA_CONFIG && TA_CONFIG.anon) || 'YOUR-ANON-KEY';
 /* ═══════════════════════════════ */
 
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
@@ -322,10 +323,15 @@ async function openDetail(ent){
   $('#detail').classList.add('open'); $('#dim').classList.add('open');
   $('#dBody').innerHTML = '<div class="empty">불러오는 중…</div>';
   const eid = ent.entity_id;
-  const [rk, dk] = await Promise.all([
+  const [rk, dk, pr, qs] = await Promise.all([
     sb.from('ranking_entities').select('rankings(rank,product_name,platform,price,year_month)').eq('entity_id', eid).limit(12),
-    sb.from('document_entities').select('documents(title,publisher,year_month,source_url)').eq('entity_id', eid).limit(6)
+    sb.from('document_entities').select('documents(title,publisher,year_month,source_url)').eq('entity_id', eid).limit(6),
+    sb.from('entity_proposals').select('*').eq('entity_id', eid),
+    sb.from('asset_entities').select('images(quant_signal,note,category,category_sub,year_month)').eq('entity_id', eid).limit(20)
   ]);
+  const props = pr.data || [];
+  const qrows = (qs.data||[]).map(x=>x.images).filter(Boolean);
+  const quants = qrows.filter(x => x.quant_signal);
   const prods = (rk.data||[]).map(x=>x.rankings).filter(Boolean).sort((a,b)=>a.rank-b.rank).slice(0,8);
   const docs  = (dk.data||[]).map(x=>x.documents).filter(Boolean);
   const looks = (window.LOOKS[eid]||[]).slice(0, 8);
@@ -344,6 +350,26 @@ async function openDetail(ent){
       <div class="s"><b>${vol}</b><span>Volume · 출처 ${src}곳</span></div>
       <div class="s"><b>${esc(stageOf(eid))}</b><span>Stage</span></div>
     </div>
+    <h4>이번 달 수치 — ${esc(month)}</h4>
+    ${(() => {
+      const mrows = SIG.filter(r => r.entity_id===eid && r.week.slice(0,7)===month);
+      if(mrows.length){
+        const by = {};
+        for(const r of mrows) by[r.source] = (by[r.source]||0) + (+r.volume);
+        const tot = Object.values(by).reduce((a,b)=>a+b,0);
+        return `<div class="stats" style="grid-template-columns:repeat(3,1fr)">
+          <div class="s"><b>${Math.round(tot).toLocaleString()}</b><span>${esc(month)} 합계</span></div>
+          ${Object.entries(by).sort((a,b)=>b[1]-a[1]).slice(0,2).map(([k,v]) =>
+            `<div class="s"><b>${Math.round(v).toLocaleString()}</b><span>${esc(k)}</span></div>`).join('')}
+        </div>`;
+      }
+      if(quants.length) return `<div class="mini" style="margin-bottom:6px">업로드된 정량 신호로 대신합니다</div>` +
+        quants.slice(0,4).map(q => `<div class="ref"><span class="r">신호</span>
+          <span style="flex:1">${esc(q.quant_signal)}</span>
+          <span class="mini">${esc(q.year_month||'')}</span></div>`).join('');
+      return `<div class="mini">${esc(month)} 수치가 아직 없습니다 — 수집 탭에서 CSV 를 올리거나, 업로드 시 [정량 신호] 칸을 채우면 여기 나옵니다</div>`;
+    })()}
+
     <h4>매체별 언급량 — 인스타 · 유튜브 · 블로그 · 커뮤니티</h4>
     ${multiLine(MEDIA.map(([src, nm, col]) => ({ name: nm, color: col, rows: sigOf(eid, 'KR', src) })), 500, 140)}
 
@@ -361,8 +387,13 @@ async function openDetail(ent){
       : '<div class="mini">착장 사진이 아직 없습니다</div>'}
     ${celebs.length ? `<div class="mini" style="margin-top:6px">셀럽 착장 ${celebs.length}건 — ${celebs.slice(0,3).map(c=>esc(c.celeb_name)).join(' · ')}</div>` : ''}
 
-    <h4>${esc((ent.brand_fit||['ALL']).includes('ALL') ? 'F&F' : (ent.brand_fit||[]).join(' · '))} 적용 제안</h4>
-    <div class="apply">${esc(ent.proposal || '적용 제안이 아직 없습니다 — 관리자 → 사전에서 채우면 여기 나옵니다')}</div>`;
+    <h4>AI SUGGESTION — 브랜드별 적용 제안</h4>
+    ${props.length ? props.map(p => `<div class="apply" style="margin-bottom:8px">
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:4px">
+          <b>${esc(p.brand)}</b>${p.lifestyle ? `<span style="font-size:9px;letter-spacing:.1em;background:#fff;border:1px solid #ecc9bc;padding:2px 7px;border-radius:10px">${esc(p.lifestyle)}</span>` : ''}</div>
+        ${esc(p.body||'')}
+      </div>`).join('')
+    : `<div class="apply">${esc(ent.proposal || '아직 없습니다 — 관리자 클러스터 탭에서 [💡 적용 제안] 을 누르면 브랜드 DNA 기반으로 생성됩니다')}</div>`}`;
 }
 
 $('#nav').onclick = e => {

@@ -212,6 +212,7 @@ tbody tr:hover{background:#fdfcf9}
 <div id="app" hidden>
 <header>
   <h1>TREND <em>AGENT</em></h1>
+  <span class="mini" id="verStamp" style="margin-left:8px;opacity:.55">v260723-10</span>
   <div class="tabs" id="tabs">
     <button data-v="intake" class="on">업로드</button>
     <button data-v="cluster">클러스터</button>
@@ -693,6 +694,20 @@ tbody tr:hover{background:#fdfcf9}
 
 
 
+  <h3 class="sub">브랜드 DNA <span class="mini">— AI 적용 제안이 이 내용을 근거로 씁니다. 언제든 고쳐 쓰세요</span></h3>
+  <div class="row" style="margin-bottom:8px">
+    <div style="max-width:200px"><label class="f">브랜드</label>
+      <select id="dnaBrand"><option>MLB</option><option>DISCOVERY</option><option>SERGIO TACCHINI</option><option>DUVETICA</option></select></div>
+    <div style="align-self:flex-end"><button class="btn sm" id="dnaSave">DNA 저장</button>
+      <span class="mini" id="dnaStat"></span></div>
+  </div>
+  <div style="margin-bottom:8px"><label class="f">1) 전반적인 스타일 가이드</label>
+    <textarea id="dnaGuide" rows="4" placeholder="예) MLB 는 라이프스타일을 고급스럽게 즐기는 사람들의 옷. 스포츠 헤리티지를 도시적으로 풀되, 과한 로고 플레이보다 소재와 실루엣의 완성도로 승부한다…"></textarea></div>
+  <div><label class="f">2) 라이프스타일 — 3~4가지와 설명</label>
+    <div id="dnaLs"></div>
+    <button class="btn ghost sm" id="dnaAdd" style="margin-top:6px">＋ 라이프스타일 추가</button></div>
+  <div style="height:20px"></div>
+
   <h3 class="sub">검색량 수집</h3>
   <div class="bar" style="margin-bottom:14px">
     <button class="btn sm" id="sigRun">검색량 지금 갱신 — 네이버에 다녀오기</button>
@@ -761,6 +776,7 @@ tbody tr:hover{background:#fdfcf9}
 <div id="busy"><div class="spin"></div><span id="busyMsg">저장 중…</span></div>
 
 <script src="config.js"></script>
+<script>console.log("TREND AGENT admin v260723-10");</script>
 <script type="module">
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -1086,6 +1102,16 @@ const mvOptions = (sel) => '<option value="">— 관련 없음 —</option>' +
 const CATEGORIES  = ['TOP','BOTTOM','OUTERWEAR','DRESS','BAG','SHOES','OTHER ACC'];
 const TREND_KINDS = ['STYLE TREND','LIFESTYLE','HOT BRAND'];
 const SEASON_OPTS = ['27SS','27/28FW','28SS','28/29FW'];
+/* 아이템군별 세부 — 제안일 뿐, 직접 타이핑도 됩니다 */
+const SUBCATS = {
+  'TOP':       ['TSHIRTS','SWEATSHIRTS','HOODIE','KNIT','SHIRTS','BLOUSE','SLEEVELESS','POLO'],
+  'BOTTOM':    ['DENIM','SLACKS','TRAINING PANTS','SHORTS','SKIRT','CARGO','LEGGINGS'],
+  'OUTERWEAR': ['BLOUSON','COACH JACKET','DOWN','PADDING','COAT','TRUCKER','TRACK TOP','VEST'],
+  'DRESS':     ['MINI','MIDI','MAXI','SHIRT DRESS','KNIT DRESS','SLIP'],
+  'BAG':       ['TOTE','CROSSBODY','SHOULDER','BACKPACK','MINI BAG','HOBO','DUFFLE'],
+  'SHOES':     ['LINER','SNEAKERS','SANDALS','BOOTS','LOAFERS','MULE','JELLY'],
+  'OTHER ACC': ['CAP','BEANIE','BELT','SOCKS','MUFFLER','GLOVES','CHARM','JEWELRY','EYEWEAR']
+};
 
 /* ── AI 자동 채우기 (Gemini · 설정 탭에서 키를 넣으면 켜집니다) ── */
 const blobB64 = blob => new Promise((res, rej) => {
@@ -1269,7 +1295,8 @@ function renderImgCards(){
       </div>
       <div class="row catRow">
         <div style="max-width:150px"><label class="f">서브 — 직접 입력</label>
-          <input data-k="category_sub" list="subCatList" placeholder="TSHIRTS, SWEATSHIRTS…"></div>
+          <input data-k="category_sub" list="sub_${i}" placeholder="TSHIRTS, SWEATSHIRTS…">
+          <datalist id="sub_${i}"></datalist></div>
         <div><label class="f">트렌드 구분 — 중복</label>
           <div class="tkRow">${TREND_KINDS.map(v=>`<label class="tk"><input type="checkbox" data-tk="${v}">${v}</label>`).join('')}</div></div>
       </div>
@@ -1714,6 +1741,57 @@ $('#gemTest').onclick = async () => {
       m.includes('403') ? '이 키에 Generative Language API 권한이 없습니다 — aistudio.google.com 에서 발급한 키인지 확인' :
       m.includes('429') ? '무료 한도 초과 — 잠시 후 다시' : m.slice(0,120));
   }
+};
+
+/* ═══ 브랜드 DNA ═══ */
+let DNA = {};   // brand → { style_guide, lifestyles:[{name,desc}] }
+
+async function loadDna(){
+  const { data, error } = await sb.from('brand_dna').select('*');
+  if(error){ $('#dnaStat').textContent = 'brand_dna 테이블이 없습니다 — schema.sql 을 Run 해주세요'; return; }
+  DNA = Object.fromEntries((data||[]).map(r => [r.brand, r]));
+  drawDna();
+}
+function drawDna(){
+  const b = $('#dnaBrand').value, d = DNA[b] || {};
+  $('#dnaGuide').value = d.style_guide || '';
+  const ls = Array.isArray(d.lifestyles) ? d.lifestyles : [];
+  $('#dnaLs').innerHTML = (ls.length ? ls : [{name:'',desc:''}]).map((x,i) => `
+    <div class="row" style="margin-bottom:6px" data-ls="${i}">
+      <div style="max-width:190px"><input class="lsN" value="${esc(x.name||'')}" placeholder="WELLNESS LIFESTYLE"></div>
+      <div><input class="lsD" value="${esc(x.desc||'')}" placeholder="이 라이프스타일의 특징 — 누가, 언제, 어떤 태도로 입는지"></div>
+      <div style="max-width:36px"><button class="btn ghost sm" data-lsx="${i}">×</button></div>
+    </div>`).join('');
+}
+function readDnaForm(){
+  const ls = [...document.querySelectorAll('#dnaLs [data-ls]')].map(r => ({
+    name: r.querySelector('.lsN').value.trim(), desc: r.querySelector('.lsD').value.trim()
+  })).filter(x => x.name);
+  return { style_guide: $('#dnaGuide').value.trim(), lifestyles: ls };
+}
+$('#dnaBrand').onchange = drawDna;
+$('#dnaAdd').onclick = () => {
+  const b = $('#dnaBrand').value;
+  DNA[b] = { ...(DNA[b]||{}), ...readDnaForm() };
+  DNA[b].lifestyles = [...(DNA[b].lifestyles||[]), { name:'', desc:'' }];
+  drawDna();
+};
+$('#dnaLs').onclick = e => {
+  const x = e.target.closest('[data-lsx]'); if(!x) return;
+  const b = $('#dnaBrand').value;
+  DNA[b] = { ...(DNA[b]||{}), ...readDnaForm() };
+  DNA[b].lifestyles.splice(+x.dataset.lsx, 1);
+  drawDna();
+};
+$('#dnaSave').onclick = async () => {
+  const b = $('#dnaBrand').value, f = readDnaForm();
+  const { error } = await sb.from('brand_dna').upsert({
+    brand: b, style_guide: f.style_guide, lifestyles: f.lifestyles,
+    updated_at: new Date().toISOString(), updated_by: ME });
+  if(error) return die(error, 'DNA 저장');
+  DNA[b] = { brand:b, ...f };
+  $('#dnaStat').textContent = `${b} 저장됨 · 라이프스타일 ${f.lifestyles.length}개`;
+  toast(`${b} DNA 저장 — AI 적용 제안이 이 내용으로 씁니다`);
 };
 
 $('#sigRun').onclick = async () => {
@@ -3614,6 +3692,90 @@ $('#clSync').onclick = async () => {
   busy(false);
 };
 
+/* ═══ AI 적용 제안 — 브랜드 DNA × 키워드 ═══ */
+document.addEventListener('click', async e => {
+  const pb = e.target.closest('[data-prop]'); if(!pb) return;
+  const eid = pb.dataset.prop;
+  const ent = ENTITIES.find(x => x.entity_id === eid); if(!ent) return;
+  if(!Object.keys(DNA).length) await loadDna();
+
+  const brands = (ent.brand_fit||[]).includes('ALL') || !(ent.brand_fit||[]).length
+    ? ['MLB','DISCOVERY','SERGIO TACCHINI','DUVETICA'] : ent.brand_fit;
+  const withDna = brands.filter(b => DNA[b]?.style_guide || (DNA[b]?.lifestyles||[]).length);
+  if(!withDna.length) return toast('설정 탭에서 브랜드 DNA 를 먼저 채워주세요 — 그 내용을 근거로 씁니다');
+
+  busy(true, '적용 제안 만드는 중…');
+  try{
+    /* 이 키워드의 근거 — 붙은 피드 · 정량 신호 · 최근 수치 */
+    const links = (CL_LINKS[eid]||[]).slice(0, 12);
+    const { data:imgs } = await sb.from('asset_entities')
+      .select('images(note, quant_signal, category, category_sub, brand, seasons)').eq('entity_id', eid).limit(20);
+    const notes = (imgs||[]).map(x=>x.images).filter(Boolean);
+    const quant = notes.map(n => n.quant_signal).filter(Boolean).slice(0,5);
+    const cats  = [...new Set(notes.map(n => n.category).filter(Boolean))];
+    const subs  = [...new Set(notes.map(n => n.category_sub).filter(Boolean))];
+    const { data:sig } = await sb.from('search_signals').select('week,volume,source')
+      .eq('entity_id', eid).order('week', { ascending:false }).limit(24);
+    const sigTxt = (sig||[]).length
+      ? `최근 주간 수치: ${(sig||[]).slice(0,8).map(r=>`${r.week} ${r.source} ${r.volume}`).join(' / ')}` : '수치 없음';
+
+    const results = [];
+    for(const b of withDna){
+      const d = DNA[b] || {};
+      const lsTxt = (d.lifestyles||[]).map(x => `- ${x.name}: ${x.desc}`).join('\n') || '(라이프스타일 미입력)';
+      const out = await gemini([{ text:
+`너는 패션 브랜드 상품기획 담당자다. 아래 트렌드를 이 브랜드에 어떻게 적용할지 제안하라.
+
+[브랜드] ${b}
+[전반적인 스타일 가이드]
+${d.style_guide || '(미입력)'}
+
+[라이프스타일]
+${lsTxt}
+
+[트렌드 키워드] ${ent.name_kr || ent.name_en}
+[아이템군] ${cats.join(', ') || '미정'} ${subs.length ? `(세부: ${subs.join(', ')})` : ''}
+[포착된 자료] ${links.map(l=>`${l.date} ${l.src} ${String(l.txt).slice(0,40)}`).join(' / ') || '없음'}
+[정량 신호] ${quant.join(' / ') || '없음'}
+[${sigTxt}]
+
+규칙:
+- lifestyle: 위 라이프스타일 중 이 트렌드를 푸는 데 가장 맞는 것 하나의 이름. 정확히 그 표기로.
+- body: 3~4문장. "${b} 는 ~한 브랜드이니, <라이프스타일>에서 ~하게 푸는 게 좋겠다" 흐름으로,
+  실루엣·핏·소재·디테일 중 최소 두 가지를 구체적으로 지목할 것. 추상적인 말 금지.
+- 한국어. 패션 용어는 영문 그대로.` }],
+        { type:'OBJECT', properties:{ lifestyle:{type:'STRING'}, body:{type:'STRING'} }, required:['lifestyle','body'] },
+        `적용 제안 ${b}`);
+      results.push({ entity_id: eid, brand: b, lifestyle: out.lifestyle, body: out.body, created_by: ME });
+    }
+    const { error } = await sb.from('entity_proposals').upsert(results, { onConflict:'entity_id,brand' });
+    if(error) throw error;
+    busy(false);
+    showProposals(ent, results);
+  }catch(err){ busy(false); die(err, '적용 제안'); }
+});
+
+function showProposals(ent, rows){
+  const box = $('#ktSugBox'); box.hidden = false;
+  box.innerHTML = `<div style="font-weight:800;margin-bottom:8px">💡 ${esc(ent.name_kr||ent.name_en)} — 브랜드별 적용 제안</div>` +
+    rows.map(r => `<div style="border-top:1px solid var(--hair);padding:10px 0">
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:4px">
+        <b>${esc(r.brand)}</b><span class="s">${esc(r.lifestyle||'')}</span></div>
+      <textarea rows="3" data-pb="${esc(r.entity_id)}|${esc(r.brand)}">${esc(r.body)}</textarea>
+    </div>`).join('') +
+    `<div class="bar" style="margin-top:8px"><button class="btn sm" id="propSave">고친 내용 저장</button>
+      <span class="mini">TREND SIGNAL 키워드 상세에 그대로 나옵니다</span></div>`;
+  $('#propSave').onclick = async () => {
+    const ups = [...box.querySelectorAll('[data-pb]')].map(t => {
+      const [eid, brand] = t.dataset.pb.split('|');
+      return { entity_id: eid, brand, body: t.value.trim(), created_by: ME };
+    });
+    const { error } = await sb.from('entity_proposals').upsert(ups, { onConflict:'entity_id,brand' });
+    if(error) return die(error, '제안 저장');
+    toast('저장했습니다');
+  };
+}
+
 /* 이름으로 사전 항목을 찾고, 없으면 만들어 줍니다 (피드 키워드가 시그널에 잡히도록) */
 async function ensureEntity(name, axis){
   const hit = matchEntity(name);
@@ -3778,6 +3940,7 @@ function drawCluster(){
     return `<div class="clb" data-ent="${esc(e.entity_id)}">
       <div class="tt">
         <b>#</b><input class="ktTitle" data-e="${esc(e.entity_id)}" value="${esc(e.name_kr||e.name_en)}" title="제목 수정 후 Enter">
+        <button class="btn ghost sm" data-prop="${esc(e.entity_id)}" title="브랜드 DNA 기반 적용 제안 생성">💡 적용 제안</button>
         <button class="btn ghost sm" data-board="${esc(e.entity_id)}">메인보드 업로드</button>
       </div>
       ${ls.map(l => `<div class="clline" draggable="true" data-lk="${l.kind}:${esc(l.id)}" data-from="${esc(e.entity_id)}">
@@ -3931,7 +4094,8 @@ async function nextSlot(viewId, t){
   return { x: 60 + (n % 4) * 240, y: 60 + Math.floor(n / 4) * 200 };
 }
 
-const LOADERS = { feed:renderFeed, queue:renderQueue, conf:renderAdmins, map:loadMap, cluster:loadClusterTab };
+const LOADERS = { feed:renderFeed, queue:renderQueue, map:loadMap, cluster:loadClusterTab,
+  conf: async () => { await renderAdmins(); await loadDna(); } };
 $('#tabs').onclick = e => {
   const b = e.target.closest('button'); if(!b) return;
   $$('#tabs button').forEach(x=>x.classList.toggle('on', x===b));

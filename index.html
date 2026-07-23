@@ -8,7 +8,7 @@
 <style>
 :root{--paper:#faf7f2; --ink:#1d1d1b; --sub:#8a8578; --hair:#e4ded2; --rising:#c8451f; --new:#1a7a4a; --sticky:#ffe98a}
 *{margin:0;padding:0;box-sizing:border-box}
-body{background:var(--paper); color:var(--ink); font-family:'Noto Sans KR',sans-serif}
+body{background:#faf7f2; color:var(--ink); font-family:'Noto Sans KR',sans-serif}
 header{display:flex; align-items:center; gap:22px; padding:14px 26px; border-bottom:1px solid var(--ink); position:sticky; top:0; background:var(--paper); z-index:10; flex-wrap:wrap}
 header h1{font-family:'Playfair Display',serif; font-size:22px}
 .tabs button{border:1px solid var(--ink); background:transparent; padding:7px 16px; font-size:11px; letter-spacing:.15em; cursor:pointer; font-weight:700; font-family:inherit}
@@ -29,12 +29,25 @@ header h1{font-family:'Playfair Display',serif; font-size:22px}
 .dgroup{margin-bottom:36px}
 .dgroup h2{font-family:'Playfair Display',serif; font-size:26px; border-bottom:1px solid var(--ink); padding-bottom:8px; margin-bottom:16px}
 .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:20px}
-.feedgrid{columns:7 150px; column-gap:9px}
-.fcard{break-inside:avoid; margin-bottom:9px; background:#fff; border:1px solid var(--hair); cursor:pointer;
-  text-decoration:none; color:var(--ink); display:block; position:relative; transition:transform .15s}
-.fcard img.ph{width:100%; display:block; background:#efeae1}
-.fcard .tags{padding:5px 8px 0; display:flex; flex-wrap:wrap; gap:3px}
-.fcard .tags span{font-size:7.5px; background:#f4efe6; color:#6b675e; padding:1px 5px; border-radius:2px}
+.feedgrid{display:grid; grid-template-columns:repeat(auto-fill, minmax(330px, 1fr)); gap:14px}
+.fcard{position:relative; display:flex; gap:0; background:#fff; border:1px solid #efe8dd; border-radius:14px;
+  overflow:hidden; text-decoration:none; color:var(--ink); box-shadow:0 1px 3px #0000000a; transition:.18s}
+.fcard:hover{box-shadow:0 6px 18px #00000012; transform:translateY(-2px); border-color:#e2d8c8}
+.fcard .fl{flex:1; padding:15px 14px 13px; min-width:0}
+.fcard .hd{display:flex; align-items:baseline; gap:8px; margin-bottom:3px}
+.fcard .rk{font-family:'Playfair Display',serif; font-size:19px; font-weight:700; color:#dcd2c2; line-height:1}
+.fcard h3{font-size:14.5px; font-weight:700; line-height:1.3; word-break:keep-all; display:flex; align-items:center; gap:6px}
+.fcard .sub{font-size:10.5px; color:var(--sub); margin-bottom:9px; line-height:1.45;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden}
+.fcard .bar{height:5px; border-radius:3px; background:#f3ede3; overflow:hidden; margin-bottom:7px}
+.fcard .bar i{display:block; height:100%; border-radius:3px}
+.fcard .stat{font-size:10.5px; color:#6b675e; line-height:1.5; margin-bottom:8px}
+.fcard .stat b{font-weight:700; color:var(--ink)}
+.fcard .tags{display:flex; flex-wrap:wrap; gap:4px}
+.fcard .tags span{font-size:9px; background:#f7f2e9; color:#8a8172; padding:2.5px 8px; border-radius:9px}
+.fcard .ph{width:104px; flex:0 0 104px; object-fit:cover; align-self:stretch; background:#f0ebe2}
+.fcard .ph.noimg{background:repeating-linear-gradient(45deg,#f5f0e7,#f5f0e7 6px,#efe8dd 6px,#efe8dd 12px)}
+
 .fcard:hover{transform:translateY(-3px)}
 .fcard:focus-visible{outline:2px solid var(--rising); outline-offset:2px}
 .fcard .th{height:210px; background-size:cover; background-position:top center; background-color:#efeae1}
@@ -42,7 +55,7 @@ header h1{font-family:'Playfair Display',serif; font-size:22px}
 .fcard .bd{padding:7px 9px}
 .fcard h3{font-family:'Playfair Display',serif; font-size:12.5px; margin-bottom:2px; word-break:keep-all}
 .fcard .meta{font-size:9px; color:var(--sub); line-height:1.45}
-.badge{position:absolute; top:6px; left:6px; font-size:9px; font-weight:800; letter-spacing:.12em; padding:4px 9px; color:#fff; z-index:1}
+.badge{position:absolute; top:8px; right:8px; font-size:9px; font-weight:800; letter-spacing:.12em; padding:4px 9px; color:#fff; z-index:1}
 .badge.MAIN{background:var(--rising)} .badge.FEED{background:#9a938a} .badge.NEW{background:var(--new)}
 #dpanel{position:fixed; right:-420px; top:0; bottom:0; width:400px; max-width:92vw; background:var(--paper);
   border-left:1px solid var(--ink); z-index:60; overflow-y:auto; transition:right .28s; padding:20px 22px 30px}
@@ -118,7 +131,9 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
   </div>
 </div>
 
-<div id="feedView" class="view"><div id="feedWrap">
+<div id="feedView" class="view">
+  <div id="ffBar" style="padding:12px 22px 0;display:flex;flex-wrap:wrap;gap:6px;align-items:center"></div>
+  <div id="feedWrap">
   <nav id="dateRail"></nav>
   <div id="feedMain"></div>
 </div></div>
@@ -142,6 +157,7 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
 
 <script src="config.js"></script>
 <script type="module">
+console.log("TREND AGENT index.html v260723-11");
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ═══════════ 설정 — admin.html 과 같은 값 ═══════════ */
@@ -158,22 +174,48 @@ const thumbCss = url => url
   : 'background:linear-gradient(160deg,#d8cfc0,#a99a82)';
 
 /* ═══ 데이터 ═══ */
-let FEED = [], BRANDS = [], RISING = [], ENTS = [];
+let FEED = [], BRANDS = [], RISING = [], ENTS = [], EOF_ = {}, MSTAT = {}, SRCCNT = {};
 
 async function load(){
   try{
-    const [f, b, ents, cnts, ae] = await Promise.all([
+    const [f, b, ents, cnts, ae, de, sg] = await Promise.all([
       sb.from('v_feed').select('*').order('content_date',{ascending:false}).order('posted_at',{ascending:false}).limit(300),
       sb.from('v_key_brands').select('*').neq('status','Archived')
         .order('pinned',{ascending:false}).order('brand_name'),
       sb.from('entities').select('*').eq('status','Active'),
       sb.from('v_entity_source_count').select('*'),
-      sb.from('asset_entities').select('entity_id,role,sort_order,images(image_id,thumb_url,is_main,created_at)')
+      sb.from('asset_entities').select('entity_id,role,sort_order,images(image_id,thumb_url,is_main,created_at)'),
+      sb.from('document_entities').select('doc_id,entity_id').limit(2000),
+      sb.from('search_signals').select('entity_id,week,volume,source').limit(8000)
     ]);
     for(const r of [f,b,ents,cnts,ae]) if(r.error) throw r.error;
     FEED = f.data; BRANDS = b.data; ENTS = ents.data;
 
-    const cnt = Object.fromEntries(cnts.data.map(r => [r.entity_id, r.source_count]));
+    SRCCNT = Object.fromEntries(cnts.data.map(r => [r.entity_id, r.source_count]));
+    const cnt = SRCCNT;
+
+    /* 자료 → 키워드 */
+    EOF_ = {};
+    for(const r of ae.data) if(r.images?.image_id) (EOF_['image:'+r.images.image_id] ||= []).push(r.entity_id);
+    for(const r of (de.data||[]))                  (EOF_['doc:'+r.doc_id] ||= []).push(r.entity_id);
+
+    /* 키워드 → 월별 언급량 (매체가 섞이지 않게 주된 소스 하나만) */
+    const bySrc = {};
+    for(const r of (sg.data||[])) ((bySrc[r.entity_id] ||= {})[r.source] ||= []).push(r);
+    MSTAT = {};
+    for(const [eid, srcs] of Object.entries(bySrc)){
+      const pick = ['instagram','naver','sometrend','naver_blog','community','google','manual']
+        .find(x => (srcs[x]||[]).length >= 2) || Object.keys(srcs)[0];
+      const months = {};
+      for(const r of (srcs[pick]||[])) months[r.week.slice(0,7)] = (months[r.week.slice(0,7)]||0) + (+r.volume);
+      const keys = Object.keys(months).sort();
+      if(!keys.length) continue;
+      let topM = keys[0];
+      for(const k of keys) if(months[k] > months[topM]) topM = k;
+      const cur = months[keys[keys.length-1]], prev = keys.length > 1 ? months[keys[keys.length-2]] : null;
+      MSTAT[eid] = { months, top:{ ym:topM, v:months[topM] }, curYm:keys[keys.length-1], cur,
+        chg: prev ? Math.round((cur-prev)/prev*100) : null, src:pick };
+    }
     const cover = {};
     for(const r of ae.data){
       if(!r.images?.thumb_url) continue;
@@ -226,13 +268,11 @@ function renderBoard(){
     </div>`).join('') : '<div class="empty" style="grid-column:1/-1">떠오르는 브랜드가 아직 없습니다.</div>';
 
   $('#boardMain').innerHTML = `
-    <div style="padding:20px 30px 10px; display:flex; align-items:baseline; gap:12px; border-bottom:1px solid var(--ink)">
-      <h2 style="font-family:'Playfair Display',serif;font-size:28px">Trend Map</h2>
-      <span style="font-size:12px;color:var(--sub);flex:1">— 선 연결 구조 · 노드 클릭 = 우측 상세</span>
+    <div style="position:relative">
       <a href="map.html" target="_blank" rel="noopener"
-         style="font-size:11px;letter-spacing:.1em;color:var(--rising);text-decoration:none;border-bottom:1px solid var(--rising);font-weight:700">새 창으로 크게 ↗</a>
-    </div>
-    <div id="mapWrap"><iframe id="mapFrame" src="map.html" title="Trend Map"></iframe></div>`;
+         style="position:absolute;top:10px;right:22px;z-index:5;font-size:11px;letter-spacing:.1em;color:var(--rising);text-decoration:none;border-bottom:1px solid var(--rising);font-weight:700;background:var(--paper);padding:2px 6px">새 창으로 크게 ↗</a>
+      <div id="mapWrap"><iframe id="mapFrame" src="map.html" title="Trend Map"></iframe></div>
+    </div>`;
 }
 
 /* ═══ 우측 슬라이드 패널 — 피드·브랜드 카드 클릭 상세 ═══ */
@@ -317,28 +357,84 @@ function openBrandPanel(b){
     ${links ? `<div style="margin-top:6px">${links}</div>` : ''}`);
 }
 
-function fcardHtml(it){
-  const tag = ['KR','GL','CN'].includes(it.region) ? it.region : 'KR';
+let FF = { brand:'ALL', region:'ALL', cat:'ALL' };
+const FF_BRANDS = ['ALL','MLB','DISCOVERY','SERGIO TACCHINI','DUVETICA'];
+const FF_CATS   = ['ALL','OUTERWEAR','TOP','BOTTOM','DRESS','BAG','SHOES','OTHER ACC'];
+
+function drawFfBar(){
+  const b = (arr, key) => arr.map(v =>
+    `<button class="${FF[key]===v?'on':''}" data-ff="${key}:${v}">${v==='SERGIO TACCHINI'?'ST':(v==='ALL'?(key==='brand'?'전체 브랜드':key==='region'?'전체 지역':'전체 아이템'):v)}</button>`).join('');
+  $('#ffBar').innerHTML = b(FF_BRANDS,'brand') + '<span class="sep"></span>' +
+    b(['ALL','KR','GL','CN'],'region') + '<span class="sep"></span>' + b(FF_CATS,'cat');
+}
+$('#ffBar').onclick = e => {
+  const t = e.target.closest('[data-ff]'); if(!t) return;
+  const [k, v] = t.dataset.ff.split(':');
+  FF[k] = v; drawFfBar(); renderFeed();
+};
+const ffPass = it => {
+  if(FF.region !== 'ALL' && (it.region || 'KR') !== FF.region) return false;
+  if(FF.cat !== 'ALL' && (it.category || '') !== FF.cat) return false;
+  if(FF.brand !== 'ALL'){
+    const hay = `${it.brand || ''} ${it.meta || ''}`.toUpperCase();
+    if(!hay.includes(FF.brand.toUpperCase())) return false;
+  }
+  return true;
+};
+
+const BARC = ['#e8657f','#f0a94e','#48b39a'];        // 코랄 · 앰버 · 틸
+const nf = n => Math.round(n).toLocaleString();
+
+function fcardHtml(it, i){
+  const rgn  = ['KR','GL','CN'].includes(it.region) ? it.region : 'KR';
   const words = String(it.meta || '').split(/\s+/);
-  const tags = words.filter(w => w.startsWith('#')).slice(0, 4);
+  const tags = words.filter(w => w.startsWith('#')).slice(0, 5);
   const rest = words.filter(w => w && !w.startsWith('#')).join(' ');
+
+  /* 이 자료에 붙은 키워드 중 수치가 있는 것 */
+  const eids = EOF_[`${it.kind}:${it.id}`] || [];
+  const eid  = eids.find(x => MSTAT[x]) || eids[0];
+  const st   = eid ? MSTAT[eid] : null;
+  const col  = BARC[i % BARC.length];
+
+  let barPct, statLine;
+  if(st){
+    barPct = Math.max(12, Math.round(st.cur / (st.top.v || 1) * 100));
+    const up = st.chg;
+    statLine = `월 최고 <b>${nf(st.top.v)}건</b> (${esc(st.top.ym.replace('-','.'))})` +
+      (up == null ? '' : ` · 전월 대비 <b style="color:${up>=0?'#c8451f':'#1a7a4a'}">${up>=0?'+':''}${up}%</b>`);
+  }else{
+    const c = eid ? (SRCCNT[eid] || 0) : 0;
+    barPct = Math.max(10, Math.min(100, c * 14));
+    statLine = c ? `서로 다른 출처 <b>${c}곳</b>에서 포착` : `<span style="color:var(--sub)">수치 미연결 — 키워드를 붙이면 추이가 나옵니다</span>`;
+  }
+
+  const sub = [it.source_id, it.category, it.brand].filter(Boolean).join(' · ');
+
   return `<a class="fcard" href="#" data-fk="${esc(it.kind)}:${esc(it.id)}">
-    <span class="badge ${it.badge}">${it.badge === 'MAIN' ? 'MAIN BOARD' : it.badge}</span>
-    ${it.thumb_url ? `<img class="ph" src="${esc(it.thumb_url)}" loading="lazy" alt="">` : ''}
-    ${tags.length ? `<div class="tags">${tags.map(t=>`<span>${esc(t)}</span>`).join('')}</div>` : ''}
-    <div class="bd"><h3>${esc(it.title)}<span class="ntag ${tag}">${tag}</span></h3>
-      <div class="meta">${esc(rest.slice(0, 60))}</div></div>
+    <div class="fl">
+      <div class="hd"><span class="rk">${String(i+1).padStart(2,'0')}</span>
+        <h3>${esc(String(it.title).slice(0,40))}<span class="ntag ${rgn}">${rgn}</span></h3></div>
+      <div class="sub">${esc(sub || rest.slice(0,42))}</div>
+      <div class="bar"><i style="width:${barPct}%;background:${col}"></i></div>
+      <div class="stat">${statLine}</div>
+      ${tags.length ? `<div class="tags">${tags.map(t=>`<span>${esc(t)}</span>`).join('')}</div>` : ''}
+    </div>
+    ${it.thumb_url ? `<img class="ph" src="${esc(it.thumb_url)}" loading="lazy" alt="">`
+                   : '<div class="ph noimg"></div>'}
+    ${it.badge === 'MAIN' ? '<span class="badge MAIN">MAIN</span>' : ''}
   </a>`;
 }
 
 /* ═══ LIVE FEED ═══ */
 function renderFeed(){
+  if(!$('#ffBar').innerHTML) drawFfBar();
   const rail = $('#dateRail'), main = $('#feedMain');
   rail.innerHTML = ''; main.innerHTML = '';
   if(!FEED.length){ main.innerHTML = '<div class="empty">아직 수집된 자료가 없습니다.</div>'; return; }
 
   const groups = new Map();
-  for(const it of FEED){
+  for(const it of FEED.filter(ffPass)){
     const d = it.year_month || String(it.content_date || it.posted_at).slice(0,7);   // 월 단위
     if(!groups.has(d)) groups.set(d, []);
     groups.get(d).push(it);

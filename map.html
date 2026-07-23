@@ -25,6 +25,7 @@ header h1 small{font-family:'Inter'; font-weight:600; font-size:10px; letter-spa
   background-image:radial-gradient(#d8d5cd 1px, transparent 1px); background-size:22px 22px}
 #stage{position:relative; width:2100px; height:1150px}
 svg#edges{position:absolute; inset:0; width:100%; height:100%; pointer-events:none}
+.edge.tree{stroke:#c9c2b4; stroke-width:1.4; fill:none; opacity:.9}
 .edge{fill:none; stroke:#9a968c; stroke-width:2}
 .edge.key{stroke:var(--rising); stroke-width:2.5}
 .edgelabel{font-size:10px; fill:var(--sub); font-family:'Inter'}
@@ -42,6 +43,7 @@ svg#edges{position:absolute; inset:0; width:100%; height:100%; pointer-events:no
 .bgrid{display:grid; grid-template-columns:1fr 1fr; gap:3px; margin-bottom:6px}
 .bgrid img{width:100%; height:64px; object-fit:cover; display:block; border:1px solid var(--hair)}
 .ntags{position:absolute; top:-11px; right:-8px; display:flex; gap:3px; z-index:2}
+.ntags.rg{top:auto; bottom:6px; right:6px}
 .ntag{cursor:pointer; font-size:8px; font-weight:800; letter-spacing:.08em; padding:2px 6px; color:#fff;
   box-shadow:1px 1px 0 #00000025; transform:rotate(2deg)}
 .ntag.KR{background:#1a7a4a} .ntag.GL{background:#2b5db8} .ntag.CN{background:#c8451f}
@@ -163,11 +165,12 @@ footer b{color:var(--sticky)}
 
 <script src="config.js"></script>
 <script type="module">
+console.log("TREND AGENT map.html v260723-10");
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ══ 설정 — admin.html · index.html 과 같은 값이어야 합니다 ══ */
-const SUPABASE_URL  = (window.TA_CONFIG && TA_CONFIG.url)  || 'https://piifytwflubdtkzaiisi.supabase.co';
-const SUPABASE_ANON = (window.TA_CONFIG && TA_CONFIG.anon) || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBpaWZ5dHdmbHViZHRremFpaXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQwODI5NDcsImV4cCI6MjA5OTY1ODk0N30.cVrgt7YQ99R-slePt8U2r_GmtDxetejZdqHcnqJmwhc';
+const SUPABASE_URL  = 'https://piifytwflubdtkzaiisi.supabase.co';
+const SUPABASE_ANON  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBpaWZ5dHdmbHViZHRremFpaXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQwODI5NDcsImV4cCI6MjA5OTY1ODk0N30.cVrgt7YQ99R-slePt8U2r_GmtDxetejZdqHcnqJmwhc';
 /* ═══════════════════════════════════════════════════ */
 
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
@@ -197,7 +200,7 @@ async function load(){
     sb.from('map_views').select('*').order('sort_order'),
     sb.from('v_map_nodes').select('*'),
     sb.from('map_edges').select('*'),
-    sb.from('entities').select('entity_id,name_kr,name_en,axis,notes,proposal,first_seen,status,brand_fit'),
+    sb.from('entities').select('entity_id,name_kr,name_en,axis,notes,proposal,first_seen,status,brand_fit,parent_movement,pinned'),
     sb.from('sources').select('source_id,stage')
   ]);
   for(const r of [vw, nd, eg, en, sr]) if(r.error){ fail(r.error.message); return; }
@@ -236,32 +239,102 @@ function fail(msg){
 }
 
 /* ── 노드 마크업 — mockup 과 동일 ── */
-/* ═══ 자동 레이아웃 — 저장된 좌표 대신 규칙으로 배치합니다 ═══
-   가로: 등장 월 (왼쪽=예전 → 오른쪽=최신)
-   세로: MOVEMENT 맨 위 → KEY TREND (피드 연결 많은 순) → 사진·기사·메모 */
-function autoLayout(list, allMonths){
-  const months = [...allMonths].sort();
-  const colX = Object.fromEntries(months.map((m,i) => [m, 50 + i * 330]));
-  const yCur = {};
-  const H = { mv:150, key:210, brand:130, bundle:260, photo:290, doc:230, sticky:150 };
-  const band = k => k === 'mv' ? 0 : (k === 'key' ? 1 : 2);
-  const sorted = [...list].sort((a,b) =>
-    band(a.kind) - band(b.kind) ||
-    (band(a.kind) === band(b.kind) && band(a.kind) === 1
-      ? (SRCCNT[b.entity_id]||0) - (SRCCNT[a.entity_id]||0) : 0));
-  for(const n of sorted){
-    const c = n.t;
-    if(band(n.kind) >= 1 && (yCur[c]||0) < 190) yCur[c] = 190;   // MOVEMENT 띠는 위 190px 전용
-    n.x = colX[c] ?? 50; n.y = 60 + (yCur[c] || 0);
-    yCur[c] = (yCur[c] || 0) + (H[n.kind] || 230);
+/* ═══ 마인드맵 트리 배치 ═══
+   MOVEMENT(뿌리) → 속한 KEY TREND(가지) → 그 아래 붙은 사진·기사·메모(잎)
+   같은 줄기는 세로로 묶여 있고, 줄기끼리는 넉넉히 띄웁니다.
+   부모가 없는 노드는 맨 아래 '미분류' 줄기에 모입니다. */
+const NW = { mv:230, key:220, brand:190, bundle:250, photo:230, doc:230, sticky:210 };
+const NH = { mv:120, key:150, brand:130, bundle:430, photo:390, doc:290, sticky:170 };
+const COL = [40, 330, 620];          // 깊이 0·1·2 의 x 위치
+const GAPY = 26, TRUNKGAP = 60;
+
+function autoLayout(list){
+  const byEnt = {};
+  for(const n of list) if(n.entity_id) (byEnt[n.entity_id] ||= []).push(n);
+
+  const mvNodes  = list.filter(n => n.kind === 'mv');
+  const keyNodes = list.filter(n => n.kind === 'key');
+  const leafOf   = {};               // entity_id → 잎 노드들 (사진·기사·메모·묶음)
+  const orphans  = [];
+  for(const n of list){
+    if(n.kind === 'mv' || n.kind === 'key') continue;
+    const host = n.entity_id && (mvNodes.concat(keyNodes)).some(k => k.entity_id === n.entity_id)
+      ? n.entity_id : null;
+    host ? (leafOf[host] ||= []).push(n) : orphans.push(n);
   }
+
+  const kidsOf = mv => keyNodes
+    .filter(k => ENTS[k.entity_id]?.parent_movement === mv.entity_id)
+    .sort((a,b) => (SRCCNT[b.entity_id]||0) - (SRCCNT[a.entity_id]||0));
+  const used = new Set();
+  let y = 40;
+
+  const placeLeaves = (host, x, startY) => {
+    let ly = startY;
+    for(const lf of (leafOf[host] || []).sort((a,b) => String(a.t).localeCompare(String(b.t)))){
+      lf.x = x; lf.y = ly; used.add(lf.node_id);
+      ly += (NH[lf.kind] || 260) + GAPY;
+    }
+    return ly;
+  };
+
+  /* 1) MOVEMENT 줄기 */
+  for(const mv of mvNodes.sort((a,b) => String(a.t).localeCompare(String(b.t)))){
+    const trunkTop = y;
+    mv.x = COL[0]; mv.y = y; used.add(mv.node_id);
+    let branchY = y;
+    branchY = placeLeaves(mv.entity_id, COL[1], branchY);      // MOVEMENT 직속 자료
+    for(const k of kidsOf(mv)){
+      k.x = COL[1]; k.y = branchY; used.add(k.node_id);
+      const after = placeLeaves(k.entity_id, COL[2], branchY);
+      branchY = Math.max(branchY + NH.key + GAPY, after);
+    }
+    y = Math.max(branchY, trunkTop + NH.mv + GAPY) + TRUNKGAP;
+  }
+
+  /* 2) 상위 흐름이 없는 KEY TREND — 자기 줄기로 */
+  for(const k of keyNodes.filter(k => !used.has(k.node_id))
+        .sort((a,b) => (SRCCNT[b.entity_id]||0) - (SRCCNT[a.entity_id]||0))){
+    k.x = COL[1]; k.y = y; used.add(k.node_id);
+    const after = placeLeaves(k.entity_id, COL[2], y);
+    y = Math.max(y + NH.key + GAPY, after) + TRUNKGAP / 2;
+  }
+
+  /* 3) 어디에도 안 붙은 자료 — 맨 아래 격자로 */
+  if(orphans.length){
+    let ox = COL[2], oy = y + 20;
+    for(const n of orphans.sort((a,b) => String(a.t).localeCompare(String(b.t)))){
+      n.x = ox; n.y = oy; used.add(n.node_id);
+      ox += (NW[n.kind] || 230) + 24;
+      if(ox > COL[2] + 3 * 260){ ox = COL[2]; oy += (NH[n.kind] || 290) + GAPY; }
+    }
+  }
+}
+
+/* 부모 → 자식 선을 데이터에서 직접 그립니다 (map_edges 없이도) */
+function treeLinks(list){
+  const at = {}; for(const n of list) if(n.entity_id) at[n.entity_id] ||= n;
+  const out = [];
+  for(const n of list){
+    if(n.kind === 'key'){
+      const pm = ENTS[n.entity_id]?.parent_movement;
+      if(pm && at[pm]) out.push([at[pm], n]);
+    }else if(n.kind !== 'mv' && n.entity_id && at[n.entity_id] && at[n.entity_id] !== n){
+      out.push([at[n.entity_id], n]);
+    }
+  }
+  return out;
 }
 
 function nodeHtml(n){
   const xt = expandTags(n.r_tags);
-  const tagHtml = xt.length
-    ? `<div class="ntags">${xt.map(t => `<span class="ntag ${t==='SERGIO TACCHINI'?'ST':esc(t)}" data-t="${esc(t)}">${t==='SERGIO TACCHINI'?'ST':esc(t)}</span>`).join('')}</div>` : '';
-  const when = `<span class="when">${esc(n.t)}</span>${tagHtml}`;
+  const regions = xt.filter(t => ['KR','GL','CN'].includes(t));
+  const brands  = xt.filter(t => !['KR','GL','CN'].includes(t));
+  const tagHtml = brands.length
+    ? `<div class="ntags">${brands.map(t => `<span class="ntag ${t==='SERGIO TACCHINI'?'ST':esc(t)}" data-t="${esc(t)}">${t==='SERGIO TACCHINI'?'ST':esc(t)}</span>`).join('')}</div>` : '';
+  const rgHtml = regions.length
+    ? `<div class="ntags rg">${regions.map(t => `<span class="ntag ${esc(t)}" data-t="${esc(t)}">${esc(t)}</span>`).join('')}</div>` : '';
+  const when = `<span class="when">${esc(n.t)}</span>${tagHtml}${rgHtml}`;
   const id = `n-${esc(n.node_id)}`, pos = `left:${n.x}px;top:${n.y}px` + (n.w ? `;width:${n.w}px` : '');
   const img = n.r_img ? `<img src="${esc(n.r_img)}" loading="lazy" alt="">` : '';
 
@@ -312,7 +385,7 @@ function render(){
   $('#timeSel').querySelectorAll('button').forEach(b =>
     b.onclick = () => { curTimeIdx = +b.dataset.i; render(); });
 
-  autoLayout(mine, times);
+  autoLayout(mine);
   const nz = $('#nodes'); nz.innerHTML = '';
   mine.forEach(n => { const e = el(nodeHtml(n)); if(e) nz.appendChild(e); });
 
@@ -340,6 +413,13 @@ function render(){
       <marker id="arrk" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
         <path d="M0,0 L7,3 L0,6" fill="none" stroke="#c8451f" stroke-width="1.6"/></marker></defs>`;
     let paths = '';
+    /* 데이터에서 나오는 부모→자식 연결 (마인드맵 가지) */
+    treeLinks(mine).forEach(([P, C]) => {
+      if(!visible[P.node_id] || !visible[C.node_id]) return;
+      const A = center(P.node_id), B = center(C.node_id);
+      const mx = A.x + (B.x - A.x) * 0.55;
+      paths += `<path class="edge tree" d="M${A.x},${A.y} C${mx},${A.y} ${mx},${B.y} ${B.x},${B.y}"/>`;
+    });
     EDGES.filter(e => e.view_id === curView).forEach(e2 => {
       if(!visible[e2.a] || !visible[e2.b]) return;
       const A = center(e2.a), B = center(e2.b);
