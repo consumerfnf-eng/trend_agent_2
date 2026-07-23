@@ -165,7 +165,7 @@ footer b{color:var(--sticky)}
 
 <script src="config.js"></script>
 <script type="module">
-console.log("TREND AGENT map.html v260723-10");
+console.log("TREND AGENT map.html v260723-13");
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ══ 설정 — admin.html · index.html 과 같은 값이어야 합니다 ══ */
@@ -186,7 +186,7 @@ const expandTags = tags => {
   return out;
 };
 
-let VIEWS = [], NODES = [], EDGES = [], ENTS = {}, BUNDLE_IMGS = {}, SRCCNT = {}, curView = null, curTimeIdx = null, TAGFILTER = null;
+let VIEWS = [], NODES = [], EDGES = [], ENTS = {}, BUNDLE_IMGS = {}, SRCCNT = {}, LINKED = {}, AUTO = [], curView = null, curTimeIdx = null, TAGFILTER = null;
 
 /* ── 시간축: 뷰에 times 가 비어 있으면 노드의 t 에서 자동으로 만듭니다 ── */
 const timesOf = v => {
@@ -211,6 +211,15 @@ async function load(){
   const { data:sc } = await sb.from('v_entity_source_count').select('*');
   SRCCNT = Object.fromEntries((sc||[]).map(r => [r.entity_id, r.source_count]));
 
+  /* 사진·기사가 어느 키워드에 붙었는지 — 맵 노드에는 entity_id 가 없으므로 여기서 잇습니다 */
+  const [ael, del] = await Promise.all([
+    sb.from('asset_entities').select('image_id,entity_id').limit(4000),
+    sb.from('document_entities').select('doc_id,entity_id').limit(2000)
+  ]);
+  LINKED = {};
+  for(const r of (ael.data||[])) (LINKED['img:'+r.image_id] ||= []).push(r.entity_id);
+  for(const r of (del.data||[])) (LINKED['doc:'+r.doc_id]  ||= []).push(r.entity_id);
+
   /* 묶음 노드에 엔티티가 걸려 있으면 그 키워드의 사진들을 안에 채웁니다 */
   const bids = [...new Set(NODES.filter(n => n.kind === 'bundle' && n.entity_id).map(n => n.entity_id))];
   BUNDLE_IMGS = {};
@@ -222,6 +231,9 @@ async function load(){
       (BUNDLE_IMGS[r.entity_id] ||= []).push(r.images.thumb_url);
     }
   }
+
+  /* 맵에 올린 키워드에 연결된 피드를 자동으로 가지에 매답니다 (따로 노드를 안 올려도 됨) */
+  await buildAutoLeaves();
 
   if(!VIEWS.length){ fail('맵 뷰가 없습니다. schema.sql 을 실행하셨나요?'); return; }
   curView = curView || VIEWS[0].view_id;
@@ -243,6 +255,57 @@ function fail(msg){
    MOVEMENT(뿌리) → 속한 KEY TREND(가지) → 그 아래 붙은 사진·기사·메모(잎)
    같은 줄기는 세로로 묶여 있고, 줄기끼리는 넉넉히 띄웁니다.
    부모가 없는 노드는 맨 아래 '미분류' 줄기에 모입니다. */
+/* 맵에 올린 키워드 → 연결된 사진·기사를 가상 노드로 (키워드당 최대 6개, 최근순) */
+const AUTO_MAX = 6;
+async function buildAutoLeaves(){
+  AUTO = [];
+  const eids = [...new Set(NODES.filter(n => (n.kind==='key'||n.kind==='mv') && n.entity_id).map(n => n.entity_id))];
+  if(!eids.length) return;
+
+  const haveImg = new Set(NODES.map(n => n.image_id).filter(Boolean));
+  const haveDoc = new Set(NODES.map(n => n.doc_id).filter(Boolean));
+
+  const [im, dc] = await Promise.all([
+    sb.from('asset_entities')
+      .select('entity_id, images!inner(image_id,thumb_url,note,account,year_month,source_id,region,post_date)')
+      .in('entity_id', eids).limit(600),
+    sb.from('document_entities')
+      .select('entity_id, documents!inner(doc_id,title,summary,publisher,year_month,source_id,region,thumb_url)')
+      .in('entity_id', eids).limit(300)
+  ]);
+
+  const per = {};
+  for(const r of (im.data||[])){
+    const g = r.images; if(!g || haveImg.has(g.image_id)) continue;
+    if((per[r.entity_id] = (per[r.entity_id]||0) + 1) > AUTO_MAX) continue;
+    AUTO.push({ node_id:'auto-i-'+g.image_id, view_id:null, kind:'photo', t:g.year_month || '',
+      image_id:g.image_id, entity_id:r.entity_id, _auto:true,
+      r_thumb:g.thumb_url, r_headline:g.note || g.account || '', r_badge:(g.source_id||'').toUpperCase(),
+      r_tags:[g.region || 'KR'] });
+  }
+  const perD = {};
+  for(const r of (dc.data||[])){
+    const g = r.documents; if(!g || haveDoc.has(g.doc_id)) continue;
+    if((perD[r.entity_id] = (perD[r.entity_id]||0) + 1) > AUTO_MAX) continue;
+    AUTO.push({ node_id:'auto-d-'+g.doc_id, view_id:null, kind:'doc', t:g.year_month || '',
+      doc_id:g.doc_id, entity_id:r.entity_id, _auto:true,
+      r_thumb:g.thumb_url, r_headline:g.title || (g.summary||'').slice(0,50),
+      r_badge:(g.publisher || g.source_id || '').toUpperCase(), r_tags:[g.region || 'KR'] });
+  }
+}
+
+/* 이 노드가 어느 키워드(KEY TREND / MOVEMENT)에 속하는지 */
+function hostEnt(n, hosts){
+  if(n.entity_id && hosts.has(n.entity_id)) return n.entity_id;
+  const keys = [];
+  if(n.image_id) keys.push('img:' + n.image_id);
+  if(n.doc_id)   keys.push('doc:' + n.doc_id);
+  for(const k of keys)
+    for(const eid of (LINKED[k] || []))
+      if(hosts.has(eid)) return eid;
+  return null;
+}
+
 const NW = { mv:230, key:220, brand:190, bundle:250, photo:230, doc:230, sticky:210 };
 const NH = { mv:120, key:150, brand:130, bundle:430, photo:390, doc:290, sticky:170 };
 const COL = [40, 330, 620];          // 깊이 0·1·2 의 x 위치
@@ -254,12 +317,12 @@ function autoLayout(list){
 
   const mvNodes  = list.filter(n => n.kind === 'mv');
   const keyNodes = list.filter(n => n.kind === 'key');
+  const hosts = new Set([...mvNodes, ...keyNodes].map(n => n.entity_id).filter(Boolean));
   const leafOf   = {};               // entity_id → 잎 노드들 (사진·기사·메모·묶음)
   const orphans  = [];
   for(const n of list){
     if(n.kind === 'mv' || n.kind === 'key') continue;
-    const host = n.entity_id && (mvNodes.concat(keyNodes)).some(k => k.entity_id === n.entity_id)
-      ? n.entity_id : null;
+    const host = hostEnt(n, hosts);
     host ? (leafOf[host] ||= []).push(n) : orphans.push(n);
   }
 
@@ -313,20 +376,25 @@ function autoLayout(list){
 
 /* 부모 → 자식 선을 데이터에서 직접 그립니다 (map_edges 없이도) */
 function treeLinks(list){
-  const at = {}; for(const n of list) if(n.entity_id) at[n.entity_id] ||= n;
+  const at = {};                       // entity_id → 그 키워드의 카드 노드
+  for(const n of list) if((n.kind === 'key' || n.kind === 'mv') && n.entity_id) at[n.entity_id] ||= n;
+  const hosts = new Set(Object.keys(at));
   const out = [];
   for(const n of list){
+    if(n.kind === 'mv') continue;
     if(n.kind === 'key'){
       const pm = ENTS[n.entity_id]?.parent_movement;
       if(pm && at[pm]) out.push([at[pm], n]);
-    }else if(n.kind !== 'mv' && n.entity_id && at[n.entity_id] && at[n.entity_id] !== n){
-      out.push([at[n.entity_id], n]);
+      continue;
     }
+    const h = hostEnt(n, hosts);       // 사진·기사·메모 → 붙은 키워드
+    if(h && at[h] && at[h] !== n) out.push([at[h], n]);
   }
   return out;
 }
 
 function nodeHtml(n){
+  if(n._auto) n.locked = true;
   const xt = expandTags(n.r_tags);
   const regions = xt.filter(t => ['KR','GL','CN'].includes(t));
   const brands  = xt.filter(t => !['KR','GL','CN'].includes(t));
@@ -373,8 +441,12 @@ const ymNum = s => { const m = String(s).match(/^(\d{4})-(\d{2})$/); return m ? 
 
 function render(){
   const V = VIEWS.find(v => v.view_id === curView);
-  const times = timesOf(V);
-  const mine = NODES.filter(n => n.view_id === curView);
+  const real = NODES.filter(n => n.view_id === curView);
+  const onView = new Set(real.filter(n => n.kind==='key' || n.kind==='mv').map(n => n.entity_id).filter(Boolean));
+  const autoHere = AUTO.filter(a => onView.has(a.entity_id))
+    .map(a => ({ ...a, view_id: curView, t: a.t || real.find(r => r.entity_id === a.entity_id)?.t || '' }));
+  const mine = [...real, ...autoHere];
+  const times = [...new Set([...timesOf(V), ...mine.map(n => n.t).filter(Boolean)])].sort();
   $('#legend').textContent = V.legend || '';
 
   if(!mine.length){ fail('이 뷰에 놓인 노드가 없습니다.'); $('#timeSel').innerHTML=''; $('#sideList').innerHTML=''; return; }

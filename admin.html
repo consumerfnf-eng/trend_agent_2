@@ -40,6 +40,13 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent); outline
 textarea{resize:vertical; min-height:62px}
 .row{display:flex; gap:12px; flex-wrap:wrap; margin-bottom:12px}
 .row > div{flex:1; min-width:150px}
+/* 체크박스 줄 — 체크박스와 글자가 한 줄에 붙어 있게 */
+.tkRow{display:flex; flex-wrap:wrap; gap:6px 14px; padding:5px 0 2px; align-items:center}
+.tk{display:inline-flex; align-items:center; gap:5px; font-size:11px; line-height:1.2;
+  cursor:pointer; white-space:nowrap; user-select:none}
+.tk input[type="checkbox"]{margin:0; width:14px; height:14px; flex:0 0 14px; accent-color:#131313; cursor:pointer}
+.tk:hover{color:#c8451f}
+.kwChips,.tagChips,.ekwChips{display:flex; flex-wrap:wrap; gap:4px; align-items:center}
 .btn{border:1px solid var(--ink); background:var(--ink); color:#fff; padding:8px 16px; font-size:12px;
   font-weight:700; letter-spacing:.08em; cursor:pointer; font-family:inherit; border-radius:2px}
 .btn:hover{opacity:.85}
@@ -212,7 +219,7 @@ tbody tr:hover{background:#fdfcf9}
 <div id="app" hidden>
 <header>
   <h1>TREND <em>AGENT</em></h1>
-  <span class="mini" id="verStamp" style="margin-left:8px;opacity:.55">v260723-10</span>
+  <span class="mini" id="verStamp" style="margin-left:8px;opacity:.55">v260723-14</span>
   <div class="tabs" id="tabs">
     <button data-v="intake" class="on">업로드</button>
     <button data-v="cluster">클러스터</button>
@@ -776,7 +783,7 @@ tbody tr:hover{background:#fdfcf9}
 <div id="busy"><div class="spin"></div><span id="busyMsg">저장 중…</span></div>
 
 <script src="config.js"></script>
-<script>console.log("TREND AGENT admin v260723-10");</script>
+<script>console.log("TREND AGENT admin v260723-14");</script>
 <script type="module">
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
