@@ -104,11 +104,6 @@ a{color:var(--acc)}
 <main>
   <section id="catTrendView" class="view on">
     <h2 id="ovTitle"></h2>
-    <div class="sub">FEED 기준 상위 키워드 — KR: 네이버/썸트렌드 · GL/CN: 구글 (주간 · 자동 또는 관리자 붙여넣기)</div>
-    <div id="ovKR"></div>
-    <div id="ovGL"></div>
-
-    <h3 style="margin:28px 0 4px;font-size:13px">카테고리별 트렌드</h3>
     <div class="sub">카테고리를 고르면 SNS·뉴스레터·리테일 소스별 트렌드를 한 번에 볼 수 있어요</div>
     <div class="fbar" id="catBar"></div>
 
@@ -312,8 +307,6 @@ function ovBlock(title, region, note){
 
 function draw(){
   $('#ovTitle').textContent = `${month.replace('-', '년 ')}월 트렌드 시그널`;
-  $('#ovKR').innerHTML = ovBlock('KR TOP 5 — 인스타그램 언급량 기준', 'KR', 'FEED 포착 키워드 중 상위 5');
-  $('#ovGL').innerHTML = ovBlock('GL / CN TOP 5 — 구글', 'GL', '구글 트렌드 상대 지수');
   drawKeys();
 }
 
