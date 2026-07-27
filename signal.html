@@ -84,6 +84,20 @@ tr.krow{cursor:pointer} tr.krow:hover{background:#faf6ec}
 .srcBlock{margin-top:30px; padding-top:18px; border-top:1px solid var(--hair)}
 .srcTitle{font-size:13px; margin:0 0 2px; display:flex; align-items:center; gap:8px}
 .srcCnt{font-size:10px; font-weight:700; color:var(--acc); background:#fdf3ef; padding:2px 8px; border-radius:9px}
+.kwgrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:12px; margin-top:12px}
+.kwcard{background:var(--card); border:1px solid var(--hair); border-radius:10px; padding:14px; position:relative}
+.kwcard .kwrank{position:absolute; top:12px; right:14px; font-size:11px; font-weight:800; color:var(--sub)}
+.kwcard .kwname{font-size:15px; font-weight:800; margin-bottom:4px; padding-right:26px; line-height:1.3}
+.kwcard .kwmeta{font-size:10.5px; color:var(--acc); font-weight:700; margin-bottom:8px}
+.kwcard .kwex{font-size:11px; color:var(--sub); line-height:1.5}
+.kwcard a.kwlink{font-size:10.5px; font-weight:700; color:var(--acc); text-decoration:none; display:inline-block; margin-top:6px}
+.morebtn{margin-top:14px; background:none; border:1px solid var(--hair); border-radius:20px; padding:8px 18px; font-size:11px; font-weight:700; cursor:pointer; color:var(--tx)}
+.kwlist{margin-top:10px; display:flex; flex-direction:column; gap:6px}
+.kwrow{display:flex; justify-content:space-between; align-items:center; padding:8px 12px; border:1px solid var(--hair); border-radius:8px; font-size:11.5px}
+.kwrow .kwrank2{color:var(--sub); font-weight:700; width:28px; flex-shrink:0}
+.kwrow .kwname2{flex:1}
+.kwrow .kwcount2{color:var(--acc); font-weight:700; flex-shrink:0}
+.genericNote{font-size:10.5px; color:var(--sub); margin-top:10px}
 td.ctxt{max-width:340px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 td a.plink{color:var(--acc); font-weight:700; font-size:11px; text-decoration:none}
 .mini{color:var(--sub); font-size:11px}
@@ -109,17 +123,19 @@ a{color:var(--acc)}
 
     <div class="srcBlock">
       <h4 class="srcTitle">SNS <span id="snsCnt" class="srcCnt"></span></h4>
-      <div class="sub">인스타 릴스 등 바이럴 콘텐츠 — 스코어순</div>
-      <div class="card" style="padding:0; overflow-x:auto"><table>
-        <thead><tr><th>#</th><th>콘텐츠</th><th>브랜드</th><th>계정</th><th>스코어</th><th>조회수</th><th>좋아요</th><th>댓글</th><th>링크</th></tr></thead>
-        <tbody id="snsBody"></tbody>
-      </table></div>
+      <div class="sub">인스타 릴스 등 바이럴 콘텐츠에서 브랜드·키워드 언급 빈도순 — 이미지는 아직 수집되지 않아 텍스트로만 표시돼요</div>
+      <div class="kwgrid" id="snsKwGrid"></div>
+      <div class="genericNote" id="snsGenericNote"></div>
+      <button class="morebtn" id="snsMoreBtn" style="display:none"></button>
+      <div class="kwlist" id="snsKwMore" style="display:none"></div>
     </div>
 
     <div class="srcBlock">
       <h4 class="srcTitle">뉴스레터 <span id="newsCnt" class="srcCnt"></span></h4>
-      <div class="sub">기사·리포트 기반 트렌드 시그널</div>
-      <div class="rgrid" id="newsGrid"></div>
+      <div class="sub">기사·리포트에서 추출한 트렌드 키워드 — 이미지는 아직 수집되지 않아 텍스트로만 표시돼요</div>
+      <div class="kwgrid" id="newsKwGrid"></div>
+      <button class="morebtn" id="newsMoreBtn" style="display:none"></button>
+      <div class="kwlist" id="newsKwMore" style="display:none"></div>
     </div>
 
     <div class="srcBlock">
@@ -473,28 +489,99 @@ function drawCatBar(){
   };
 }
 
+function normKw(k){ return String(k||'').trim().toLowerCase(); }
+
+/* 뉴스레터: 기사에 태깅된 keywords를 병합·집계 (동일 키워드 기사 여러 건이면 합쳐서 카운트) */
+function aggregateNewsKw(items){
+  const map = new Map();
+  for(const s of items){
+    const kws = (s.keywords && s.keywords.length) ? s.keywords : [s.note.slice(0,24)];
+    for(const raw of kws){
+      const key = normKw(raw);
+      if(!map.has(key)) map.set(key, { label: raw, count: 0, items: [] });
+      const e = map.get(key); e.count++; e.items.push(s);
+    }
+  }
+  return [...map.values()].sort((a,b) => b.count - a.count);
+}
+
+/* SNS: 브랜드(없으면 제품명) 기준으로 언급 빈도·스코어 집계. 브랜드/제품 정보 없는 콘텐츠는 제외하고 별도 카운트 */
+function aggregateSnsBrand(items){
+  const map = new Map();
+  let genericCount = 0;
+  for(const s of items){
+    let raw = null;
+    if(s.brand && s.brand !== '-') raw = s.brand.split(',')[0].trim();
+    else if(s.product && s.product !== '-') raw = s.product.replace(/\s*\(\+\d+\)\s*$/,'').split(',')[0].trim();
+    if(!raw){ genericCount++; continue; }
+    const key = normKw(raw);
+    if(!map.has(key)) map.set(key, { label: raw, count: 0, score: 0, items: [] });
+    const e = map.get(key); e.count++; e.score += s.score; e.items.push(s);
+  }
+  const ranked = [...map.values()].sort((a,b) => b.score - a.score || b.count - a.count);
+  return { ranked, genericCount };
+}
+
+function newsExampleHTML(entry){
+  const first = entry.items[0];
+  const links = entry.items.map((s,i) =>
+    `<a class="kwlink" href="${esc(s.url)}" target="_blank" rel="noopener">${entry.items.length>1?`원문${i+1}`:'원문 보기'} →</a>`).join(' ');
+  return `<div class="kwex">${esc(first.summary || first.note)}</div>${links}`;
+}
+
+function snsExampleHTML(entry){
+  const top = [...entry.items].sort((a,b) => b.score - a.score)[0];
+  const snippet = top.content.length > 60 ? top.content.slice(0,60)+'…' : top.content;
+  return `<div class="kwex">${esc(snippet)}</div><a class="kwlink" href="${esc(top.post_url)}" target="_blank" rel="noopener">대표 게시물 보기 →</a>`;
+}
+
+function kwCardHTML(entry, i, exampleFn, showScore){
+  return `<div class="kwcard">
+    <div class="kwrank">#${i+1}</div>
+    <div class="kwname">${esc(entry.label)}</div>
+    <div class="kwmeta">${entry.count}건 언급${showScore ? ` · 스코어 ${entry.score.toLocaleString()}` : ''}</div>
+    ${exampleFn(entry)}
+  </div>`;
+}
+
+function renderKwBlock(gridSel, moreBtnSel, moreListSel, cntSel, ranked, exampleFn, showScore, emptyMsg, bigN=6){
+  const big = ranked.slice(0, bigN), rest = ranked.slice(bigN);
+  $(gridSel).innerHTML = big.length ? big.map((e,i)=>kwCardHTML(e,i,exampleFn,showScore)).join('') : `<div class="empty">${emptyMsg}</div>`;
+  $(cntSel).textContent = ranked.length ? `키워드 ${ranked.length}개` : '';
+  const moreBtn = $(moreBtnSel), moreList = $(moreListSel);
+  if(rest.length){
+    moreList.style.display = 'none';
+    moreBtn.style.display = 'inline-block';
+    moreBtn.textContent = `+ ${rest.length}개 더보기`;
+    moreBtn.onclick = () => {
+      const opened = moreList.style.display !== 'none';
+      moreList.style.display = opened ? 'none' : 'flex';
+      moreBtn.textContent = opened ? `+ ${rest.length}개 더보기` : '접기';
+    };
+    moreList.innerHTML = rest.map((e,i) =>
+      `<div class="kwrow"><span class="kwrank2">#${bigN+i+1}</span><span class="kwname2">${esc(e.label)}</span><span class="kwcount2">${e.count}건</span></div>`).join('');
+  } else {
+    moreBtn.style.display = 'none';
+    moreList.style.display = 'none';
+    moreList.innerHTML = '';
+  }
+}
+
 function drawNewsGrid(){
-  const list = NEWS_SIG.filter(s => s.category === scatF);
-  $('#newsGrid').innerHTML = list.map(rcard).join('') || '<div class="empty">해당 카테고리의 뉴스레터 시그널이 아직 없습니다</div>';
-  $('#newsCnt').textContent = list.length ? `${list.length}건` : '';
+  const catItems = NEWS_SIG.filter(s => s.category === scatF);
+  const ranked = aggregateNewsKw(catItems);
+  renderKwBlock('#newsKwGrid','#newsMoreBtn','#newsKwMore','#newsCnt', ranked, newsExampleHTML, false,
+    '해당 카테고리의 뉴스레터 시그널이 아직 없습니다');
 }
 
 function drawSnsForCat(){
-  const list = SNS_VIRAL.filter(s => snsCategoriesOf(s).includes(scatF))
-    .sort((a,b) => b.score - a.score);
-  $('#snsBody').innerHTML = list.length ? list.map(s => `<tr>
-      <td>${s.rank}</td>
-      <td class="ctxt" title="${esc(s.content)}">${esc(s.content)}</td>
-      <td>${esc(s.brand&&s.brand!=='-'?s.brand:'—')}</td>
-      <td>${esc(s.account)}</td>
-      <td>${s.score.toLocaleString()}</td>
-      <td>${s.views.toLocaleString()}</td>
-      <td>${s.likes.toLocaleString()}</td>
-      <td>${s.comments.toLocaleString()}</td>
-      <td><a class="plink" href="${esc(s.post_url)}" target="_blank" rel="noopener">보기</a></td>
-    </tr>`).join('')
-    : `<tr><td colspan="9" class="empty">해당 카테고리의 SNS 시그널이 아직 없습니다</td></tr>`;
-  $('#snsCnt').textContent = list.length ? `${list.length}건` : '';
+  const catItems = SNS_VIRAL.filter(s => snsCategoriesOf(s).includes(scatF));
+  const { ranked, genericCount } = aggregateSnsBrand(catItems);
+  renderKwBlock('#snsKwGrid','#snsMoreBtn','#snsKwMore','#snsCnt', ranked, snsExampleHTML, true,
+    '해당 카테고리의 SNS 시그널이 아직 없습니다');
+  $('#snsGenericNote').textContent = genericCount
+    ? `브랜드·제품 정보가 없는 일반 스타일 콘텐츠 ${genericCount}건은 키워드 집계에서 제외했어요`
+    : '';
 }
 
 function renderStatic(){
