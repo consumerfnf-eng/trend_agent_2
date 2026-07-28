@@ -127,7 +127,7 @@ a{color:var(--acc)}
 
     <div class="srcBlock">
       <h4 class="srcTitle">SNS <span id="snsCnt" class="srcCnt"></span></h4>
-      <div class="sub">인스타 릴스 등 바이럴 콘텐츠에서 브랜드·키워드 언급 빈도순 — 이미지는 아직 수집되지 않아 텍스트로만 표시돼요</div>
+      <div class="sub">인스타 릴스 등 바이럴 콘텐츠에 실제로 달린 해시태그 언급 빈도순 — 이미지는 아직 수집되지 않아 텍스트로만 표시돼요</div>
       <div class="kwgrid" id="snsKwGrid"></div>
       <div class="genericNote" id="snsGenericNote"></div>
       <button class="morebtn" id="snsMoreBtn" style="display:none"></button>
@@ -335,7 +335,7 @@ const catOf = e => window.ECAT?.[e.entity_id] || e.category_l1 || '기타';
 function buildKwRows(){
   const rows = [];
 
-  const { ranked: snsRanked } = aggregateSnsBrand(SNS_VIRAL);
+  const { ranked: snsRanked } = aggregateSnsKw(SNS_VIRAL);
   for (const e of snsRanked){
     const cats = [...new Set(e.items.flatMap(s => snsCategoriesOf(s)))];
     rows.push({ label: e.label, cats, source: 'SNS', badge: 'SNS',
@@ -585,18 +585,24 @@ function aggregateNewsKw(items){
   return [...map.values()].sort((a,b) => b.count - a.count);
 }
 
-/* SNS: 브랜드(없으면 제품명) 기준으로 언급 빈도·스코어 집계. 브랜드/제품 정보 없는 콘텐츠는 제외하고 별도 카운트 */
-function aggregateSnsBrand(items){
+/* SNS: 콘텐츠에 실제로 달린 해시태그를 키워드로 집계 (브랜드명 나열이 아니라 진짜 쓰인 태그 기준).
+   홍보성 상투어(광고/협찬 등)는 제외. 해시태그가 없는 콘텐츠는 집계에서 빠지고 별도 카운트 */
+const SNS_TAG_STOPWORDS = new Set(['광고','협찬','제작비지원','제품제공','서포터즈','기자단']);
+function extractHashtags(content){
+  const tags = [...(content||'').matchAll(/#([^\s#]+)/g)].map(m => m[1]);
+  return [...new Set(tags)].filter(t => !SNS_TAG_STOPWORDS.has(t));
+}
+function aggregateSnsKw(items){
   const map = new Map();
   let genericCount = 0;
   for(const s of items){
-    let raw = null;
-    if(s.brand && s.brand !== '-') raw = s.brand.split(',')[0].trim();
-    else if(s.product && s.product !== '-') raw = s.product.replace(/\s*\(\+\d+\)\s*$/,'').split(',')[0].trim();
-    if(!raw){ genericCount++; continue; }
-    const key = normKw(raw);
-    if(!map.has(key)) map.set(key, { label: raw, count: 0, score: 0, items: [] });
-    const e = map.get(key); e.count++; e.score += s.score; e.items.push(s);
+    const tags = extractHashtags(s.content);
+    if(!tags.length){ genericCount++; continue; }
+    for(const raw of tags){
+      const key = normKw(raw);
+      if(!map.has(key)) map.set(key, { label: '#'+raw, count: 0, score: 0, items: [] });
+      const e = map.get(key); e.count++; e.score += s.score; if(!e.items.includes(s)) e.items.push(s);
+    }
   }
   const ranked = [...map.values()].sort((a,b) => b.score - a.score || b.count - a.count);
   return { ranked, genericCount };
@@ -656,11 +662,11 @@ function drawNewsGrid(){
 
 function drawSnsForCat(){
   const catItems = SNS_VIRAL.filter(s => snsCategoriesOf(s).includes(scatF));
-  const { ranked, genericCount } = aggregateSnsBrand(catItems);
+  const { ranked, genericCount } = aggregateSnsKw(catItems);
   renderKwBlock('#snsKwGrid','#snsMoreBtn','#snsKwMore','#snsCnt', ranked, snsExampleHTML, true,
     '해당 카테고리의 SNS 시그널이 아직 없습니다');
   $('#snsGenericNote').textContent = genericCount
-    ? `브랜드·제품 정보가 없는 일반 스타일 콘텐츠 ${genericCount}건은 키워드 집계에서 제외했어요`
+    ? `해시태그가 없는 콘텐츠 ${genericCount}건은 키워드 집계에서 제외했어요`
     : '';
 }
 
