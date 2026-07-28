@@ -18,6 +18,11 @@ header h1{font-family:'Playfair Display',serif; font-size:22px}
 .tabs a{border:1px solid var(--ink); background:transparent; padding:7px 16px; font-size:11px; letter-spacing:.15em; font-weight:700; text-decoration:none; color:var(--ink); display:inline-block}
 .note{margin-left:auto; font-size:10px; letter-spacing:.14em; color:var(--sub); text-transform:uppercase}
 .view{display:none} .view.on{display:block}
+/* ── TREND KEYWORDS (signal.html과 통일된 카드 스타일) ── */
+.kwgrid2{display:grid; grid-template-columns:repeat(auto-fit,minmax(340px,1fr)); gap:16px; margin-top:14px}
+.tcard2{background:#fff; border:1px solid var(--hair); border-radius:10px; padding:16px 18px}
+.tcard2 h3{font-size:11px; letter-spacing:.1em; color:var(--sub); font-weight:700; margin-bottom:12px; text-transform:uppercase}
+.empty2{padding:30px 10px; text-align:center; color:var(--sub); font-size:12px}
 /* ── LIVE FEED 필터 (브랜드/국가/카테고리) ── */
 .ffrow{display:flex; flex-wrap:wrap; gap:8px}
 .ffbox{display:inline-flex; align-items:center; gap:6px; border:1px solid var(--hair); background:#fff;
@@ -131,26 +136,27 @@ header h1{font-family:'Playfair Display',serif; font-size:22px}
   text-decoration:none; border-bottom:1px solid var(--rising); font-weight:700}
 .ntag{font-size:8px; font-weight:800; letter-spacing:.08em; padding:2px 6px; color:#fff; margin-left:4px; vertical-align:middle}
 .ntag.KR{background:#1a7a4a}.ntag.GL{background:#2b5db8}.ntag.CN{background:#c8451f}
-/* ── KEY BRAND ── */
+/* ── KEY BRAND (signal.html 카드 스타일과 통일) ── */
 #brandMain{padding:26px 30px}
 #brandMain h2{font-family:'Playfair Display',serif; font-size:28px; border-bottom:1px solid var(--ink); padding-bottom:8px; margin-bottom:18px}
-.bgrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:20px}
-.bcard{background:#fff; border:1px solid var(--hair); padding:20px 22px; cursor:pointer; transition:transform .15s; position:relative; overflow:hidden}
-.bcard:hover{transform:translateY(-3px)}
-.bcard .peek{position:absolute; top:14px; right:0; width:132px; border:1px solid var(--hair);
+.bgrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:16px}
+.bcard{background:#fff; border:1px solid var(--hair); border-radius:10px; padding:16px 18px; cursor:pointer; transition:transform .15s, border-color .15s; position:relative; overflow:hidden}
+.bcard:hover{transform:translateY(-3px); border-color:#c9bfa9}
+.bcard .peek{position:absolute; top:14px; right:0; width:132px; border:1px solid var(--hair); border-radius:6px;
   box-shadow:-4px 4px 10px #00000022; transform:translateX(105%); transition:transform .3s; z-index:2}
 .bcard.open .peek{transform:translateX(34%)}
 .bcard .gptline{max-height:0; overflow:hidden; transition:max-height .3s, padding .3s; font-size:11px; line-height:1.6;
-  background:var(--sticky); padding:0 10px}
+  background:var(--sticky); padding:0 10px; border-radius:6px}
 .bcard.open .gptline{max-height:200px; padding:8px 10px; margin-top:10px; overflow-y:auto}
 .bcard .gptline a{color:var(--rising); text-decoration:none; border-bottom:1px solid var(--rising)}
-.bcard .k{font-size:10px; letter-spacing:.2em; color:var(--sub); text-transform:uppercase; margin-bottom:8px}
-.bcard h3{font-family:'Playfair Display',serif; font-size:26px; margin-bottom:10px}
-.bcard .li{font-size:13px; line-height:1.6}
+.bcard .k{display:inline-block; font-size:9px; font-weight:800; letter-spacing:.08em; text-transform:uppercase;
+  background:#f4efe6; color:#8a8172; padding:2px 8px; border-radius:9px; margin-bottom:10px}
+.bcard h3{font-size:15px; font-weight:800; margin-bottom:8px; line-height:1.3}
+.bcard .li{font-size:11.5px; color:var(--sub); line-height:1.6}
 .bcard .foot{display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--hair); margin-top:14px; padding-top:12px}
-.pill{font-size:10px; font-weight:800; letter-spacing:.12em; padding:5px 10px; color:#fff; background:var(--rising)}
+.pill{font-size:9px; font-weight:800; letter-spacing:.1em; padding:3px 9px; border-radius:9px; color:#fff; background:var(--rising)}
 .pill.WATCH{background:#cfc9bd; color:var(--ink)}
-.pct{font-family:'Playfair Display',serif; font-size:26px; color:var(--rising)}
+.pct{font-size:15px; font-weight:800; color:var(--rising)}
 footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter-spacing:.18em; color:var(--sub); text-transform:uppercase}
 .empty{padding:48px; text-align:center; color:var(--sub); font-size:13px}
 #load{position:fixed; inset:0; background:var(--paper); display:flex; align-items:center; justify-content:center;
@@ -167,16 +173,37 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
 <header>
   <h1>TREND AGENT</h1>
   <div class="tabs">
-    <button data-v="board" class="on">MAIN BOARD</button>
+    <button data-v="signal" class="on">TREND SIGNAL</button>
+    <button data-v="keywords">TREND KEYWORDS</button>
+    <button data-v="board">MAIN BOARD</button>
     <button data-v="feed">LIVE FEED</button>
-    <button data-v="signal">TREND SIGNAL</button>
     <button data-v="brand">KEY BRAND</button>
     <a href="admin.html">+ 수집</a>
   </div>
-  <span class="note" id="noteTxt">서로 다른 출처 3개+ 연결만 승격</span>
+  <span class="note" id="noteTxt">FEED 키워드의 검색량 — 네이버 · 구글 · 썸트렌드</span>
 </header>
 
-<div id="boardView" class="view on"><div id="boardMain"></div>
+<div id="signalView" class="view on" style="height:calc(100vh - 57px)">
+  <iframe id="signalFrame" data-src="signal.html" style="width:100%;height:100%;border:0;display:block"></iframe>
+</div>
+
+<div id="keywordsView" class="view">
+  <div class="mblk">
+    <h2 class="mhd">트렌드 키워드</h2>
+    <div class="kwgrid2">
+      <div class="tcard2">
+        <h3>네이버 데이터랩 — 검색량 추이</h3>
+        <div class="empty2">데이터가 아직 없습니다 — 네이버 데이터랩 연동되면 여기 그래프로 표시됩니다</div>
+      </div>
+      <div class="tcard2">
+        <h3>구글 트렌드 — 검색량 추이</h3>
+        <div class="empty2">데이터가 아직 없습니다 — 구글 트렌드 연동되면 여기 그래프로 표시됩니다</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="boardView" class="view"><div id="boardMain"></div>
   <div style="padding:10px 22px 26px">
     <h2 style="font-family:'Playfair Display',serif;font-size:17px;margin:8px 0 10px">MAIN — 승격·지정된 피드</h2>
     <div id="boardFeed" class="feedgrid"><span class="mini">아직 MAIN 으로 승격된 피드가 없습니다 — 출처 3곳+ 또는 KEY TREND 지정</span></div>
@@ -190,9 +217,6 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
   <div id="feedMain"></div>
 </div></div>
 
-<div id="signalView" class="view" style="height:calc(100vh - 57px)">
-  <iframe id="signalFrame" data-src="signal.html" style="width:100%;height:100%;border:0;display:block"></iframe>
-</div>
 
 <div id="brandView" class="view"><div id="brandMain">
   <h2>Key Brands <span style="font-size:12px;color:var(--sub);font-family:'Noto Sans KR'">— 수집 자료에서 언급된 브랜드 · 클릭하면 검증 노트와 관련 사진</span></h2>
@@ -660,6 +684,7 @@ function renderBrands(){
 
 /* ═══ 탭 ═══ */
 const TABNOTE = { signal:'FEED 키워드의 검색량 — 네이버 · 구글 · 썸트렌드',
+  keywords: '트렌드 키워드 검색량 추이 — 네이버 데이터랩 · 구글 트렌드',
   board: '서로 다른 출처 3개+ 연결만 승격',
   feed:  '피드 = 전체 노출 · 날짜 클릭 = 점프',
   brand: '카드 클릭 = 검증 노트 · 대표사진'
@@ -667,12 +692,16 @@ const TABNOTE = { signal:'FEED 키워드의 검색량 — 네이버 · 구글 ·
 document.querySelector('.tabs').addEventListener('click', e => {
   const b = e.target.closest('button'); if(!b) return;
   document.querySelectorAll('.tabs button').forEach(x => x.classList.toggle('on', x === b));
-  ['board','feed','signal','brand'].forEach(v => $('#' + v + 'View').classList.toggle('on', b.dataset.v === v));
+  ['signal','keywords','board','feed','brand'].forEach(v => $('#' + v + 'View').classList.toggle('on', b.dataset.v === v));
   if(b.dataset.v === 'signal'){ const f = $('#signalFrame'); if(!f.src) f.src = f.dataset.src; }
   $('#noteTxt').textContent = TABNOTE[b.dataset.v];
 });
 
+/* TREND SIGNAL이 기본 탭이라 페이지 로드 시 바로 iframe을 채워둠 */
+{ const f = $('#signalFrame'); if(!f.src) f.src = f.dataset.src; }
+
 load();
 </script>
+
 </body>
 </html>

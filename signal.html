@@ -114,10 +114,6 @@ a{color:var(--acc)}
 <body>
 <header>
   <h1>TREND SIGNAL<span>F&F Trend Intelligence</span></h1>
-  <nav id="nav">
-    <button data-v="cat" class="on">카테고리별 트렌드</button>
-    <button data-v="keys">Keywords</button>
-  </nav>
   <a href="index.html" id="backLink" style="font-size:11px;letter-spacing:.12em;font-weight:700;color:var(--acc);text-decoration:none;border:1px solid var(--acc);padding:6px 12px">← DASHBOARD</a>
   <select id="mSel"></select>
 </header>
@@ -152,16 +148,6 @@ a{color:var(--acc)}
       <button class="morebtn" id="snsMoreBtn" style="display:none"></button>
       <div class="kwlist" id="snsKwMore" style="display:none"></div>
     </div>
-  </section>
-
-  <section id="keysView" class="view">
-    <h2>키워드 전체 보기</h2>
-    <div class="sub">SNS·뉴스레터(라이프스타일 포함)에서 잡힌 트렌드 키워드를 한 곳에 모았어요 — 검색량 추이·변화율은 데이터가 쌓이면 표시돼요</div>
-    <div class="fbar" id="kwCatBar"></div>
-    <div class="card" style="padding:0"><table>
-      <thead><tr><th>KEYWORD</th><th>CATEGORY</th><th>SOURCE</th><th>STAGE</th><th>검색량 추이</th><th>변화</th></tr></thead>
-      <tbody id="kwBody"></tbody>
-    </table></div>
   </section>
 </main>
 
@@ -389,66 +375,9 @@ function ovBlock(title, region, note){
 
 function draw(){
   $('#ovTitle').textContent = `${month.replace('-', '년 ')}월 트렌드 시그널`;
-  drawKeys();
 }
 
 const catOf = e => window.ECAT?.[e.entity_id] || e.category_l1 || '기타';
-
-/* 키워드 전체 보기 — SNS/뉴스레터/리테일 세 소스를 하나로 합침 */
-function buildKwRows(){
-  const rows = [];
-
-  const { ranked: snsRanked } = aggregateSnsKw(SNS_VIRAL);
-  for (const e of snsRanked){
-    const cats = [...new Set(e.items.flatMap(s => snsCategoriesOf(s)))];
-    rows.push({ label: e.label, cats, source: 'SNS', badge: 'SNS',
-      note: `SNS ${e.count}건 언급 · 스코어 ${e.score.toLocaleString()}` });
-  }
-
-  const newsRanked = aggregateNewsKw(NEWS_SIG);
-  for (const e of newsRanked){
-    const cats = [...new Set(e.items.map(s => s.category))];
-    rows.push({ label: e.label, cats, source: '뉴스레터', badge: 'NEWS',
-      note: e.items[0].summary || e.items[0].note });
-  }
-
-  for (const s of RETAIL_SIG){
-    rows.push({ label: `${s.brand} — ${s.product}`, cats: [s.category], source: '리테일', badge: 'RETAIL',
-      note: s.note });
-  }
-
-  return rows;
-}
-let KW_ROWS = [];
-let kwCatF = '전체';
-
-function drawKwCatBar(){
-  const cats = ['전체', ...CATS];
-  $('#kwCatBar').innerHTML = cats.map(c =>
-    `<button class="${c===kwCatF?'on':''}" data-c="${c}">${c==='전체'?'전체':esc(CAT_LABEL[c]||c)}</button>`).join('');
-  $('#kwCatBar').onclick = e => {
-    const b = e.target.closest('button'); if(!b) return;
-    kwCatF = b.dataset.c; drawKwCatBar(); drawKwBody();
-  };
-}
-
-function drawKwBody(){
-  const rows = KW_ROWS.filter(r => kwCatF==='전체' || r.cats.includes(kwCatF));
-  $('#kwBody').innerHTML = rows.length ? rows.map(r => `<tr>
-      <td><b>${esc(r.label)}</b><div class="mini">${esc(r.note).slice(0,70)}${r.note.length>70?'…':''}</div></td>
-      <td>${r.cats.map(c => esc(CAT_LABEL[c]||c)).join(', ')}</td>
-      <td><span class="srcbadge ${r.badge}">${esc(r.source)}</span></td>
-      <td><span class="pillb New">New</span></td>
-      <td class="mini">준비중</td>
-      <td class="mini">준비중</td>
-    </tr>`).join('') : '<tr><td colspan="6" class="empty">해당 카테고리 키워드가 없습니다</td></tr>';
-}
-
-function drawKeys(){
-  KW_ROWS = buildKwRows();
-  drawKwCatBar();
-  drawKwBody();
-}
 
 /* ── 키워드 상세 (이미지 5) ── */
 document.addEventListener('click', async e => {
@@ -809,15 +738,7 @@ function renderStatic(){
   drawNewsGrid();
   drawSnsForCat();
   drawLifeBlock();
-  drawKeys();
 }
-
-$('#nav').onclick = e => {
-  const b = e.target.closest('button'); if(!b) return;
-  document.querySelectorAll('#nav button').forEach(x => x.classList.toggle('on', x===b));
-  $('#catTrendView').classList.toggle('on', b.dataset.v==='cat');
-  $('#keysView').classList.toggle('on', b.dataset.v==='keys');
-};
 
 if(window.self !== window.top) $('#backLink').style.display = 'none';   // 대시보드 탭 안에서는 숨김
 load();
