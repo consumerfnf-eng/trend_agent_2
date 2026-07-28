@@ -18,6 +18,22 @@ header h1{font-family:'Playfair Display',serif; font-size:22px}
 .tabs a{border:1px solid var(--ink); background:transparent; padding:7px 16px; font-size:11px; letter-spacing:.15em; font-weight:700; text-decoration:none; color:var(--ink); display:inline-block}
 .note{margin-left:auto; font-size:10px; letter-spacing:.14em; color:var(--sub); text-transform:uppercase}
 .view{display:none} .view.on{display:block}
+/* ── LIVE FEED 필터 (브랜드/국가/카테고리) ── */
+.ffrow{display:flex; flex-wrap:wrap; gap:8px}
+.ffbox{display:inline-flex; align-items:center; gap:6px; border:1px solid var(--hair); background:#fff;
+  border-radius:20px; padding:7px 14px; font-size:11px; cursor:pointer; font-family:inherit; color:var(--ink)}
+.ffbox:hover{border-color:#c9bfa9}
+.ffbox .k{font-size:9px; letter-spacing:.1em; color:var(--sub); text-transform:uppercase; font-weight:700}
+.ffbox .v{font-weight:700}
+.ffbox .ar{font-size:8px; color:var(--sub)}
+.ffbox.set{border-color:var(--rising); background:#fdf3ef}
+.ffbox.set .v{color:var(--rising)}
+.ffbox.open{border-color:var(--ink)}
+.ffsub{display:flex; flex-wrap:wrap; gap:6px; width:100%; padding:2px 0 4px}
+.ffsub button{border:1px solid var(--hair); background:#fff; border-radius:16px; padding:5px 12px;
+  font-size:10.5px; cursor:pointer; font-family:inherit; color:var(--ink)}
+.ffsub button:hover{border-color:#c9bfa9}
+.ffsub button.on{background:var(--ink); color:#fff; border-color:var(--ink)}
 /* ── LIVE FEED ── */
 #feedWrap{display:flex}
 #dateRail{position:sticky; top:57px; align-self:flex-start; min-width:120px; height:calc(100vh - 57px);
