@@ -544,7 +544,7 @@ function kwCardHTML(entry, i, exampleFn, showScore){
   </div>`;
 }
 
-function renderKwBlock(gridSel, moreBtnSel, moreListSel, cntSel, ranked, exampleFn, showScore, emptyMsg, bigN=6){
+function renderKwBlock(gridSel, moreBtnSel, moreListSel, cntSel, ranked, exampleFn, showScore, emptyMsg, bigN=8){
   const big = ranked.slice(0, bigN), rest = ranked.slice(bigN);
   $(gridSel).innerHTML = big.length ? big.map((e,i)=>kwCardHTML(e,i,exampleFn,showScore)).join('') : `<div class="empty">${emptyMsg}</div>`;
   $(cntSel).textContent = ranked.length ? `키워드 ${ranked.length}개` : '';
