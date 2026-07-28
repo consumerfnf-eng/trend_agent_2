@@ -23,6 +23,24 @@ header h1{font-family:'Playfair Display',serif; font-size:22px}
 .tcard2{background:#fff; border:1px solid var(--hair); border-radius:10px; padding:16px 18px}
 .tcard2 h3{font-size:11px; letter-spacing:.1em; color:var(--sub); font-weight:700; margin-bottom:12px; text-transform:uppercase}
 .empty2{padding:30px 10px; text-align:center; color:var(--sub); font-size:12px}
+/* ── TREND KEYWORDS: 통합 키워드 테이블 ── */
+.kwfbar{display:flex; flex-wrap:wrap; gap:6px; margin:22px 0 4px}
+.kwfbar button{border:1px solid var(--hair); background:#fff; border-radius:16px; padding:6px 13px;
+  font-size:11px; cursor:pointer; font-family:inherit; color:var(--ink)}
+.kwfbar button:hover{border-color:#c9bfa9}
+.kwfbar button.on{background:var(--ink); color:#fff; border-color:var(--ink)}
+.kwtablewrap{background:#fff; border:1px solid var(--hair); border-radius:10px; overflow:hidden; margin-top:12px}
+.kwtablewrap table{width:100%; border-collapse:collapse}
+.kwtablewrap th{font-size:9px; letter-spacing:.12em; color:var(--sub); text-align:left; padding:10px 12px;
+  border-bottom:1px solid var(--hair); text-transform:uppercase}
+.kwtablewrap td{padding:10px 12px; border-bottom:1px solid var(--hair); font-size:12px; vertical-align:middle}
+.kwtablewrap tr:last-child td{border-bottom:0}
+.kwtablewrap .mini{font-size:10.5px; color:var(--sub); margin-top:2px}
+.srcbadge2{display:inline-block; font-size:8.5px; font-weight:800; letter-spacing:.05em; padding:2px 7px; border-radius:8px}
+.srcbadge2.SNS{background:#e7efe9; color:#1a7a4a}
+.srcbadge2.NEWS{background:#eef1f7; color:#3a5a8a}
+.srcbadge2.RETAIL{background:#fdf3ef; color:#c8451f}
+.pillb2{display:inline-block; font-size:9px; font-weight:800; padding:2px 8px; border-radius:10px; background:#e7efe9; color:#1a7a4a}
 /* ── LIVE FEED 필터 (브랜드/국가/카테고리) ── */
 .ffrow{display:flex; flex-wrap:wrap; gap:8px}
 .ffbox{display:inline-flex; align-items:center; gap:6px; border:1px solid var(--hair); background:#fff;
@@ -198,6 +216,12 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
         <div class="empty2">데이터가 아직 없습니다 — 구글 트렌드 연동되면 여기 그래프로 표시됩니다</div>
       </div>
     </div>
+
+    <div class="kwfbar" id="kwCatBar2"></div>
+    <div class="kwtablewrap"><table>
+      <thead><tr><th>Keyword</th><th>Category</th><th>Source</th><th>Stage</th><th>검색량 추이</th><th>변화</th></tr></thead>
+      <tbody id="kwBody2"></tbody>
+    </table></div>
   </div>
 </div>
 
@@ -659,6 +683,63 @@ function renderBrands(){
   };
 }
 
+/* ═══ TREND KEYWORDS — signal.html(iframe)에 공개된 SNS/뉴스레터/리테일 데이터를 그대로 가져와 통합 테이블로 표시 ═══ */
+let kwCatF2 = '전체';
+
+function buildKwTable2(){
+  const frame = $('#signalFrame');
+  const data = frame && frame.contentWindow && frame.contentWindow.TA_SIGNAL_DATA;
+  if(!data) return;
+  const { getSnsViral, getNewsSig, getRetailSig, aggregateSnsKw, aggregateNewsKw, snsCategoriesOf, CAT_LABEL, CATS } = data;
+
+  const rows = [];
+  const { ranked: snsRanked } = aggregateSnsKw(getSnsViral());
+  for(const e of snsRanked){
+    const cats = [...new Set(e.items.flatMap(s => snsCategoriesOf(s)))];
+    rows.push({ label: e.label, cats, source: 'SNS', badge: 'SNS',
+      note: `SNS ${e.count}건 언급 · 스코어 ${e.score.toLocaleString()}` });
+  }
+  const newsRanked = aggregateNewsKw(getNewsSig());
+  for(const e of newsRanked){
+    const cats = [...new Set(e.items.map(s => s.category))];
+    rows.push({ label: e.label, cats, source: '뉴스레터', badge: 'NEWS',
+      note: e.items[0].summary || e.items[0].note });
+  }
+  for(const s of getRetailSig()){
+    rows.push({ label: `${s.brand} — ${s.product}`, cats: [s.category], source: '리테일', badge: 'RETAIL', note: s.note });
+  }
+
+  window.KW_ROWS2 = rows; window.KW_CATLABEL2 = CAT_LABEL;
+  drawKwCatBar2(CATS);
+  drawKwBody2();
+}
+
+function drawKwCatBar2(CATS){
+  const CAT_LABEL = window.KW_CATLABEL2 || {};
+  const cats = ['전체', ...CATS];
+  $('#kwCatBar2').innerHTML = cats.map(c =>
+    `<button class="${c===kwCatF2?'on':''}" data-c="${c}">${c==='전체'?'전체':esc(CAT_LABEL[c]||c)}</button>`).join('');
+  $('#kwCatBar2').onclick = e => {
+    const b = e.target.closest('button'); if(!b) return;
+    kwCatF2 = b.dataset.c; drawKwCatBar2(CATS); drawKwBody2();
+  };
+}
+
+function drawKwBody2(){
+  const CAT_LABEL = window.KW_CATLABEL2 || {};
+  const rows = (window.KW_ROWS2 || []).filter(r => kwCatF2 === '전체' || r.cats.includes(kwCatF2));
+  $('#kwBody2').innerHTML = rows.length ? rows.map(r => `<tr>
+      <td><b>${esc(r.label)}</b><div class="mini">${esc(r.note).slice(0,70)}${r.note.length>70?'…':''}</div></td>
+      <td>${r.cats.map(c => esc(CAT_LABEL[c]||c)).join(', ')}</td>
+      <td><span class="srcbadge2 ${r.badge}">${esc(r.source)}</span></td>
+      <td><span class="pillb2">New</span></td>
+      <td class="mini">준비중</td>
+      <td class="mini">준비중</td>
+    </tr>`).join('') : '<tr><td colspan="6" style="text-align:center;color:var(--sub);padding:24px">해당 카테고리 키워드가 없습니다</td></tr>';
+}
+
+$('#signalFrame').addEventListener('load', buildKwTable2);
+
 /* ═══ 탭 ═══ */
 const TABNOTE = { signal:'FEED 키워드의 검색량 — 네이버 · 구글 · 썸트렌드',
   keywords: '트렌드 키워드 검색량 추이 — 네이버 데이터랩 · 구글 트렌드',
@@ -669,6 +750,7 @@ document.querySelector('.tabs').addEventListener('click', e => {
   document.querySelectorAll('.tabs button').forEach(x => x.classList.toggle('on', x === b));
   ['signal','keywords','brand'].forEach(v => $('#' + v + 'View').classList.toggle('on', b.dataset.v === v));
   if(b.dataset.v === 'signal'){ const f = $('#signalFrame'); if(!f.src) f.src = f.dataset.src; }
+  if(b.dataset.v === 'keywords'){ buildKwTable2(); }
   $('#noteTxt').textContent = TABNOTE[b.dataset.v];
 });
 

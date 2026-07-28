@@ -741,6 +741,14 @@ function renderStatic(){
 }
 
 if(window.self !== window.top) $('#backLink').style.display = 'none';   // 대시보드 탭 안에서는 숨김
+/* index.html의 TREND KEYWORDS 탭에서 iframe.contentWindow로 읽어갈 수 있게 공개 */
+window.TA_SIGNAL_DATA = {
+  getSnsViral: () => SNS_VIRAL,
+  getNewsSig: () => NEWS_SIG,
+  getRetailSig: () => RETAIL_SIG,
+  aggregateSnsKw, aggregateNewsKw, snsCategoriesOf, normKw, CAT_LABEL, CATS, esc
+};
+
 load();
 renderStatic();
 loadSnsSheet();
