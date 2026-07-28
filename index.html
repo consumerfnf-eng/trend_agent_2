@@ -175,8 +175,6 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
   <div class="tabs">
     <button data-v="signal" class="on">TREND SIGNAL</button>
     <button data-v="keywords">TREND KEYWORDS</button>
-    <button data-v="board">MAIN BOARD</button>
-    <button data-v="feed">LIVE FEED</button>
     <button data-v="brand">KEY BRAND</button>
     <a href="admin.html">+ 수집</a>
   </div>
@@ -202,20 +200,6 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
     </div>
   </div>
 </div>
-
-<div id="boardView" class="view"><div id="boardMain"></div>
-  <div style="padding:10px 22px 26px">
-    <h2 style="font-family:'Playfair Display',serif;font-size:17px;margin:8px 0 10px">MAIN — 승격·지정된 피드</h2>
-    <div id="boardFeed" class="feedgrid"><span class="mini">아직 MAIN 으로 승격된 피드가 없습니다 — 출처 3곳+ 또는 KEY TREND 지정</span></div>
-  </div>
-</div>
-
-<div id="feedView" class="view">
-  <div id="ffBar" style="padding:12px 22px 0;display:flex;flex-wrap:wrap;gap:6px;align-items:center"></div>
-  <div id="feedWrap">
-  <nav id="dateRail"></nav>
-  <div id="feedMain"></div>
-</div></div>
 
 
 <div id="brandView" class="view"><div id="brandMain">
@@ -309,7 +293,7 @@ async function load(){
                       String(b2.first_seen||'').localeCompare(String(a.first_seen||'')))
       .slice(0, 12);
 
-    renderBoard(); renderFeed(); renderBrands();
+    renderBrands();
   }catch(e){
     console.error(e);
     document.body.insertAdjacentHTML('afterbegin',
@@ -509,13 +493,6 @@ function drawFfBar(){
       `<button class="${FF[open.key]===v?'on':''}" data-ff="${open.key}:${v}">${esc(ffLabel(open.key, v))}</button>`).join('')}</div>` : '';
   $('#ffBar').innerHTML = `<div class="ffrow">${boxes}</div>${sub}`;
 }
-$('#ffBar').onclick = e => {
-  const g = e.target.closest('[data-ffg]');
-  if(g){ FFOPEN = FFOPEN === g.dataset.ffg ? null : g.dataset.ffg; drawFfBar(); return; }
-  const t = e.target.closest('[data-ff]'); if(!t) return;
-  const [k, v] = t.dataset.ff.split(':');
-  FF[k] = v; FFOPEN = null; drawFfBar(); renderFeed();
-};
 const ffPass = it => {
   if(FF.region !== 'ALL' && (it.region || 'KR') !== FF.region) return false;
   if(FF.cat !== 'ALL' && (it.category || '') !== FF.cat) return false;
@@ -685,14 +662,12 @@ function renderBrands(){
 /* ═══ 탭 ═══ */
 const TABNOTE = { signal:'FEED 키워드의 검색량 — 네이버 · 구글 · 썸트렌드',
   keywords: '트렌드 키워드 검색량 추이 — 네이버 데이터랩 · 구글 트렌드',
-  board: '서로 다른 출처 3개+ 연결만 승격',
-  feed:  '피드 = 전체 노출 · 날짜 클릭 = 점프',
   brand: '카드 클릭 = 검증 노트 · 대표사진'
 };
 document.querySelector('.tabs').addEventListener('click', e => {
   const b = e.target.closest('button'); if(!b) return;
   document.querySelectorAll('.tabs button').forEach(x => x.classList.toggle('on', x === b));
-  ['signal','keywords','board','feed','brand'].forEach(v => $('#' + v + 'View').classList.toggle('on', b.dataset.v === v));
+  ['signal','keywords','brand'].forEach(v => $('#' + v + 'View').classList.toggle('on', b.dataset.v === v));
   if(b.dataset.v === 'signal'){ const f = $('#signalFrame'); if(!f.src) f.src = f.dataset.src; }
   $('#noteTxt').textContent = TABNOTE[b.dataset.v];
 });
