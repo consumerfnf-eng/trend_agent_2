@@ -139,9 +139,9 @@ a{color:var(--acc)}
     </div>
 
     <div class="srcBlock">
-      <h4 class="srcTitle">리테일</h4>
-      <div class="sub">시장 신상 아카이브 기반 트렌디 아이템</div>
-      <div class="card empty">아직 연동된 데이터가 없습니다 — 리테일 아카이브가 연결되면 여기 표시됩니다</div>
+      <h4 class="srcTitle">리테일 <span id="retailCnt" class="srcCnt"></span></h4>
+      <div class="sub">시장 신상 아카이브 기반 트렌디 아이템 — 지금은 수동으로 추가한 샘플이에요, 아카이브 연동되면 자동화할게요</div>
+      <div class="rgrid" id="retailGrid"></div>
     </div>
   </section>
 
@@ -464,9 +464,66 @@ function rcard(s){
   </div>`;
 }
 
+/* 리테일 소스 — 아직 아카이브 연동 전, 수동으로 추가한 샘플 아이템들 */
+const RETAIL_SIG = [
+  { brand: 'ASICS x VANDY THE PINK', product: "GEL-KAYANO 12.1 '바닐라' / '초콜릿'", category: 'shoes',
+    note: '반디더핑크가 아식스와 두 번째로 협업한 젤 카야노 12.1 — 아이스케키 콘셉트, 바닐라·초콜릿 두 컬러웨이, 각 $195. 바닐라는 8/14 전세계 발매, 초콜릿은 반디더핑크 자사 채널 단독 판매',
+    url: 'https://www.instagram.com/p/DbUDDeOmPSu/?img_index=1' },
+];
+
+/* 수동으로 추가한 기사 기반 트렌드 (하입비스트 코리아 SS27 남성 런웨이 리포트 등) */
+const FASHION_SIG_EXTRA = [
+  { url: 'https://hypebeast.kr/2026/7/ss27-mens-trends-runway-spring-summer-2027-menswear-info',
+    note: '하입비스트 코리아: SS27 파리·밀라노 남성 런웨이 — 시스루 소재',
+    category: 'top', axis: 'fabric', keywords: ['시스루'],
+    summary: '폭염 대응으로 반투명 소재 셔츠 확산 — Kiko Kostadinov·Feng Chen Wang의 바롱 실루엣, Dior는 더블브레스트 수트로 변주',
+    stage: 'early' },
+  { url: 'https://hypebeast.kr/2026/7/ss27-mens-trends-runway-spring-summer-2027-menswear-info',
+    note: '하입비스트 코리아: SS27 파리·밀라노 남성 런웨이 — 새틴 소재',
+    category: 'top', axis: 'fabric', keywords: ['새틴'],
+    summary: '장식적 소재에 머물던 새틴이 셔츠·팬츠 메인 소재로 — Celine 화이트 새틴 세트, Willy Chavarria 플로럴 새틴, 파자마 드레싱 스타일링',
+    stage: 'early' },
+  { url: 'https://hypebeast.kr/2026/7/ss27-mens-trends-runway-spring-summer-2027-menswear-info',
+    note: '하입비스트 코리아: SS27 파리·밀라노 남성 런웨이 — 아쿠아틱 블루',
+    category: 'etc', axis: 'color', keywords: ['아쿠아틱 블루'],
+    summary: '지난 시즌 크림슨 강세 이후 반대색인 바다빛 블루 부상 — SHINYAKOZUKA 터콰이즈, Auralee 스카이·일렉트릭 블루, Zegna 로퍼·리넨 셔츠',
+    stage: 'early' },
+  { url: 'https://hypebeast.kr/2026/7/ss27-mens-trends-runway-spring-summer-2027-menswear-info',
+    note: '하입비스트 코리아: SS27 파리·밀라노 남성 런웨이 — 오렌지 컬러',
+    category: 'etc', axis: 'color', keywords: ['오렌지'],
+    summary: '블루와 짝을 이루며 등장한 오렌지 — Dries Van Noten 석양 그러데이션 오버코트, Willy Chavarria 탠저린 블루종, Saint Laurent 오렌지 브이넥',
+    stage: 'early' },
+  { url: 'https://hypebeast.kr/2026/7/ss27-mens-trends-runway-spring-summer-2027-menswear-info',
+    note: '하입비스트 코리아: SS27 파리·밀라노 남성 런웨이 — 마이크로 재킷',
+    category: 'outer', axis: 'silhouette', keywords: ['마이크로 재킷'],
+    summary: '몸에 밀착되는 축소형 재킷 실루엣 확산 — Celine 레드 마이크로 피코트, Junya Watanabe 칼라리스 데님 트러커, Prada 밀착 재킷',
+    stage: 'early' },
+  { url: 'https://hypebeast.kr/2026/7/ss27-mens-trends-runway-spring-summer-2027-menswear-info',
+    note: '하입비스트 코리아: SS27 파리·밀라노 남성 런웨이 — 복서 쇼츠',
+    category: 'pants', axis: 'silhouette', keywords: ['복서 쇼츠'],
+    summary: '속옷을 겉옷처럼 드러내는 복서 쇼츠 실루엣 — JW Anderson·Willy Chavarria·Dries Van Noten가 노출형으로, Simone Rocha는 새틴 브로케이드로 고급화',
+    stage: 'early' },
+  { url: 'https://hypebeast.kr/2026/7/ss27-mens-trends-runway-spring-summer-2027-menswear-info',
+    note: '하입비스트 코리아: SS27 파리·밀라노 남성 런웨이 — 스터드 데님',
+    category: 'pants', axis: 'detail', keywords: ['스터드 데님'],
+    summary: '장식 스터드·라인스톤을 더한 데님 — Satoshi Nakamoto 시그니처 미학, Dolce & Gabbana 오버사이즈 스톤, Louis Vuitton 모노그램 데님',
+    stage: 'early' },
+  { url: 'https://hypebeast.kr/2026/7/ss27-mens-trends-runway-spring-summer-2027-menswear-info',
+    note: '하입비스트 코리아: SS27 파리·밀라노 남성 런웨이 — 새 모티프',
+    category: 'top', axis: 'pattern_graphic', keywords: ['새 모티프'],
+    summary: '평화·자유를 상징하는 새 모티프가 프린트·자수로 확산 — Yohji Yamamoto 손그림 새 티셔츠, Wooyoungmi 두루미 프린트, SHINYAKOZUKA 비상하는 새 실루엣',
+    stage: 'early' },
+  { url: 'https://hypebeast.kr/2026/7/ss27-mens-trends-runway-spring-summer-2027-menswear-info',
+    note: '하입비스트 코리아: SS27 파리·밀라노 남성 런웨이 — 풀 블리드 프린트',
+    category: 'top', axis: 'pattern_graphic', keywords: ['풀 블리드 프린트'],
+    summary: '사진·예술 작품을 룩 전체에 확대한 프린트 — sacai 빈티지 나이트클럽 사진 원단, SHINYAKOZUKA 도시 스카이라인, Hyacn·Simone Rocha 풀 블리드 사진 프린트 크루넥',
+    stage: 'early' },
+];
+
 /* 뉴스레터 소스 = 패션 트렌드 리서치 + 라이프스타일 리서치(라이프스타일 카테고리로 통합) */
 const NEWS_SIG = [
   ...FASHION_SIG,
+  ...FASHION_SIG_EXTRA,
   ...LIFESTYLE_SIG.map(s => ({ ...s, category: 'lifestyle' })),
 ];
 
@@ -485,7 +542,7 @@ function drawCatBar(){
     `<button class="${c===scatF?'on':''}" data-c="${c}">${esc(CAT_LABEL[c]||c)}</button>`).join('');
   $('#catBar').onclick = e => {
     const b = e.target.closest('button'); if(!b) return;
-    scatF = b.dataset.c; drawCatBar(); drawNewsGrid(); drawSnsForCat();
+    scatF = b.dataset.c; drawCatBar(); drawNewsGrid(); drawSnsForCat(); drawRetailGrid();
   };
 }
 
@@ -584,10 +641,27 @@ function drawSnsForCat(){
     : '';
 }
 
+function retailCard(s){
+  return `<div class="rcard">
+    <div class="rmeta"><span class="cat">${esc(CAT_LABEL[s.category]||s.category)}</span></div>
+    <div class="rt">${esc(s.brand)} — ${esc(s.product)}</div>
+    <div class="rs">${esc(s.note)}</div>
+    <a class="rlink" href="${esc(s.url)}" target="_blank" rel="noopener">게시물 보기 →</a>
+  </div>`;
+}
+
+function drawRetailGrid(){
+  const list = RETAIL_SIG.filter(s => s.category === scatF);
+  $('#retailGrid').innerHTML = list.length ? list.map(retailCard).join('')
+    : '<div class="empty">아직 연동된 데이터가 없습니다 — 리테일 아카이브가 연결되면 여기 표시됩니다</div>';
+  $('#retailCnt').textContent = list.length ? `${list.length}건` : '';
+}
+
 function renderStatic(){
   drawCatBar();
   drawNewsGrid();
   drawSnsForCat();
+  drawRetailGrid();
 }
 
 $('#nav').onclick = e => {
