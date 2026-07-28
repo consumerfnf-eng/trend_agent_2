@@ -98,6 +98,10 @@ tr.krow{cursor:pointer} tr.krow:hover{background:#faf6ec}
 .kwrow .kwname2{flex:1}
 .kwrow .kwcount2{color:var(--acc); font-weight:700; flex-shrink:0}
 .genericNote{font-size:10.5px; color:var(--sub); margin-top:10px}
+.srcbadge{display:inline-block; font-size:8.5px; font-weight:800; letter-spacing:.05em; padding:2px 7px; border-radius:8px}
+.srcbadge.SNS{background:#e7efe9; color:#1a7a4a}
+.srcbadge.NEWS{background:#eef1f7; color:#3a5a8a}
+.srcbadge.RETAIL{background:#fdf3ef; color:#c8451f}
 td.ctxt{max-width:340px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 td a.plink{color:var(--acc); font-weight:700; font-size:11px; text-decoration:none}
 .mini{color:var(--sub); font-size:11px}
@@ -147,12 +151,11 @@ a{color:var(--acc)}
 
   <section id="keysView" class="view">
     <h2>키워드 전체 보기</h2>
-    <div class="sub">이번 달 포착된 모든 키워드 — 탭·검색으로 필터링</div>
-    <div class="fbar" id="fCat"></div>
-    <div class="fbar" id="fBrand"></div>
+    <div class="sub">SNS·뉴스레터·리테일에서 잡힌 트렌드 키워드를 한 곳에 모았어요 — 검색량 추이·변화율은 데이터가 쌓이면 표시돼요</div>
+    <div class="fbar" id="kwCatBar"></div>
     <div class="card" style="padding:0"><table>
-      <thead><tr><th>KEYWORD</th><th>CATEGORY</th><th>STAGE</th><th>검색량 추이 · 16주</th><th>변화 · 최근 4주</th></tr></thead>
-      <tbody id="kBody"></tbody>
+      <thead><tr><th>KEYWORD</th><th>CATEGORY</th><th>SOURCE</th><th>STAGE</th><th>검색량 추이</th><th>변화</th></tr></thead>
+      <tbody id="kwBody"></tbody>
     </table></div>
   </section>
 </main>
@@ -327,41 +330,61 @@ function draw(){
 }
 
 const catOf = e => window.ECAT?.[e.entity_id] || e.category_l1 || '기타';
-function drawKeys(){
-  const cats = ['All','OUTERWEAR','TOP','BOTTOM','DRESS','BAG','SHOES','OTHER ACC','기타'];
-  $('#fCat').innerHTML = cats.map(c => `<button class="${c===catF?'on':''}" data-c="${esc(c)}">${esc(c)}</button>`).join('')
-    + `<input id="kq" placeholder="키워드 검색" value="">`;
-  const brands = ['All','MLB','DISCOVERY','SERGIO TACCHINI','DUVETICA'];
-  $('#fBrand').innerHTML = brands.map(b => `<button class="${b===brandF?'on':''}" data-b="${esc(b)}">${b==='SERGIO TACCHINI'?'ST':esc(b)}</button>`).join('');
-  $('#fCat').onclick = e => { const b=e.target.closest('[data-c]'); if(b){ catF=b.dataset.c; drawKeys(); } };
-  $('#fBrand').onclick = e => { const b=e.target.closest('[data-b]'); if(b){ brandF=b.dataset.b; drawKeys(); } };
-  $('#kq').oninput = e => renderRows(e.target.value);
-  renderRows('');
+
+/* 키워드 전체 보기 — SNS/뉴스레터/리테일 세 소스를 하나로 합침 */
+function buildKwRows(){
+  const rows = [];
+
+  const { ranked: snsRanked } = aggregateSnsBrand(SNS_VIRAL);
+  for (const e of snsRanked){
+    const cats = [...new Set(e.items.flatMap(s => snsCategoriesOf(s)))];
+    rows.push({ label: e.label, cats, source: 'SNS', badge: 'SNS',
+      note: `SNS ${e.count}건 언급 · 스코어 ${e.score.toLocaleString()}` });
+  }
+
+  const newsRanked = aggregateNewsKw(NEWS_SIG);
+  for (const e of newsRanked){
+    const cats = [...new Set(e.items.map(s => s.category))];
+    rows.push({ label: e.label, cats, source: '뉴스레터', badge: 'NEWS',
+      note: e.items[0].summary || e.items[0].note });
+  }
+
+  for (const s of RETAIL_SIG){
+    rows.push({ label: `${s.brand} — ${s.product}`, cats: [s.category], source: '리테일', badge: 'RETAIL',
+      note: s.note });
+  }
+
+  return rows;
+}
+let KW_ROWS = [];
+let kwCatF = '전체';
+
+function drawKwCatBar(){
+  const cats = ['전체', ...CATS];
+  $('#kwCatBar').innerHTML = cats.map(c =>
+    `<button class="${c===kwCatF?'on':''}" data-c="${c}">${c==='전체'?'전체':esc(CAT_LABEL[c]||c)}</button>`).join('');
+  $('#kwCatBar').onclick = e => {
+    const b = e.target.closest('button'); if(!b) return;
+    kwCatF = b.dataset.c; drawKwCatBar(); drawKwBody();
+  };
 }
 
-function renderRows(q){
-  const rows = ENTS
-    .filter(e => (CNT[e.entity_id]||0) >= 1 || sigOf(e.entity_id).length)   /* 피드에 잡혔거나 수치가 있는 것 */
-    .filter(e => catF==='All' || catOf(e)===catF)
-    .filter(e => brandF==='All' || (e.brand_fit||[]).includes('ALL') || (e.brand_fit||[]).includes(brandF))
-    .filter(e => !q || norm(e.name_kr).includes(norm(q)) || norm(e.name_en||'').includes(norm(q)))
-    .sort((a,b) => (CNT[b.entity_id]||0) - (CNT[a.entity_id]||0))
-    .slice(0, 80);
-  const tagRows = (catF==='All' && brandF==='All')
-    ? TAGS.filter(t => !q || norm(t.text).includes(norm(q))).map(t => `
-      <tr><td><b style="color:var(--sub)">#${esc(t.text)}</b>
-        <div class="mini">피드 ${t.n}건 — 미등록 · 관리자 클러스터/큐에서 등록하면 검색량 추적 시작</div></td>
-        <td class="mini">—</td><td><span class="pillb New">미등록</span></td>
-        <td class="fl">—</td><td class="fl">—</td></tr>`).join('')
-    : '';
-  $('#kBody').innerHTML = (rows.length || tagRows) ? rows.map(e => `
-    <tr class="krow" data-open="${esc(e.entity_id)}">
-      <td><b>${esc(e.name_kr||e.name_en)}</b><div class="mini">${esc((e.notes||'').slice(0,44))}</div></td>
-      <td>${esc(catOf(e))}</td>
-      <td><span class="pillb ${stageOf(e.entity_id)}">${stageOf(e.entity_id)}</span></td>
-      <td>${spark(e.entity_id, 'KR')}</td>
-      <td>${chgHtml(change4(e.entity_id,'KR'))}</td>
-    </tr>`).join('') + tagRows : '<tr><td colspan="5" class="empty">해당하는 키워드가 없습니다</td></tr>';
+function drawKwBody(){
+  const rows = KW_ROWS.filter(r => kwCatF==='전체' || r.cats.includes(kwCatF));
+  $('#kwBody').innerHTML = rows.length ? rows.map(r => `<tr>
+      <td><b>${esc(r.label)}</b><div class="mini">${esc(r.note).slice(0,70)}${r.note.length>70?'…':''}</div></td>
+      <td>${r.cats.map(c => esc(CAT_LABEL[c]||c)).join(', ')}</td>
+      <td><span class="srcbadge ${r.badge}">${esc(r.source)}</span></td>
+      <td><span class="pillb New">New</span></td>
+      <td class="mini">준비중</td>
+      <td class="mini">준비중</td>
+    </tr>`).join('') : '<tr><td colspan="6" class="empty">해당 카테고리 키워드가 없습니다</td></tr>';
+}
+
+function drawKeys(){
+  KW_ROWS = buildKwRows();
+  drawKwCatBar();
+  drawKwBody();
 }
 
 /* ── 키워드 상세 (이미지 5) ── */
@@ -662,6 +685,7 @@ function renderStatic(){
   drawNewsGrid();
   drawSnsForCat();
   drawRetailGrid();
+  drawKeys();
 }
 
 $('#nav').onclick = e => {
