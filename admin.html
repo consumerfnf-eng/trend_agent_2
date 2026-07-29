@@ -240,20 +240,18 @@ tbody tr:hover{background:#fdfcf9}
   <div class="sess">
     <h3>트렌드 수집 세션 <span class="mini" style="font-weight:400">— 여기서 정한 값이 아래 사진 전부에 붙습니다</span></h3>
     <div class="row">
-      <div style="max-width:150px"><label class="f">구분</label>
-        <select id="gubun">
-          <option value="SNS">SNS</option><option value="동영상">동영상</option>
-          <option value="NEWSLETTER">NEWSLETTER</option><option value="RUNWAY">RUNWAY</option>
-          <option value="WGSN">WGSN</option><option value="RANKING">RANKING</option>
-          <option value="WEB">WEB</option><option value="POSTIT">POST IT</option>
-          <option value="SIG">시그널 (검색량)</option>
+      <div style="max-width:170px"><label class="f">구분 — 어디에 들어갈지</label>
+        <select id="sigType">
+          <option value="news">패션 트렌드</option>
+          <option value="lifestyle">라이프스타일 트렌드</option>
+          <option value="sns" selected>SNS 트렌드</option>
         </select></div>
       <div style="max-width:170px; display:none" id="srcWrap"><label class="f">출처</label>
         <select id="srcSel"></select>
         <input id="srcTxt" placeholder="VOGUE, 하입비스트…" hidden></div>
       <div style="max-width:130px"><label class="f">귀속 월</label><input id="ym" type="month"></div>
-      <div style="max-width:180px"><label class="f">소스</label><select id="source"></select></div>
-      <div style="max-width:100px"><label class="f">시장</label>
+      <div style="max-width:180px; display:none"><label class="f">소스</label><select id="source"></select></div>
+      <div style="max-width:100px; display:none"><label class="f">시장</label>
         <select id="region"><option value="GL">GLOBAL</option><option value="KR" selected>KR</option><option value="CN">CN</option></select></div>
       <div style="display:none"><label class="f">관찰 브랜드</label>
         <div style="display:flex; gap:6px">
@@ -1222,7 +1220,7 @@ function renderImgCards(){
       <button class="x" title="빼기">×</button>
       <img class="thumb" src="${it.preview}" alt="">
       <input data-k="source_url" type="url" placeholder="원문 URL (선택)">
-      <input data-k="image_url" type="url" placeholder="이미지 URL — 실제 링크 있으면 여기에 (없으면 로컬 미리보기만 사용)">
+      <input data-k="image_url" type="url" placeholder="이미지 URL — 실제 링크 있으면 여기에 (비워두면 캡처 사진이 자동 업로드됨)">
       <div class="row">
         <div style="max-width:160px"><label class="f">카테고리</label>
           <select data-k="category"><option value="">선택</option>
@@ -1353,12 +1351,27 @@ $('#saveImgs').onclick = async () => {
   const noKw = tgt.filter(x => !x.meta.keyword).length;
   if(noKw && !confirm(`키워드가 없는 사진이 ${noKw}장 있습니다.\nSNS 트렌드에서 안 잡힙니다. 그래도 등록할까요?`)) return;
 
-  const noImg = tgt.filter(x => !x.meta.image_url).length;
-  if(noImg && !confirm(`이미지 URL이 없는 사진이 ${noImg}장 있습니다.\n대시보드에 사진 없이 텍스트로만 뜹니다. 그래도 등록할까요?`)) return;
+  busy(true, '이미지 업로드 중…');
+  const uploadFails = [];
+  for(let i = 0; i < tgt.length; i++){
+    const it = tgt[i];
+    if(it.meta.image_url) continue;   // 직접 링크 넣었으면 그대로 씀 — 캡처를 다시 올리지 않음
+    busy(true, `이미지 업로드 중… ${i+1}/${tgt.length}`);
+    try{
+      const path = `${$('#sigType').value}/${ymNow()}/${it.hash}.jpg`;
+      const { error: upErr } = await sb.storage.from('trend-images')
+        .upload(path, it.thumb.blob, { contentType: 'image/jpeg', upsert: true });
+      if(upErr) throw upErr;
+      it.meta.image_url = sb.storage.from('trend-images').getPublicUrl(path).data.publicUrl;
+    }catch(e){ uploadFails.push(it.name); console.error(e); }
+  }
+  if(uploadFails.length && !confirm(`${uploadFails.length}장 이미지 업로드 실패 — ${uploadFails[0]} 등\n이미지 없이 그대로 등록할까요?`)){
+    busy(false); return;
+  }
 
   busy(true, '등록 중…');
   const rows = tgt.map(it => ({
-    source_type: 'sns',
+    source_type: $('#sigType').value,
     category:    it.meta.category || null,
     keyword:     it.meta.keyword,
     url:         it.meta.source_url || null,
@@ -1371,7 +1384,8 @@ $('#saveImgs').onclick = async () => {
 
   for(const it of tgt){ URL.revokeObjectURL(it.preview); QUEUE_IMGS.splice(QUEUE_IMGS.indexOf(it),1); }
   renderImgCards();
-  toast(`${tgt.length}장 SNS 트렌드에 등록했습니다 — 대시보드에서 바로 확인 가능해요`);
+  const typeLabel = {news:'패션 트렌드', lifestyle:'라이프스타일 트렌드', sns:'SNS 트렌드'}[$('#sigType').value] || 'SNS 트렌드';
+  toast(`${tgt.length}장 ${typeLabel}에 등록했습니다 — 대시보드에서 바로 확인 가능해요`);
 };
 
 async function ensureBrand(name, ym){
@@ -1418,32 +1432,8 @@ async function ensureSource(name){
   if(!error) SOURCES.push({ source_id: sid, name_kr: name, stage:'early' });
   return sid;
 }
-async function syncSource(){
-  const g = GUBUN[$('#gubun').value] || {};
-  const nm = g.free ? $('#srcTxt').value.trim() : $('#srcSel').value;
-  const sid = await ensureSource(nm || $('#gubun').value);
-  const so = $('#source');
-  if(![...so.options].some(x => x.value === sid)){
-    const op = document.createElement('option'); op.value = sid; op.textContent = nm || sid; so.appendChild(op);
-  }
-  so.value = sid;
-}
-function applyGubun(){
-  const g = GUBUN[$('#gubun').value] || GUBUN.SNS;
-  /* 모드 전환 — 숨겨둔 기존 모드 버튼을 그대로 누릅니다 */
-  document.querySelector(`#modes [data-mode="${g.mode}"]`)?.click();
-  /* 출처 UI — 항상 숨김 */
-  $('#srcWrap').style.display = 'none';
-  $('#srcSel').hidden = !g.srcs; $('#srcTxt').hidden = !g.free;
-  if(g.srcs) $('#srcSel').innerHTML = g.srcs.map(x=>`<option>${x}</option>`).join('');
-  /* 동영상이면 파일 입력이 영상도 받게 */
-  const fi = $('#file');
-  if(fi) fi.accept = $('#gubun').value === '동영상' ? 'video/*,image/*' : 'image/*';
-  syncSource();
-}
-$('#gubun').onchange = applyGubun;
-$('#srcSel').onchange = syncSource;
-$('#srcTxt').addEventListener('blur', syncSource);
+/* 예전엔 '구분'이 모드·출처를 다 결정했지만, 지금은 사진 캡처 모드 하나뿐이라 필요 없음 */
+function applyGubun(){}
 
 /* 키 상태 — 이 브라우저·이 주소에 저장된 키인지 한눈에 */
 function gemStatLine(){
