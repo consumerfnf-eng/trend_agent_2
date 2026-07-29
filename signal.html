@@ -86,11 +86,15 @@ tr.krow{cursor:pointer} tr.krow:hover{background:#faf6ec}
 .srcCnt{font-size:10px; font-weight:700; color:var(--acc); background:#fdf3ef; padding:2px 8px; border-radius:9px}
 .kwgrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:12px; margin-top:12px}
 .kwcard{background:var(--card); border:1px solid var(--hair); border-radius:10px; padding:14px; position:relative}
+.kwcard .kwphoto{width:calc(100% + 28px); margin:-14px -14px 10px; display:block; aspect-ratio:3/4;
+  object-fit:cover; background:#efeae1; border-radius:10px 10px 0 0}
 .kwcard .kwrank{position:absolute; top:12px; right:14px; font-size:11px; font-weight:800; color:var(--sub)}
 .kwcard .kwname{font-size:15px; font-weight:800; margin-bottom:4px; padding-right:26px; line-height:1.3}
 .kwcard .kwmeta{font-size:10.5px; color:var(--acc); font-weight:700; margin-bottom:8px}
 .kwcard .kwex{font-size:11px; color:var(--sub); line-height:1.5}
 .kwcard a.kwlink{font-size:10.5px; font-weight:700; color:var(--acc); text-decoration:none; display:inline-block; margin-top:6px}
+.kwcard .volbar{height:5px; border-radius:3px; background:#f3ede3; overflow:hidden; margin:8px 0}
+.kwcard .volbar i{display:block; height:100%; border-radius:3px; background:var(--acc)}
 .kwcard .relbadge{display:block; margin-top:8px; background:#fdf3ef; border:1px solid #f1d9cf; color:var(--acc);
   font-size:10.5px; font-weight:700; padding:6px 10px; border-radius:8px; cursor:pointer; text-align:left; font-family:inherit}
 .kwcard .relbadge:hover{background:#f8e7de}
@@ -486,6 +490,7 @@ const RETAIL_SIG = [
 /* 수동으로 추가한 기사 기반 트렌드 (하입비스트 코리아 SS27 남성 런웨이 리포트 등) */
 const FASHION_SIG_EXTRA = [
   
+  
   { url: 'https://hypebeast.kr/2026/7/ss27-mens-trends-runway-spring-summer-2027-menswear-info',
     note: '하입비스트 코리아: SS27 파리·밀라노 남성 런웨이 — 시스루 소재',
     category: 'top', axis: 'fabric', keywords: ['시스루'],
@@ -551,8 +556,36 @@ const FASHION_SIG_EXTRA = [
   {"url": "https://www.marieclaire.com/fashion/celebrity-style/victoria-beckham-loro-piana-basket-bag-ibiza-vacation/", "note": "Marie Claire: 빅토리아 베컴, 로로피아나 우븐 백 (2026.07.27)", "category": "bag", "axis": "styling", "keywords": ["우븐 비치백"], "summary": "이비자 휴가에서 에르메스 버킨 대신 로로피아나 우븐 바스켓백을 든 빅토리아 베컴, 여름 휴양지룩 필수템으로 부상", "stage": "early"},
   {"url": "https://celebmafia.com/karlie-kloss-in-a-rugby-shirt-and-white-pleated-skirt-at-her-spaghetti-code-book-event-in-la-4705996/", "note": "CelebMafia: 칼리 클로스, 럭비셔츠+화이트 플리츠 스커트 (2026.07.27)", "category": "top", "axis": "styling", "keywords": ["프레피 럭비셔츠"], "summary": "LA 북 이벤트에서 스트라이프 럭비셔츠에 화이트 플리츠 스커트, 발레 플랫을 매치한 칼리 클로스의 캐주얼 아카데믹 룩", "stage": "early"},
   {"url": "https://celebmafia.com/jennifer-lawrence-street-style-in-venice-july-2026-4705509/", "note": "CelebMafia: 제니퍼 로렌스, 아디다스 슬라이드 스타일링 (2026.07.26)", "category": "shoes", "axis": "styling", "keywords": ["슬라이드 샌들"], "summary": "베니스 스트리트에서 그레이 티셔츠+블랙 팬츠에 퍼플 양말과 아디다스 슬라이드를 매치한 제니퍼 로렌스, 더 로우 마고 17과 함께 스니커즈 대신 슬라이드를 택한 캐주얼 룩", "stage": "early"},
-  {"url": "https://www.myfacehunter.com/2026/07/lily-collins-ralph-lauren-wimbledon-womens-final-2026-london.html", "note": "Facehunter: 릴리 콜린스, 윔블던 여자 결승 룩 (2026.07.11)", "category": "dress", "axis": "styling", "keywords": ["프레피 스커트 세트"], "summary": "윔블던 여자 결승전에서 랄프 로렌의 크림 터틀넥+비대칭 헴라인 플리츠 미디 스커트를 매치한 릴리 콜린스, 카르티에·아쿠아주라 액세서리로 완성한 콰이엇 럭셔리 무드", "stage": "early"}
+  {"url": "https://www.myfacehunter.com/2026/07/lily-collins-ralph-lauren-wimbledon-womens-final-2026-london.html", "note": "Facehunter: 릴리 콜린스, 윔블던 여자 결승 룩 (2026.07.11)", "category": "dress", "axis": "styling", "keywords": ["프레피 스커트 세트"], "summary": "윔블던 여자 결승전에서 랄프 로렌의 크림 터틀넥+비대칭 헴라인 플리츠 미디 스커트를 매치한 릴리 콜린스, 카르티에·아쿠아주라 액세서리로 완성한 콰이엇 럭셔리 무드", "stage": "early"},
+  {"url": "https://www.marieclaire.com/fashion/celebrity-style/adidas-track-jacket-leggings-outfit-kendall-jenner/", "note": "Marie Claire: 켄달 제너, 핏티드 트랙탑 (2026.07.21)", "category": "top", "axis": "silhouette", "keywords": ["핏티드 트랙탑"], "summary": "아디다스 스포티프 룩의 핵심 아이템인 몸에 붙는 트랙탑 — 레깅스와 매치해 오프듀티 애슬리트 무드를 완성", "stage": "early", "image_url": "https://cdn.mos.cms.futurecdn.net/wiHbuU3qSQT9rmgnXeqr7R-1024-80.jpg.webp"},
+  {"url": "https://www.vogue.co.kr/2026/07/28/%EB%82%A8%EC%9D%80-%EC%97%AC%EB%A6%84%EC%9D%80-%EB%AC%BC%EB%A1%A0-%EA%B0%80%EC%9D%84%EA%B9%8C%EC%A7%80-%EC%9D%B4-%ED%8C%AC%EC%B8%A0%EB%8A%94-%EA%B3%84%EC%86%8D%EB%90%A9%EB%8B%88%EB%8B%A4", "note": "보그 코리아: 남은 여름은 물론 가을까지 이어질 카고 버뮤다 팬츠 (2026.07.28)", "category": "pants", "axis": "silhouette", "keywords": ["버뮤다 카고팬츠"], "summary": "유틸리티·스트리트 상징이던 카고 버뮤다가 데님 쇼츠만큼 시대를 안 타는 아이템으로 자리 이동 — 펜디는 크림톤 카고 버뮤다에 크롭 재킷·힐 샌들로 럭셔리화, JW 앤더슨은 봄버 재킷과 매치. 디올 26 S/S는 재킷+스커트 하이브리드까지 선보임", "stage": "early", "image_url": "https://img.vogue.co.kr/vogue/2026/07/style_6a68566fa0ea7-620x930.jpg"},
+  {"url": "https://www.vogue.co.kr/2026/07/28/%EA%B2%80%EC%83%89%EB%9F%89%EB%A7%8C-483-%EC%A6%9D%EA%B0%80-%EC%98%AC%EA%B0%80%EC%9D%84%EC%97%94-%EC%95%84%EB%94%94%EB%8B%A4%EC%8A%A4-%EC%9D%B4-%EC%9A%B4%EB%8F%99%ED%99%94%EB%A5%BC-%EC%8B%A0%EA%B2%A0/", "note": "보그 코리아: 아디다스 태권도 메이, 검색량 483%↑ (2026.07.28, JD스포츠 조사)", "category": "shoes", "axis": "silhouette", "keywords": ["발레코어"], "summary": "발레리나 스니커즈와 스니커즈의 중간인 하이브리드 슈즈 '태권도 메이' 검색량이 483% 급증 — 출시 1년 넘은 제품의 이례적 재부상, 개학 시즌 앞둔 10대 후반~20대 초반 여성이 견인. 발레코어 키워드 자체도 구글 검색 361%↑, 틱톡 해시태그 누적 조회수 10억회", "stage": "early", "image_url": "https://img.vogue.co.kr/vogue/2026/07/style_6a6816fc9b718-744x930.jpg"},
+  {"url": "https://www.vogue.co.kr/2026/07/28/%EC%A0%9C%EB%8B%88%EB%B6%80%ED%84%B0-%EA%B0%95%EB%AF%BC%EA%B2%BD%EA%B9%8C%EC%A7%80-%EC%85%80%EB%9F%BD%EB%93%A4%EC%9D%B4-%EC%82%AC%EB%9E%91%ED%95%98%EB%8A%94-%EC%84%9C%EB%A8%B8-%EB%A0%88%EB%93%9C/", "note": "보그 코리아: 제니부터 강민경까지! 셀럽들이 사랑하는 서머 레드 (2026.07.28)", "category": "dress", "axis": "color", "keywords": ["섬머 레드"], "summary": "여름 옷차림에 존재감을 더하는 레드 컬러 — 제니는 뮤직비디오에서 블랙 미니멀 톱에 로즈 프린트 레드 스커트로 컬러 블로킹, 정수정(크리스탈)은 레드 니트톱+체크팬츠로 서머 레트로 룩 연출", "stage": "early", "image_url": "https://img.vogue.co.kr/vogue/2026/07/style_6a68267b250d8-768x768.jpg"},
+  {"url": "https://www.vogue.co.kr/2026/07/20/%EC%B4%8C%EC%8A%A4%EB%9F%BD%EB%8D%98-1980%EB%85%84%EB%8C%80-%EC%9E%AC%ED%82%B7%EC%9D%B4-%EC%83%9D-%EB%A1%9C%EB%9E%91%EC%9D%84-%EB%A7%8C%EB%82%98-%EA%B0%96%EA%B3%A0-%EC%8B%B6%EC%96%B4%EC%A1%8C%EC%96%B4", "note": "보그 코리아: 촌스럽던 1980년대 재킷이 생 로랑을 만나 갖고 싶어졌어요 (2026.07.20)", "category": "outer", "axis": "styling", "keywords": ["레트로 블루종"], "summary": "복고풍 블루종이 생 로랑을 통해 재해석되며 화제 — 연초부터 인스타그램에서 사랑받았고 톰 홀랜드도 최근 착용. 폭염 속에서도 긴팔·재킷이 이례적으로 유행 중", "stage": "early", "image_url": "https://img.vogue.co.kr/vogue/2026/07/style_6a5dd2922ee27-768x1152.jpg"},
+  {"url": "https://www.vogue.co.kr/2026/07/15/%EC%98%AC%EC%97%AC%EB%A6%84%EC%97%90%EB%8A%94-%ED%94%8C%EB%A6%BD%ED%94%8C%EB%A1%AD%EC%9D%B4%EB%82%98-%EC%9A%B4%EB%8F%99%ED%99%94-%EB%8C%80%EC%8B%A0-%EB%A1%9C%ED%8D%BC%EB%A5%BC-%EC%8B%A0%EC%9C%BC%EC%84%B8%EC%9A%94", "note": "보그 코리아: 올여름에는 플립플롭이나 운동화 대신 로퍼를 신으세요 (2026.07.15)", "category": "shoes", "axis": "silhouette", "keywords": ["썸머 로퍼"], "summary": "바지통이 좁아지며 로퍼 실루엣도 날렵해져 여름에도 어색하지 않은 신발로 부상 — 셀린느는 뒤축 구겨신는 로퍼, 생 로랑은 부드러운 가죽의 '르 로퍼' 출시", "stage": "early", "image_url": "https://img.vogue.co.kr/vogue/2026/07/style_6a5704e302221-621x930.jpg"},
+  {"url": "https://www.vogue.co.kr/2026/07/14/%ED%95%80%ED%84%B0%EB%A0%88%EC%8A%A4%ED%8A%B8-%EA%B2%80%EC%83%89%EB%9F%89-800-%EC%A6%9D%EA%B0%80-%ED%8F%AD%EC%97%BC-%EC%86%8D-%EC%99%84%EB%B2%BD-%EC%95%84%EC%9D%B4%ED%85%9C", "note": "보그 코리아: 핀터레스트 검색량 800%↑, 폭염 속 완벽 아이템 반다나 (2026.07.14)", "category": "acc", "axis": "styling", "keywords": ["반다나"], "summary": "핀터레스트 월간 검색량 800%↑ 급증한 반다나 — 그레이시 에이브럼스·사브리나 카펜터 등 젊은 셀럽이 애용, 헤드밴드·파일럿 스타일 등 다양한 스타일링으로 확산", "stage": "early", "image_url": "https://img.vogue.co.kr/vogue/2026/07/style_6a55d0cc92cdf-620x930.jpg"},
+  {"url": "https://www.vogue.co.kr/2026/07/08/%ea%b7%b8-%ec%8b%9c%ec%a0%88-%ec%8a%a4%ed%8f%ac%ec%b8%a0%ec%9b%a8%ec%96%b4%ea%b0%80-%eb%8b%a4%ec%8b%9c-%eb%a9%8b%ec%a0%b8-%eb%b3%b4%ec%9d%b4%eb%8a%94-%ec%9d%b4%ec%9c%a0/", "note": "보그 코리아: 그 시절 스포츠웨어가 다시 멋져 보이는 이유 (2026.07.08)", "category": "top", "axis": "styling", "keywords": ["Y2K 액티브웨어"], "summary": "매치 세트 운동복 대신 2000년대풍 빈티지 스포츠웨어(사이클링·킥복싱 문구 티셔츠 등)를 믹스 매치하는 흐름 — '조용한 럭셔리'식 세트룩의 반작용으로 부상", "stage": "early", "image_url": "https://img.vogue.co.kr/vogue/2026/07/style_6a47e6fd525e3-768x525.jpg"},
+  {"url": "https://dafanew.com/Runway/?bmode=view&idx=172028457", "note": "데패뉴: Saint Laurent SS27 풋웨어 — PVC 소재 (2026.06.26)", "category": "shoes", "axis": "fabric", "keywords": ["PVC 슈즈"], "summary": "생 로랑 SS27 컬렉션에서 내부가 훤히 비치는 PVC 소재 로퍼·부츠가 화제 — 스네이크·레오파드 패턴 레더 파츠, 20mm 굽·5mm 솔의 슬림 실루엣이 특징", "stage": "early", "image_url": "https://cdn.imweb.me/upload/S20221129c3c04fdc67a8b/bc4c6a00d3f95.jpeg"}
+
 ];
+
+/* 원문 링크 → 이미지 URL 매핑. 나중에 엑셀로 받은 이미지 URL을 여기 채워 넣으면
+   카드 위에 자동으로 사진이 뜸 (키워드별로 다른 이미지를 쓰려면 url 뒤에 '#키워드'를 붙여서 구분) */
+const IMAGE_URL_MAP = {
+  // 'https://www.marieclaire.com/fashion/celebrity-style/dua-lipa-...': 'https://example.com/photo.jpg',
+  'https://hypebeast.kr/2026/7/ss27-mens-trends-runway-spring-summer-2027-menswear-info#시스루': 'https://image-cdn.hypb.st/https%3A%2F%2Fhypebeast.com%2Fimage%2F2026%2F07%2F22%2Fss27-mens-trends-runway-spring-summer-2027-menswear-info-80.jpg?w=1260&cbr=1&q=90&fit=max',
+  'https://hypebeast.kr/2026/7/ss27-mens-trends-runway-spring-summer-2027-menswear-info#새틴': 'https://image-cdn.hypb.st/https%3A%2F%2Fhypebeast.com%2Fimage%2F2026%2F07%2F23%2Fss27-mens-trends-runway-spring-summer-2027-menswear-info-13.jpg?w=1260&cbr=1&q=90&fit=max',
+  'https://hypebeast.kr/2026/7/ss27-mens-trends-runway-spring-summer-2027-menswear-info#아쿠아틱 블루': 'https://image-cdn.hypb.st/https%3A%2F%2Fhypebeast.com%2Fimage%2F2026%2F07%2F23%2Fss27-mens-trends-runway-spring-summer-2027-menswear-info-24.jpg?w=1260&cbr=1&q=90&fit=max',
+  'https://hypebeast.kr/2026/7/ss27-mens-trends-runway-spring-summer-2027-menswear-info#오렌지': 'https://image-cdn.hypb.st/https%3A%2F%2Fhypebeast.com%2Fimage%2F2026%2F07%2F23%2Fss27icon.jpg?w=1440&cbr=1&q=90&fit=max',
+  'https://hypebeast.kr/2026/7/ss27-mens-trends-runway-spring-summer-2027-menswear-info#마이크로 재킷': 'https://image-cdn.hypb.st/https%3A%2F%2Fhypebeast.com%2Fimage%2F2026%2F07%2F23%2Fss27-mens-trends-runway-spring-summer-2027-menswear-info-48.jpg?w=1260&cbr=1&q=90&fit=max',
+  'https://hypebeast.kr/2026/7/ss27-mens-trends-runway-spring-summer-2027-menswear-info#복서 쇼츠': 'https://image-cdn.hypb.st/https%3A%2F%2Fhypebeast.com%2Fimage%2F2026%2F07%2F23%2Fss27-mens-trends-runway-spring-summer-2027-menswear-info-39.jpg?w=1260&cbr=1&q=90&fit=max',
+  'https://hypebeast.kr/2026/7/ss27-mens-trends-runway-spring-summer-2027-menswear-info#스터드 데님': 'https://image-cdn.hypb.st/https%3A%2F%2Fhypebeast.com%2Fimage%2F2026%2F07%2F23%2Fss27-mens-trends-runway-spring-summer-2027-menswear-info-68.jpg?w=1260&cbr=1&q=90&fit=max',
+  'https://www.marieclaire.com/fashion/celebrity-style/track-shorts-trend-summer-2026-styling/': 'https://cdn.mos.cms.futurecdn.net/ns3XzHdKNM959gNzMLa5xe-1280-80.jpg.webp',
+};
+for (const it of [...FASHION_SIG, ...FASHION_SIG_EXTRA, ...LIFESTYLE_SIG]){
+  const key = it.keywords?.[0] ? `${it.url}#${it.keywords[0]}` : it.url;
+  it.image_url = it.image_url || IMAGE_URL_MAP[key] || IMAGE_URL_MAP[it.url] || null;
+}
 
 /* 뉴스레터 소스 = 패션 트렌드 리서치 + 라이프스타일 리서치(라이프스타일 카테고리로 통합) */
 const NEWS_SIG = [
@@ -632,19 +665,25 @@ function snsExampleHTML(entry){
   return `<div class="kwex">${esc(snippet)}</div><a class="kwlink" href="${esc(top.post_url)}" target="_blank" rel="noopener">대표 게시물 보기 →</a>`;
 }
 
-function kwCardHTML(entry, i, exampleFn, showScore, metaOverride){
+function kwCardHTML(entry, i, exampleFn, showScore, metaOverride, maxVal){
   const meta = metaOverride ? metaOverride(entry) : `${entry.count}건 언급${showScore ? ` · 스코어 ${entry.score.toLocaleString()}` : ''}`;
+  const val = showScore ? entry.score : entry.count;
+  const pct = maxVal ? Math.max(6, Math.round(val / maxVal * 100)) : 0;
+  const img = entry.items.find(it => it.image_url)?.image_url;
   return `<div class="kwcard">
+    ${img ? `<img class="kwphoto" src="${esc(img)}" alt="" loading="lazy">` : ''}
     <div class="kwrank">#${i+1}</div>
     <div class="kwname">${esc(entry.label)}</div>
     <div class="kwmeta">${meta}</div>
+    <div class="volbar"><i style="width:${pct}%"></i></div>
     ${exampleFn(entry)}
   </div>`;
 }
 
 function renderKwBlock(gridSel, moreBtnSel, moreListSel, cntSel, ranked, exampleFn, showScore, emptyMsg, bigN=8, metaOverride){
   const big = ranked.slice(0, bigN), rest = ranked.slice(bigN);
-  $(gridSel).innerHTML = big.length ? big.map((e,i)=>kwCardHTML(e,i,exampleFn,showScore,metaOverride)).join('') : `<div class="empty">${emptyMsg}</div>`;
+  const maxVal = ranked.length ? Math.max(...ranked.map(e => showScore ? e.score : e.count)) : 0;
+  $(gridSel).innerHTML = big.length ? big.map((e,i)=>kwCardHTML(e,i,exampleFn,showScore,metaOverride,maxVal)).join('') : `<div class="empty">${emptyMsg}</div>`;
   $(cntSel).textContent = ranked.length ? `키워드 ${ranked.length}개` : '';
   const moreBtn = $(moreBtnSel), moreList = $(moreListSel);
   if(rest.length){
