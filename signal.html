@@ -89,16 +89,14 @@ tr.krow{cursor:pointer} tr.krow:hover{background:#faf6ec}
 .kwgrid::-webkit-scrollbar-thumb{background:var(--hair); border-radius:3px}
 .kwgrid .kwcard{flex:0 0 calc(25% - 9px); min-width:220px; scroll-snap-align:start}
 .kwcard{background:var(--card); border:1px solid var(--hair); border-radius:10px; padding:14px; position:relative}
-.kwcard .kwphoto{width:calc(100% + 28px); margin:-14px -14px 10px; display:block; aspect-ratio:3/4;
-  object-fit:cover; background:#efeae1; border-radius:10px 10px 0 0}
-.kwcard .kwrank{position:absolute; top:12px; right:14px; font-size:11px; font-weight:800; color:var(--sub)}
-.kwcard .kwregion{position:absolute; top:12px; right:44px; font-size:9px; font-weight:800; color:#fff;
+.kwcard .kwphotowrap{position:relative; width:calc(100% + 28px); margin:-14px -14px 10px}
+.kwcard .kwphoto{width:100%; display:block; aspect-ratio:3/4; object-fit:cover; background:#efeae1;
+  border-radius:10px 10px 0 0}
+.kwcard .kwregion{position:absolute; top:10px; right:10px; font-size:9px; font-weight:800; color:#fff;
   background:rgba(0,0,0,.55); padding:2px 7px; border-radius:8px}
-.kwtitlerow{display:flex; align-items:baseline; justify-content:space-between; gap:8px; margin-bottom:4px}
-.kwtitlerow .kwname{margin-bottom:0; padding-right:0; flex:1; min-width:0}
-.kwsrc{font-size:9px; font-weight:800; color:var(--acc); background:#fdf3ef; padding:2px 7px;
-  border-radius:8px; white-space:nowrap; flex-shrink:0}
-.kwcard .kwname{font-size:15px; font-weight:800; margin-bottom:4px; padding-right:26px; line-height:1.3}
+.kwcard .kwsrc{position:absolute; bottom:10px; right:10px; font-size:9px; font-weight:800; color:#fff;
+  background:rgba(0,0,0,.55); padding:2px 7px; border-radius:8px}
+.kwcard .kwname{font-size:15px; font-weight:800; margin-bottom:4px; line-height:1.3}
 .kwcard .kwmeta{font-size:10.5px; color:var(--acc); font-weight:700; margin-bottom:8px}
 .kwcard .kwex{font-size:11px; color:var(--sub); line-height:1.5}
 .kwcard a.kwlink{font-size:10.5px; font-weight:700; color:var(--acc); text-decoration:none; display:inline-block; margin-top:6px}
@@ -552,6 +550,7 @@ async function loadTrendSignals(){
       }
     }
     renderStatic();
+    try{ window.parent.postMessage('ta-signals-updated', '*'); }catch(e){}
   }catch(e){ console.warn('trend_signals 로드 실패:', e); }
 }
 let scatF = 'top';
@@ -631,10 +630,12 @@ function kwCardHTML(entry, i, exampleFn, showScore, metaOverride, maxVal){
   const source = entry.items.find(it => it.source)?.source;
   const hot = entry.count > 1;
   return `<div class="kwcard${hot ? ' hot' : ''}">
-    ${img ? `<img class="kwphoto" src="${esc(img)}" alt="" loading="lazy">` : ''}
-    ${region && img ? `<div class="kwregion">${esc(region)}</div>` : ''}
-    <div class="kwrank">#${i+1}${hot ? ' 🔥' : ''}</div>
-    <div class="kwtitlerow"><div class="kwname">${esc(entry.label)}</div>${source ? `<span class="kwsrc">${esc(source)}</span>` : ''}</div>
+    ${img ? `<div class="kwphotowrap">
+      <img class="kwphoto" src="${esc(img)}" alt="" loading="lazy">
+      ${region ? `<div class="kwregion">${esc(region)}</div>` : ''}
+      ${source ? `<div class="kwsrc">${esc(source)}</div>` : ''}
+    </div>` : ''}
+    <div class="kwname">${esc(entry.label)}</div>
     <div class="kwmeta">${meta}</div>
     <div class="volbar"><i style="width:${pct}%"></i></div>
     ${exampleFn(entry)}
@@ -745,7 +746,9 @@ if(window.self !== window.top) $('#backLink').style.display = 'none';   // 대�
 /* index.html의 TREND KEYWORDS 탭에서 iframe.contentWindow로 읽어갈 수 있게 공개 */
 window.TA_SIGNAL_DATA = {
   getSnsViral: () => SNS_VIRAL,
-  getNewsSig: () => NEWS_SIG,
+  getNewsSig: () => [...NEWS_SIG, ...SB_NEWS, ...SB_LIFESTYLE],
+  getManualSns: () => SB_SNS,
+  aggregateManualSns,
   getRetailSig: () => RETAIL_SIG,
   aggregateSnsKw, aggregateNewsKw, snsCategoriesOf, normKw, CAT_LABEL, CATS, esc
 };

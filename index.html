@@ -698,7 +698,7 @@ function buildKwTable2(){
   const frame = $('#signalFrame');
   const data = frame && frame.contentWindow && frame.contentWindow.TA_SIGNAL_DATA;
   if(!data) return;
-  const { getSnsViral, getNewsSig, getRetailSig, aggregateSnsKw, aggregateNewsKw, snsCategoriesOf, CAT_LABEL, CATS } = data;
+  const { getSnsViral, getNewsSig, getRetailSig, getManualSns, aggregateSnsKw, aggregateManualSns, aggregateNewsKw, snsCategoriesOf, CAT_LABEL, CATS } = data;
 
   const rows = [];
   const { ranked: snsRanked } = aggregateSnsKw(getSnsViral());
@@ -706,6 +706,11 @@ function buildKwTable2(){
     const cats = [...new Set(e.items.flatMap(s => snsCategoriesOf(s)))];
     rows.push({ label: e.label, cats, source: 'SNS', badge: 'SNS',
       note: `SNS ${e.count}건 언급 · 스코어 ${e.score.toLocaleString()}` });
+  }
+  const manualRanked = aggregateManualSns(getManualSns());
+  for(const e of manualRanked){
+    const cats = [...new Set(e.items.map(s => s.category).filter(Boolean))];
+    rows.push({ label: e.label, cats, source: 'SNS', badge: 'SNS', note: e.items[0]?.content || '' });
   }
   const newsRanked = aggregateNewsKw(getNewsSig());
   for(const e of newsRanked){
@@ -747,6 +752,7 @@ function drawKwBody2(){
 }
 
 $('#signalFrame').addEventListener('load', buildKwTable2);
+window.addEventListener('message', e => { if(e.data === 'ta-signals-updated') buildKwTable2(); });
 
 /* ═══ 탭 ═══ */
 const TABNOTE = { signal:'FEED 키워드의 검색량 — 네이버 · 구글 · 썸트렌드',
