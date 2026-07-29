@@ -30,7 +30,16 @@ header h1{font-family:'Playfair Display',serif; font-size:22px}
 .kwfbar button:hover{border-color:#c9bfa9}
 .kwfbar button.on{background:var(--ink); color:#fff; border-color:var(--ink)}
 .kwtablewrap{background:#fff; border:1px solid var(--hair); border-radius:10px; overflow:hidden; margin-top:12px}
-.kwtablewrap table{width:100%; border-collapse:collapse}
+.kwtablewrap table{width:100%; border-collapse:collapse; table-layout:fixed}
+.kwtablewrap th:nth-child(1), .kwtablewrap td:nth-child(1){width:auto}
+.kwtablewrap th:nth-child(2), .kwtablewrap td:nth-child(2){width:110px}
+.kwtablewrap th:nth-child(3), .kwtablewrap td:nth-child(3){width:80px}
+.kwtablewrap th:nth-child(4), .kwtablewrap td:nth-child(4){width:60px}
+.kwtablewrap th:nth-child(5), .kwtablewrap td:nth-child(5){width:90px}
+.kwtablewrap th:nth-child(6), .kwtablewrap td:nth-child(6){width:70px}
+.kwtablewrap td:nth-child(1){overflow:hidden}
+.kwtablewrap td:nth-child(1) b{display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.kwtablewrap td:nth-child(1) .mini{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 .kwtablewrap th{font-size:9px; letter-spacing:.12em; color:var(--sub); text-align:left; padding:10px 12px;
   border-bottom:1px solid var(--hair); text-transform:uppercase}
 .kwtablewrap td{padding:10px 12px; border-bottom:1px solid var(--hair); font-size:12px; vertical-align:middle}
@@ -95,7 +104,7 @@ header h1{font-family:'Playfair Display',serif; font-size:22px}
 .boardtop{display:flex;justify-content:flex-end;padding:12px 22px 0}
 .boardtop a{font-size:10px;letter-spacing:.12em;font-weight:700;color:var(--rising);text-decoration:none;
   border:1px solid var(--rising);padding:5px 11px}
-.mblk{padding:6px 22px 26px}
+.mblk{padding:6px 22px 26px; max-width:1160px; margin:0 auto}
 .mhd{font-family:'Playfair Display',serif;font-size:26px;border-bottom:1px solid var(--ink);
   padding-bottom:6px;margin:16px 0 14px}
 .gblk{margin-bottom:22px}
@@ -319,10 +328,9 @@ async function load(){
 
     renderBrands();
   }catch(e){
-    console.error(e);
-    document.body.insertAdjacentHTML('afterbegin',
-      `<div style="background:#c8451f;color:#fff;padding:12px 26px;font-size:13px">
-        데이터를 불러오지 못했습니다 — ${esc(e.message)}. Supabase 주소와 키를 확인해주세요.</div>`);
+    /* v_feed/v_key_brands 등은 예전 스키마 — 새 프로젝트엔 아직 없어서 실패가 정상입니다.
+       KEY BRAND 데이터가 따로 연동되기 전까지는 조용히 건너뜁니다 */
+    console.warn('MAIN BOARD/KEY BRAND 데이터 없음 (예전 스키마 미이관):', e.message);
   }
   $('#load').classList.add('done');
 }
