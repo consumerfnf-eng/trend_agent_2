@@ -240,18 +240,20 @@ tbody tr:hover{background:#fdfcf9}
   <div class="sess">
     <h3>트렌드 수집 세션 <span class="mini" style="font-weight:400">— 여기서 정한 값이 아래 사진 전부에 붙습니다</span></h3>
     <div class="row">
-      <div style="max-width:170px"><label class="f">구분 — 어디에 들어갈지</label>
-        <select id="sigType">
-          <option value="news">패션 트렌드</option>
-          <option value="lifestyle">라이프스타일 트렌드</option>
-          <option value="sns" selected>SNS 트렌드</option>
+      <div style="max-width:150px"><label class="f">구분</label>
+        <select id="gubun">
+          <option value="SNS">SNS</option><option value="동영상">동영상</option>
+          <option value="NEWSLETTER">NEWSLETTER</option><option value="RUNWAY">RUNWAY</option>
+          <option value="WGSN">WGSN</option><option value="RANKING">RANKING</option>
+          <option value="WEB">WEB</option><option value="POSTIT">POST IT</option>
+          <option value="SIG">시그널 (검색량)</option>
         </select></div>
       <div style="max-width:170px; display:none" id="srcWrap"><label class="f">출처</label>
         <select id="srcSel"></select>
         <input id="srcTxt" placeholder="VOGUE, 하입비스트…" hidden></div>
       <div style="max-width:130px"><label class="f">귀속 월</label><input id="ym" type="month"></div>
-      <div style="max-width:180px; display:none"><label class="f">소스</label><select id="source"></select></div>
-      <div style="max-width:100px; display:none"><label class="f">시장</label>
+      <div style="max-width:180px"><label class="f">소스</label><select id="source"></select></div>
+      <div style="max-width:100px"><label class="f">시장</label>
         <select id="region"><option value="GL">GLOBAL</option><option value="KR" selected>KR</option><option value="CN">CN</option></select></div>
       <div style="display:none"><label class="f">관찰 브랜드</label>
         <div style="display:flex; gap:6px">
@@ -780,8 +782,8 @@ tbody tr:hover{background:#fdfcf9}
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ═══════════ 설정 — 여기 두 줄만 바꾸면 됩니다 ═══════════ */
-const SUPABASE_URL  = 'https://bgyrmztoohrdjkxzylmr.supabase.co';
-const SUPABASE_ANON  = 'sb_publishable_JX986aH0CBAEgr7exxvv-g_uGc2Zijm';
+const SUPABASE_URL  = 'https://piifytwflubdtkzaiisi.supabase.co';
+const SUPABASE_ANON  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBpaWZ5dHdmbHViZHRremFpaXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQwODI5NDcsImV4cCI6MjA5OTY1ODk0N30.cVrgt7YQ99R-slePt8U2r_GmtDxetejZdqHcnqJmwhc';
 /* ════════════════════════════════════════════════════════ */
 
 if(SUPABASE_URL.includes('YOUR-PROJECT'))
@@ -813,12 +815,14 @@ let QUEUE_IMGS = [];
 
 /* ═══════════ 로그인 ═══════════ */
 async function boot(){
-  /* 로그인 없이 바로 사용 — 이 도구는 사진 올려서 trend_signals 에 등록하는 용도뿐이라 계정 불필요 */
-  ME = '(관리자)';
-  IS_ADMIN = true;
+  const { data:{ session } } = await sb.auth.getSession();
+  if(!session){ $('#gate').hidden=false; return; }
+  ME = session.user.email;
+  const { data:ad } = await sb.from('admins').select('email').eq('email', ME).maybeSingle();
+  IS_ADMIN = !!ad;
   $('#gate').hidden = true;
   $('#app').hidden  = false;
-  $('#whoTxt').textContent = ME;
+  $('#whoTxt').textContent = ME + (IS_ADMIN ? '' : ' — 읽기 전용');
   await loadConfig();
   await loadAll();
 }
@@ -836,22 +840,65 @@ $('#logout').onclick = async () => { await sb.auth.signOut(); location.reload();
 
 /* ═══════════ 공통 로딩 ═══════════ */
 async function loadAll(){
-  /* 예전 스키마(entities/sources/brands/celebs/aliases)는 새 프로젝트에 없음 —
-     지금 폼엔 필요 없어서 건너뜀. "소스"만 고정 목록으로 채움 */
-  $('#source').innerHTML = ['INSTAGRAM','TIKTOK','X','WEB']
-    .map(s => `<option value="${s}">${s}</option>`).join('');
-  if(!window._gubunInit){ window._gubunInit = true; applyGubun(); }
-  $('#ym').value = ymNow();
-  $('#cfUrl').textContent   = SUPABASE_URL;
-  $('#cfWho').textContent   = ME;
-  $('#cfAdmin').textContent = '있음 — 수집 가능';
-  ['full','fullQ','thumb','thumbQ'].forEach(k=>{
-    const el=$('#set'+k[0].toUpperCase()+k.slice(1)); if(el) el.value=SET[k];
-    const lbl=$('#cf'+k[0].toUpperCase()+k.slice(1)); if(lbl) lbl.textContent=SET[k];
-  });
-  $('#setGem').value = GEMKEY;
-  gemStatLine();
-  $('#setGemModel').value = GEMMODEL;
+  busy(true,'사전 불러오는 중…');
+  try{
+    const [se,ss,sb2,sc,sa] = await Promise.all([
+      sb.from('entities').select('*').order('entity_id'),
+      sb.from('sources').select('*').eq('active',true).order('sort_order'),
+      sb.from('brands').select('*').order('brand_name'),
+      sb.from('celebs').select('*').order('celeb_name'),
+      sb.from('aliases').select('alias_text,entity_id,normalized_alias').eq('active',true)
+    ]);
+    for(const r of [se,ss,sb2,sc,sa]) if(r.error) throw r.error;
+    ENTITIES = se.data; SOURCES = ss.data; BRANDS = sb2.data; CELEBS = sc.data;
+
+    entById={}; entByName={}; aliasIdx={}; celebIdx={}; aliasByEnt={};
+    const dl = $('#entList'); dl.innerHTML='';
+    for(const e of ENTITIES){
+      entById[e.entity_id]=e;
+      entByName[norm(e.name_kr)]=e.entity_id;
+      if(e.name_en) entByName[norm(e.name_en)]=e.entity_id;
+      const o=document.createElement('option'); o.value = e.name_en || e.name_kr; dl.appendChild(o);
+    }
+    for(const a of sa.data){
+      aliasIdx[a.normalized_alias]=a.entity_id;
+      (aliasByEnt[a.entity_id] ||= []).push(a.alias_text);
+    }
+    for(const c of CELEBS) for(const acc of (c.accounts||[])) celebIdx[norm(acc)]=c.celeb_name;
+
+    $('#source').innerHTML = SOURCES.map(s=>`<option value="${s.source_id}">${esc(s.name_kr||s.source_id)}</option>`).join('');
+    if(!window._gubunInit){ window._gubunInit = true; applyGubun(); }
+    $('#brandList').innerHTML = BRANDS.map(b=>`<option value="${esc(b.brand_name)}"></option>`).join('');
+    const keepFMv = $('#fMv').value;
+    $('#fMv').innerHTML = '<option value="">전체</option><option value="__none">— 흐름 없음 —</option>' +
+      MOVEMENTS().map(m => `<option value="${esc(m.name_kr)}">${esc(m.name_kr)}</option>`).join('');
+    $('#fMv').value = keepFMv;
+
+    const keepMv = $('#sessMv').value;
+    $('#sessMv').innerHTML = mvOptions();
+    $('#sessMv').value = keepMv;
+
+    const keep = $('#sessBrand').value;
+    $('#sessBrand').innerHTML = '<option value="">브랜드 선택</option>' +
+      BRANDS.map(b=>`<option>${esc(b.brand_name)}</option>`).join('');
+    $('#sessBrand').value = keep;
+    $('#ym').value = ymNow();
+
+    renderEntities(); renderBrands(); renderCelebs();
+    $('#cfUrl').textContent   = SUPABASE_URL;
+    $('#cfWho').textContent   = ME;
+    $('#cfAdmin').textContent = IS_ADMIN ? '있음 — 수집·수정 가능' : '없음 — 설정 탭에서 이메일을 등록하세요';
+    ['full','fullQ','thumb','thumbQ'].forEach(k=>{
+      const el=$('#set'+k[0].toUpperCase()+k.slice(1)); if(el) el.value=SET[k];
+      const lbl=$('#cf'+k[0].toUpperCase()+k.slice(1)); if(lbl) lbl.textContent=SET[k];
+    });
+    $('#setGem').value = GEMKEY;
+    gemStatLine();
+    $('#setGemModel').value = GEMMODEL;
+    buildScan();
+    toast(`사전 로드 — 엔티티 ${ENTITIES.length} · 별칭 ${sa.data.length}`);
+  }catch(e){ die(e,'사전 로드'); }
+  busy(false);
 }
 
 /* Gemini 키 — Supabase app_config 에 저장해서 세 명 누구든 · 어느 브라우저든 공유.
@@ -1220,7 +1267,7 @@ function renderImgCards(){
       <button class="x" title="빼기">×</button>
       <img class="thumb" src="${it.preview}" alt="">
       <input data-k="source_url" type="url" placeholder="원문 URL (선택)">
-      <input data-k="image_url" type="url" placeholder="이미지 URL — 실제 링크 있으면 여기에 (비워두면 캡처 사진이 자동 업로드됨)">
+      <input data-k="image_url" type="url" placeholder="이미지 URL — 실제 링크 있으면 여기에 (없으면 로컬 미리보기만 사용)">
       <div class="row">
         <div style="max-width:160px"><label class="f">카테고리</label>
           <select data-k="category"><option value="">선택</option>
@@ -1343,49 +1390,37 @@ $('#aiAll').onclick = async () => {
   toast(bad ? `${n}장 채움 · ${bad}장 실패 — 콘솔을 확인하세요` : `${n}장 채웠습니다. 확인하고 고쳐주세요`);
 };
 
-/* ── 이미지 저장 — Supabase trend_signals 테이블에 바로 등록 ── */
-$('#saveImgs').onclick = async () => {
+/* ── 이미지 저장 ── */
+/* CSV 한 줄로 만들기 — 쉼표·줄바꿈·따옴표 있으면 큰따옴표로 감싸기 */
+function csvCell(v){
+  const s = String(v ?? '');
+  return /[",\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s;
+}
+
+$('#saveImgs').onclick = () => {
   const tgt = picked();
   if(!tgt.length) return toast('먼저 사진을 선택하세요');
 
   const noKw = tgt.filter(x => !x.meta.keyword).length;
-  if(noKw && !confirm(`키워드가 없는 사진이 ${noKw}장 있습니다.\nSNS 트렌드에서 안 잡힙니다. 그래도 등록할까요?`)) return;
+  if(noKw && !confirm(`키워드가 없는 사진이 ${noKw}장 있습니다.\nSNS 트렌드에서 안 잡힙니다. 그래도 CSV로 내보낼까요?`)) return;
 
-  busy(true, '이미지 업로드 중…');
-  const uploadFails = [];
-  for(let i = 0; i < tgt.length; i++){
-    const it = tgt[i];
-    if(it.meta.image_url) continue;   // 직접 링크 넣었으면 그대로 씀 — 캡처를 다시 올리지 않음
-    busy(true, `이미지 업로드 중… ${i+1}/${tgt.length}`);
-    try{
-      const path = `${$('#sigType').value}/${ymNow()}/${it.hash}.jpg`;
-      const { error: upErr } = await sb.storage.from('trend-images')
-        .upload(path, it.thumb.blob, { contentType: 'image/jpeg', upsert: true });
-      if(upErr) throw upErr;
-      it.meta.image_url = sb.storage.from('trend-images').getPublicUrl(path).data.publicUrl;
-    }catch(e){ uploadFails.push(it.name); console.error(e); }
-  }
-  if(uploadFails.length && !confirm(`${uploadFails.length}장 이미지 업로드 실패 — ${uploadFails[0]} 등\n이미지 없이 그대로 등록할까요?`)){
-    busy(false); return;
-  }
+  const noImg = tgt.filter(x => !x.meta.image_url).length;
 
-  busy(true, '등록 중…');
-  const rows = tgt.map(it => ({
-    source_type: $('#sigType').value,
-    category:    it.meta.category || null,
-    keyword:     it.meta.keyword,
-    url:         it.meta.source_url || null,
-    image_url:   it.meta.image_url || null,
-    note:        it.meta.note || null
-  }));
-  const { error } = await sb.from('trend_signals').insert(rows);
-  busy(false);
-  if(error){ die(error, 'trend_signals 등록'); return; }
+  const header = ['카테고리','키워드','원문','이미지 url','요약'];
+  const rows = tgt.map(it => [
+    it.meta.category || '', it.meta.keyword || '', it.meta.source_url || '',
+    it.meta.image_url || '', it.meta.note || ''
+  ]);
+  const csv = '\uFEFF' + [header, ...rows].map(r => r.map(csvCell).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `sns_트렌드_${ymNow()}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
 
-  for(const it of tgt){ URL.revokeObjectURL(it.preview); QUEUE_IMGS.splice(QUEUE_IMGS.indexOf(it),1); }
-  renderImgCards();
-  const typeLabel = {news:'패션 트렌드', lifestyle:'라이프스타일 트렌드', sns:'SNS 트렌드'}[$('#sigType').value] || 'SNS 트렌드';
-  toast(`${tgt.length}장 ${typeLabel}에 등록했습니다 — 대시보드에서 바로 확인 가능해요`);
+  toast(`${tgt.length}장 CSV로 내보냈습니다` + (noImg ? ` — 이미지 URL 없는 ${noImg}장은 직접 채워주세요` : '') +
+        ' · 이 파일을 SNS 트렌드 구글시트에 붙여넣으세요');
 };
 
 async function ensureBrand(name, ym){
@@ -1432,8 +1467,32 @@ async function ensureSource(name){
   if(!error) SOURCES.push({ source_id: sid, name_kr: name, stage:'early' });
   return sid;
 }
-/* 예전엔 '구분'이 모드·출처를 다 결정했지만, 지금은 사진 캡처 모드 하나뿐이라 필요 없음 */
-function applyGubun(){}
+async function syncSource(){
+  const g = GUBUN[$('#gubun').value] || {};
+  const nm = g.free ? $('#srcTxt').value.trim() : $('#srcSel').value;
+  const sid = await ensureSource(nm || $('#gubun').value);
+  const so = $('#source');
+  if(![...so.options].some(x => x.value === sid)){
+    const op = document.createElement('option'); op.value = sid; op.textContent = nm || sid; so.appendChild(op);
+  }
+  so.value = sid;
+}
+function applyGubun(){
+  const g = GUBUN[$('#gubun').value] || GUBUN.SNS;
+  /* 모드 전환 — 숨겨둔 기존 모드 버튼을 그대로 누릅니다 */
+  document.querySelector(`#modes [data-mode="${g.mode}"]`)?.click();
+  /* 출처 UI — 항상 숨김 */
+  $('#srcWrap').style.display = 'none';
+  $('#srcSel').hidden = !g.srcs; $('#srcTxt').hidden = !g.free;
+  if(g.srcs) $('#srcSel').innerHTML = g.srcs.map(x=>`<option>${x}</option>`).join('');
+  /* 동영상이면 파일 입력이 영상도 받게 */
+  const fi = $('#file');
+  if(fi) fi.accept = $('#gubun').value === '동영상' ? 'video/*,image/*' : 'image/*';
+  syncSource();
+}
+$('#gubun').onchange = applyGubun;
+$('#srcSel').onchange = syncSource;
+$('#srcTxt').addEventListener('blur', syncSource);
 
 /* 키 상태 — 이 브라우저·이 주소에 저장된 키인지 한눈에 */
 function gemStatLine(){
