@@ -750,7 +750,9 @@ window.TA_SIGNAL_DATA = {
   getManualSns: () => SB_SNS,
   aggregateManualSns,
   getRetailSig: () => RETAIL_SIG,
-  aggregateSnsKw, aggregateNewsKw, snsCategoriesOf, normKw, CAT_LABEL, CATS, esc
+  aggregateSnsKw, aggregateNewsKw, snsCategoriesOf, normKw, CAT_LABEL, CATS, esc,
+  debugStatus: () => ({ SB_NEWS: SB_NEWS.length, SB_LIFESTYLE: SB_LIFESTYLE.length, SB_SNS: SB_SNS.length,
+    NEWS_SIG: NEWS_SIG.length, SUPABASE_URL })
 };
 
 load();
