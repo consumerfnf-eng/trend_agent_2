@@ -222,8 +222,6 @@ tbody tr:hover{background:#fdfcf9}
   <span class="mini" id="verStamp" style="margin-left:8px;opacity:.55">v260723-17</span>
   <div class="tabs" id="tabs">
     <button data-v="intake" class="on">업로드</button>
-    <button data-v="cluster">클러스터</button>
-    <button data-v="feed">피드</button>
     <button data-v="conf">설정</button>
   </div>
   <div class="who"><span id="whoTxt"></span><button class="btn ghost sm" id="logout">로그아웃</button></div>
@@ -237,11 +235,6 @@ tbody tr:hover{background:#fdfcf9}
 
   <div class="modes" id="modes">
     <button data-mode="image" class="on">📷 사진 · 캡처 (SNS · 셀럽)</button>
-    <button data-mode="doc">📰 기사 · 리포트</button>
-    <button data-mode="rank">📊 랭킹</button>
-    <button data-mode="text">📝 텍스트</button>
-    <button data-mode="postit">📌 POST-IT</button>
-    <button data-mode="sig">📈 시그널 (썸트렌드 · 검색량)</button>
   </div>
 
   <div class="sess">
@@ -255,26 +248,26 @@ tbody tr:hover{background:#fdfcf9}
           <option value="WEB">WEB</option><option value="POSTIT">POST IT</option>
           <option value="SIG">시그널 (검색량)</option>
         </select></div>
-      <div style="max-width:170px" id="srcWrap"><label class="f">출처</label>
+      <div style="max-width:170px; display:none" id="srcWrap"><label class="f">출처</label>
         <select id="srcSel"></select>
         <input id="srcTxt" placeholder="VOGUE, 하입비스트…" hidden></div>
       <div style="max-width:130px"><label class="f">귀속 월</label><input id="ym" type="month"></div>
       <div style="max-width:180px"><label class="f">소스</label><select id="source"></select></div>
       <div style="max-width:100px"><label class="f">시장</label>
         <select id="region"><option value="GL">GLOBAL</option><option value="KR" selected>KR</option><option value="CN">CN</option></select></div>
-      <div><label class="f">관찰 브랜드</label>
+      <div style="display:none"><label class="f">관찰 브랜드</label>
         <div style="display:flex; gap:6px">
           <select id="sessBrand" style="flex:1"><option value="">브랜드 선택</option></select>
           <button class="btn ghost sm" id="addBrand" title="새 브랜드 등록">+</button>
         </div>
       </div>
-      <div><label class="f">MOVEMENT — 이 세션이 어떤 흐름인지</label>
+      <div style="display:none"><label class="f">MOVEMENT — 이 세션이 어떤 흐름인지</label>
         <div style="display:flex; gap:6px">
           <select id="sessMv" style="flex:1"><option value="">— 관련 없음 —</option></select>
           <button class="btn ghost sm" id="addMv" title="새 MOVEMENT 등록">+</button>
         </div>
       </div>
-      <div><label class="f">브랜드 적합 — 복수 선택</label><div class="fit" id="brandFit"></div></div>
+      <div style="display:none"><label class="f">브랜드 적합 — 복수 선택</label><div class="fit" id="brandFit"></div></div>
 
     </div>
   </div>
@@ -296,7 +289,7 @@ tbody tr:hover{background:#fdfcf9}
       <span class="sp"></span>
       <span class="link-n" id="linkStat"></span>
       <button class="btn ghost sm" id="aiAll" disabled>AI로 채우기</button>
-      <button class="btn sm" id="saveImgs" disabled>선택 등록 (0/0)</button>
+      <button class="btn sm" id="saveImgs" disabled>CSV로 내보내기 (0/0)</button>
     </div>
     <div class="cards" id="imgCards"></div>
     <div style="margin-top:10px"><span class="mini" id="imgCount"></span></div>
@@ -789,8 +782,8 @@ tbody tr:hover{background:#fdfcf9}
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ═══════════ 설정 — 여기 두 줄만 바꾸면 됩니다 ═══════════ */
-const SUPABASE_URL  = 'https://piifytwflubdtkzaiisi.supabase.co';
-const SUPABASE_ANON  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBpaWZ5dHdmbHViZHRremFpaXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQwODI5NDcsImV4cCI6MjA5OTY1ODk0N30.cVrgt7YQ99R-slePt8U2r_GmtDxetejZdqHcnqJmwhc';
+const SUPABASE_URL  = 'https://bgyrmztoohrdjkxzylmr.supabase.co';
+const SUPABASE_ANON  = 'sb_publishable_JX986aH0CBAEgr7exxvv-g_uGc2Zijm';
 /* ════════════════════════════════════════════════════════ */
 
 if(SUPABASE_URL.includes('YOUR-PROJECT'))
@@ -822,14 +815,12 @@ let QUEUE_IMGS = [];
 
 /* ═══════════ 로그인 ═══════════ */
 async function boot(){
-  const { data:{ session } } = await sb.auth.getSession();
-  if(!session){ $('#gate').hidden=false; return; }
-  ME = session.user.email;
-  const { data:ad } = await sb.from('admins').select('email').eq('email', ME).maybeSingle();
-  IS_ADMIN = !!ad;
+  /* 로그인 없이 바로 사용 — 이 도구는 사진 올려서 trend_signals 에 등록하는 용도뿐이라 계정 불필요 */
+  ME = '(관리자)';
+  IS_ADMIN = true;
   $('#gate').hidden = true;
   $('#app').hidden  = false;
-  $('#whoTxt').textContent = ME + (IS_ADMIN ? '' : ' — 읽기 전용');
+  $('#whoTxt').textContent = ME;
   await loadConfig();
   await loadAll();
 }
@@ -847,65 +838,22 @@ $('#logout').onclick = async () => { await sb.auth.signOut(); location.reload();
 
 /* ═══════════ 공통 로딩 ═══════════ */
 async function loadAll(){
-  busy(true,'사전 불러오는 중…');
-  try{
-    const [se,ss,sb2,sc,sa] = await Promise.all([
-      sb.from('entities').select('*').order('entity_id'),
-      sb.from('sources').select('*').eq('active',true).order('sort_order'),
-      sb.from('brands').select('*').order('brand_name'),
-      sb.from('celebs').select('*').order('celeb_name'),
-      sb.from('aliases').select('alias_text,entity_id,normalized_alias').eq('active',true)
-    ]);
-    for(const r of [se,ss,sb2,sc,sa]) if(r.error) throw r.error;
-    ENTITIES = se.data; SOURCES = ss.data; BRANDS = sb2.data; CELEBS = sc.data;
-
-    entById={}; entByName={}; aliasIdx={}; celebIdx={}; aliasByEnt={};
-    const dl = $('#entList'); dl.innerHTML='';
-    for(const e of ENTITIES){
-      entById[e.entity_id]=e;
-      entByName[norm(e.name_kr)]=e.entity_id;
-      if(e.name_en) entByName[norm(e.name_en)]=e.entity_id;
-      const o=document.createElement('option'); o.value = e.name_en || e.name_kr; dl.appendChild(o);
-    }
-    for(const a of sa.data){
-      aliasIdx[a.normalized_alias]=a.entity_id;
-      (aliasByEnt[a.entity_id] ||= []).push(a.alias_text);
-    }
-    for(const c of CELEBS) for(const acc of (c.accounts||[])) celebIdx[norm(acc)]=c.celeb_name;
-
-    $('#source').innerHTML = SOURCES.map(s=>`<option value="${s.source_id}">${esc(s.name_kr||s.source_id)}</option>`).join('');
-    if(!window._gubunInit){ window._gubunInit = true; applyGubun(); }
-    $('#brandList').innerHTML = BRANDS.map(b=>`<option value="${esc(b.brand_name)}"></option>`).join('');
-    const keepFMv = $('#fMv').value;
-    $('#fMv').innerHTML = '<option value="">전체</option><option value="__none">— 흐름 없음 —</option>' +
-      MOVEMENTS().map(m => `<option value="${esc(m.name_kr)}">${esc(m.name_kr)}</option>`).join('');
-    $('#fMv').value = keepFMv;
-
-    const keepMv = $('#sessMv').value;
-    $('#sessMv').innerHTML = mvOptions();
-    $('#sessMv').value = keepMv;
-
-    const keep = $('#sessBrand').value;
-    $('#sessBrand').innerHTML = '<option value="">브랜드 선택</option>' +
-      BRANDS.map(b=>`<option>${esc(b.brand_name)}</option>`).join('');
-    $('#sessBrand').value = keep;
-    $('#ym').value = ymNow();
-
-    renderEntities(); renderBrands(); renderCelebs();
-    $('#cfUrl').textContent   = SUPABASE_URL;
-    $('#cfWho').textContent   = ME;
-    $('#cfAdmin').textContent = IS_ADMIN ? '있음 — 수집·수정 가능' : '없음 — 설정 탭에서 이메일을 등록하세요';
-    ['full','fullQ','thumb','thumbQ'].forEach(k=>{
-      const el=$('#set'+k[0].toUpperCase()+k.slice(1)); if(el) el.value=SET[k];
-      const lbl=$('#cf'+k[0].toUpperCase()+k.slice(1)); if(lbl) lbl.textContent=SET[k];
-    });
-    $('#setGem').value = GEMKEY;
-    gemStatLine();
-    $('#setGemModel').value = GEMMODEL;
-    buildScan();
-    toast(`사전 로드 — 엔티티 ${ENTITIES.length} · 별칭 ${sa.data.length}`);
-  }catch(e){ die(e,'사전 로드'); }
-  busy(false);
+  /* 예전 스키마(entities/sources/brands/celebs/aliases)는 새 프로젝트에 없음 —
+     지금 폼엔 필요 없어서 건너뜀. "소스"만 고정 목록으로 채움 */
+  $('#source').innerHTML = ['INSTAGRAM','TIKTOK','X','WEB']
+    .map(s => `<option value="${s}">${s}</option>`).join('');
+  if(!window._gubunInit){ window._gubunInit = true; applyGubun(); }
+  $('#ym').value = ymNow();
+  $('#cfUrl').textContent   = SUPABASE_URL;
+  $('#cfWho').textContent   = ME;
+  $('#cfAdmin').textContent = '있음 — 수집 가능';
+  ['full','fullQ','thumb','thumbQ'].forEach(k=>{
+    const el=$('#set'+k[0].toUpperCase()+k.slice(1)); if(el) el.value=SET[k];
+    const lbl=$('#cf'+k[0].toUpperCase()+k.slice(1)); if(lbl) lbl.textContent=SET[k];
+  });
+  $('#setGem').value = GEMKEY;
+  gemStatLine();
+  $('#setGemModel').value = GEMMODEL;
 }
 
 /* Gemini 키 — Supabase app_config 에 저장해서 세 명 누구든 · 어느 브라우저든 공유.
@@ -1107,7 +1055,7 @@ const mvOptions = (sel) => '<option value="">— 관련 없음 —</option>' +
   MOVEMENTS().map(m => `<option value="${esc(m.entity_id)}" ${sel===m.entity_id?'selected':''}>${esc(m.name_kr || m.name_en)}</option>`).join('');
 
 /* v2 수집 구조 — 기존에 저장된 한글 값도 데이터로는 그대로 유효합니다 */
-const CATEGORIES  = ['TOP','BOTTOM','OUTERWEAR','DRESS','BAG','SHOES','OTHER ACC'];
+const CATEGORIES  = ['아우터','상의','팬츠','스커트 & 드레스','슈즈','백','액세서리','컬러'];
 const TREND_KINDS = ['STYLE TREND','LIFESTYLE','HOT BRAND'];
 const SEASON_OPTS = ['27SS','27/28FW','28SS','28/29FW'];
 /* 아이템군별 세부 — 제안일 뿐, 직접 타이핑도 됩니다 */
@@ -1130,13 +1078,10 @@ const blobB64 = blob => new Promise((res, rej) => {
 });
 
 const AI_PROMPT = `당신은 패션 트렌드 리서처입니다. 이 이미지는 SNS 게시물 캡처이거나 착장 사진입니다.
-보이는 것만 근거로 채우고, 확실하지 않으면 빈 문자열이나 빈 배열로 두세요. 추측하지 마세요.
-- account: 화면에 보이는 계정명 (@ 포함). 없으면 ""
-- likes: 화면에 보이는 좋아요 수를 숫자만. "1.2만"이면 12000. 없으면 ""
-- brand: 확실히 식별되는 브랜드명. 로고나 텍스트로 확인될 때만. 없으면 ""
-- category: TOP / BOTTOM / OUTERWEAR / DRESS / BAG / SHOES / OTHER ACC 중 하나. 정확히 이 표기로.
-- trend_kind: STYLE TREND / LIFESTYLE / HOT BRAND 중 해당하는 것 (배열, 중복 가능)
-- tags: 눈에 보이는 디자인 속성을 영어 소문자로 3~6개 (예: barrel leg, metallic logo, drop waist)
+보이는 것만 근거로 채우고, 확실하지 않으면 빈 문자열로 두세요. 추측하지 마세요.
+- category: 아우터 / 상의 / 팬츠 / 스커트 & 드레스 / 슈즈 / 백 / 액세서리 / 컬러 중 하나. 정확히 이 표기로.
+- keyword: 이 이미지가 보여주는 트렌드를 한두 단어로 (예: 발레코어, 버뮤다 카고팬츠)
+- note: 왜 트렌드인지 한 줄 설명
 JSON만 출력하세요.`;
 
 /* AI 프롬프트에 넣을 사전 — 활성 키워드 + 별칭. AI 가 이 표현을 재사용해야 피드끼리 연결됩니다 */
@@ -1199,9 +1144,8 @@ async function aiTag(it){
       generationConfig:{
         responseMimeType:'application/json',
         responseSchema:{ type:'OBJECT', properties:{
-          account:{type:'STRING'}, likes:{type:'STRING'}, brand:{type:'STRING'},
-          category:{type:'STRING'}, tags:{type:'ARRAY', items:{type:'STRING'}}
-        }, required:['account','likes','brand','category','tags'] }
+          category:{type:'STRING'}, keyword:{type:'STRING'}, note:{type:'STRING'}
+        }, required:['category','keyword','note'] }
       }
     })});
   if(!r.ok) throw new Error(`Gemini ${r.status} — ${(await r.text()).slice(0,140)}`);
@@ -1211,18 +1155,8 @@ async function aiTag(it){
   const out = JSON.parse(txt);
 
   // 빈 칸만 채웁니다 — 사람이 넣은 값은 건드리지 않습니다
-  for(const k of ['account','likes','brand','category'])
+  for(const k of ['category','keyword','note'])
     if(!it.meta[k] && out[k]) it.meta[k] = String(out[k]).trim();
-  if(it.meta.account && !it.meta.celeb_name){
-    const cn = celebIdx[norm(it.meta.account)];
-    if(cn){ it.meta.is_celeb = true; it.meta.celeb_name = cn; }
-  }
-  for(const t of (out.tags || [])){
-    const v = String(t).trim(); if(!v) continue;
-    const eid = matchEntity(v);
-    if(eid){ if(!it.meta.entities.includes(eid)) it.meta.entities.push(eid); }
-    else { const h = hashTag(v); if(h && !it.meta.tags.includes(h)) it.meta.tags.push(h); }
-  }
   return out;
 }
 
@@ -1269,8 +1203,7 @@ async function intake(files){
         preview: URL.createObjectURL(thumb.blob),
         orig: (videoFile || f).size,
         sel: true,
-        meta: { account:'', likes:'', brand: $('#sessBrand').value || '', movement: $('#sessMv').value || '', kwMeta:{}, category:'', note:'', source_url:'',
-                is_celeb:false, celeb_name:'', is_main:false, entities:[], tags:[] }
+        meta: { category:'', keyword:'', note:'', source_url:'', image_url:'' }
       });
     }catch(e){ die(e, f.name); }
   }
@@ -1287,144 +1220,28 @@ function renderImgCards(){
     c.innerHTML = `
       <input type="checkbox" class="pick" ${it.sel?'checked':''} title="선택">
       <button class="x" title="빼기">×</button>
-      <button class="btn ghost ai" title="이 사진만 AI로">AI</button>
-      <button class="btn ghost cp" title="이 카드 내용을 선택된 카드들에 동일하게">⧉ 선택에 복사</button>
       <img class="thumb" src="${it.preview}" alt="">
-      <input data-k="source_url" type="url" placeholder="출처 URL (선택)">
+      <input data-k="source_url" type="url" placeholder="원문 URL (선택)">
+      <input data-k="image_url" type="url" placeholder="이미지 URL — 실제 링크 있으면 여기에 (없으면 로컬 미리보기만 사용)">
       <div class="row">
-        <div><label class="f">계정</label><input data-k="account" placeholder="@handle"></div>
-        <div style="max-width:74px"><label class="f">좋아요</label><input data-k="likes" placeholder="12000"></div>
-      </div>
-      <div class="row">
-        <div><label class="f">브랜드</label><input data-k="brand" list="brandList"></div>
-        <div style="max-width:96px"><label class="f">아이템군</label>
+        <div style="max-width:160px"><label class="f">카테고리</label>
           <select data-k="category"><option value="">선택</option>
             ${CATEGORIES.map(v=>`<option>${v}</option>`).join('')}</select></div>
+        <div><label class="f">키워드</label><input data-k="keyword" placeholder="예: 발레코어"></div>
       </div>
-      <div class="row catRow">
-        <div style="max-width:150px"><label class="f">서브 — 직접 입력</label>
-          <input data-k="category_sub" list="sub_${i}" placeholder="TSHIRTS, SWEATSHIRTS…">
-          <datalist id="sub_${i}"></datalist></div>
-        <div><label class="f">트렌드 구분 — 중복</label>
-          <div class="tkRow">${TREND_KINDS.map(v=>`<label class="tk"><input type="checkbox" data-tk="${v}">${v}</label>`).join('')}</div></div>
-      </div>
-      <div class="row">
-        <div><label class="f">시즌 제시 — 중복</label>
-          <div class="tkRow">${SEASON_OPTS.map(v=>`<label class="tk"><input type="checkbox" data-ss="${v}">${v}</label>`).join('')}</div></div>
-        <div style="max-width:120px"><label class="f">출시일</label><input data-k="release_date" type="date"></div>
-      </div>
-      <div><label class="f">정량 신호</label><input data-k="quant_signal" placeholder="검색량 급증 · 2주 완판 · 리셀가 1.8배"></div>
-      <div>
-        <label class="f">MOVEMENT</label>
-        <select data-k="movement" class="mvSel">${mvOptions()}</select>
-      </div>
-      <div>
-        <label class="f">TREND KEYWORD — 사전에 있으면 자동 연결</label>
-        <input class="kwIn" list="entList" placeholder="입력 후 Enter">
-        <div class="kwChips" style="margin-top:4px"></div>
-      </div>
-      <div>
-        <label class="f">속성 태그 — 사전에 없는 새 표현</label>
-        <input class="tagIn" placeholder="barrel leg → #barrel_leg">
-        <div class="tagChips" style="margin-top:4px"></div>
-      </div>
-      <div class="row">
-        <div><label class="f">셀럽</label><input data-k="celeb_name" placeholder="자동 감지"></div>
-        <div style="max-width:74px"><label class="f">대표</label>
-          <select data-k="is_main"><option value="false">—</option><option value="true">★</option></select></div>
-      </div>
-      <input data-k="note" placeholder="메모 — 왜 트렌드인지">
+      <div><label class="f">이미지 설명 — 왜 트렌드인지</label><textarea data-k="note" placeholder="꼭 들어가야 하는 포인트만 짧게 메모해도 OK"></textarea></div>
       <div class="mini">${esc(it.name)} · ${kb(it.orig)} → ${kb(it.full.blob.size)} + ${kb(it.thumb.blob.size)}</div>`;
 
     c.querySelectorAll('[data-k]').forEach(el => {
       const k = el.dataset.k;
       el.value = String(it.meta[k] ?? '');
-      el.addEventListener('input', () => {
-        it.meta[k] = el.value;
-        if(k === 'account'){
-          const cn = celebIdx[norm(el.value)];
-          if(cn){ it.meta.is_celeb = true; it.meta.celeb_name = cn;
-            c.querySelector('[data-k="celeb_name"]').value = cn; }
-        }
-      });
+      el.addEventListener('input', () => { it.meta[k] = el.value; });
     });
-    c.querySelector('[data-k="celeb_name"]').addEventListener('input', e => {
-      it.meta.is_celeb = !!e.target.value.trim();
-    });
-
-    const KSTAGES = ['','NEW','RISING','PEAK','ON-GOING','DESCEND'];
-    const km = it.meta.kwMeta ||= {};        // { entity_id: {stage, mv} }
-    const drawKw = () => c.querySelector('.kwChips').innerHTML =
-      it.meta.entities.map((v,j)=>{
-        const m = km[v] ||= { stage:'', mv: entById[v]?.axis === 'movement' };
-        return `<span class="chip${m.mv?' ismv':''}" data-j="${j}">${esc(label(v))}
-          <select class="stg" data-j="${j}" title="트렌드 단계">${
-            KSTAGES.map(x=>`<option value="${x}" ${m.stage===x?'selected':''}>${x||'—'}</option>`).join('')
-          }</select><i class="cm${m.mv?' on':''}" data-j="${j}" title="MOVEMENT">M</i><i class="cx" data-j="${j}" title="삭제">×</i></span>`;
-      }).join('');
-    const drawTag = () => c.querySelector('.tagChips').innerHTML =
-      it.meta.tags.map((v,j)=>`<span class="chip rm" data-j="${j}">${esc(v)}</span>`).join('');
-
-    c.querySelector('.kwIn').addEventListener('keydown', async e => {
-      if(e.key!=='Enter') return; e.preventDefault();
-      const raw = e.target.value.trim(); if(!raw) return;
-      const id = matchEntity(raw);
-      if(!id){ toast(`사전에 없는 표현 — "${raw}" 는 미매핑 큐로`); await addToQueue(raw); e.target.value=''; return; }
-      if(!it.meta.entities.includes(id)) it.meta.entities.push(id);
-      e.target.value=''; drawKw(); linkStat();
-    });
-    c.querySelector('.tagIn').addEventListener('keydown', e => {
-      if(e.key!=='Enter') return; e.preventDefault();
-      const v = hashTag(e.target.value); if(!v) return;
-      if(!it.meta.tags.includes(v)) it.meta.tags.push(v);
-      e.target.value=''; drawTag(); linkStat();
-    });
-    c.querySelector('.kwChips').onclick = e => {
-      const j = +e.target.dataset.j; const v = it.meta.entities[j];
-      if(e.target.classList.contains('cx')){ delete km[v]; it.meta.entities.splice(j,1); drawKw(); linkStat(); return; }
-      if(e.target.classList.contains('cm')){
-        if(entById[v]?.axis === 'movement'){ toast('사전에서 이미 MOVEMENT 인 키워드입니다'); return; }
-        km[v].mv = !km[v].mv; drawKw(); return;
-      }
-    };
-    c.querySelector('.kwChips').addEventListener('change', e => {
-      if(!e.target.classList.contains('stg')) return;
-      const v = it.meta.entities[+e.target.dataset.j];
-      (km[v] ||= { stage:'', mv:false }).stage = e.target.value;
-    });
-    c.querySelector('.tagChips').onclick = e => { const x=e.target.closest('.chip'); if(!x) return;
-      it.meta.tags.splice(+x.dataset.j,1); drawTag(); linkStat(); };
-    drawKw(); drawTag();
     c.querySelector('.pick').onchange = e => {
       it.sel = e.target.checked; c.classList.toggle('sel', it.sel); selStat();
     };
     c.querySelector('.x').onclick = () => {
       URL.revokeObjectURL(it.preview); QUEUE_IMGS.splice(i,1); renderImgCards();
-    };
-    c.querySelector('.cp').onclick = () => {
-      const tgt = QUEUE_IMGS.filter(x => x.sel && x !== it);
-      if(!tgt.length) return toast('먼저 채워 넣을 카드들을 체크하세요 (이 카드는 자동 제외)');
-      for(const x of tgt){
-        x.meta.brand    = it.meta.brand;
-        x.meta.category = it.meta.category;
-        x.meta.movement = it.meta.movement;
-        x.meta.entities = [...it.meta.entities];
-        x.meta.kwMeta   = JSON.parse(JSON.stringify(it.meta.kwMeta || {}));
-        x.meta.tags     = [...it.meta.tags];
-        x.meta.trend_kind = [...(it.meta.trend_kind||[])];
-        x.meta.seasons    = [...(it.meta.seasons||[])];
-        x.meta.category_sub = it.meta.category_sub;
-        x.meta.release_date = it.meta.release_date;
-        x.meta.quant_signal = it.meta.quant_signal;
-      }
-      renderImgCards();
-      toast(`${tgt.length}장에 동일하게 채웠습니다 — 브랜드 · 아이템군 · MOVEMENT · 키워드 · 태그`);
-    };
-    c.querySelector('.ai').onclick = async () => {
-      busy(true,'AI가 읽는 중…');
-      try{ await aiTag(it); renderImgCards(); toast('AI가 빈 칸을 채웠습니다 — 확인하고 고쳐주세요'); }
-      catch(e){ die(e,'AI 자동 채우기'); }
-      busy(false);
     };
     box.appendChild(c);
   });
@@ -1453,16 +1270,11 @@ function selStat(){
   $('#aiAll').disabled    = !n || !GEMKEY;
 }
 
-/* 연결 현황 — 몇 개가 사전에 붙었고 몇 개가 미매핑인지 바로 보이게 */
+/* 연결 현황 — 키워드 없는 사진이 몇 장인지만 보여줌 */
 function linkStat(){
-  const ent = new Set(), tag = new Set();
-  for(const it of QUEUE_IMGS){
-    it.meta.entities.forEach(v => ent.add(v));
-    it.meta.tags.forEach(v => tag.add(v.toLowerCase()));
-  }
-  const none = QUEUE_IMGS.filter(x => !x.meta.entities.length).length;
+  const none = QUEUE_IMGS.filter(x => !x.meta.keyword).length;
   $('#linkStat').innerHTML = QUEUE_IMGS.length
-    ? `연결 <b>${ent.size}</b> · 미매핑 <i>${tag.size}</i>` + (none ? ` · 키워드 없는 사진 <i>${none}</i>장` : '')
+    ? (none ? `키워드 없는 사진 <i>${none}</i>장` : '전부 키워드 있음')
     : '';
 }
 
@@ -1470,27 +1282,14 @@ function linkStat(){
 $('#selAll').onclick  = () => { QUEUE_IMGS.forEach(x=>x.sel=true);  renderImgCards(); };
 $('#selNone').onclick = () => { QUEUE_IMGS.forEach(x=>x.sel=false); renderImgCards(); };
 
-$('#bulkApply').onclick = async () => {
+$('#bulkApply').onclick = () => {
   const tgt = picked();
   if(!tgt.length) return toast('먼저 사진을 선택하세요');
   const raw = $('#bulkKw').value.trim();
   if(!raw) return toast('적용할 키워드를 입력하세요');
-
-  let linked = 0, queued = 0;
-  for(const term of raw.split(',').map(t=>t.trim()).filter(Boolean)){
-    const id = matchEntity(term);
-    if(id){
-      tgt.forEach(it => { if(!it.meta.entities.includes(id)) it.meta.entities.push(id); });
-      linked++;
-    }else{
-      const h = hashTag(term);
-      if(h) tgt.forEach(it => { if(!it.meta.tags.includes(h)) it.meta.tags.push(h); });
-      await addToQueue(term);
-      queued++;
-    }
-  }
+  tgt.forEach(it => { it.meta.keyword = raw; });
   $('#bulkKw').value=''; renderImgCards();
-  toast(`${tgt.length}장에 적용 — 연결 ${linked}건` + (queued ? ` · 미매핑 ${queued}건은 큐로` : ''));
+  toast(`${tgt.length}장에 키워드 "${raw}" 적용`);
 };
 
 /* 세션 브랜드를 바꾸면 아직 비어 있는 카드에 채워줍니다 */
@@ -1546,112 +1345,33 @@ $('#aiAll').onclick = async () => {
   toast(bad ? `${n}장 채움 · ${bad}장 실패 — 콘솔을 확인하세요` : `${n}장 채웠습니다. 확인하고 고쳐주세요`);
 };
 
-/* ── 이미지 저장 ── */
+/* ── 이미지 저장 — Supabase trend_signals 테이블에 바로 등록 ── */
 $('#saveImgs').onclick = async () => {
   const tgt = picked();
   if(!tgt.length) return toast('먼저 사진을 선택하세요');
 
-  const noKw = tgt.filter(x => !x.meta.entities.length).length;
-  if(noKw && !confirm(`키워드가 하나도 안 붙은 사진이 ${noKw}장 있습니다.\n대시보드에서 안 잡힙니다. 그래도 등록할까요?`)) return;
+  const noKw = tgt.filter(x => !x.meta.keyword).length;
+  if(noKw && !confirm(`키워드가 없는 사진이 ${noKw}장 있습니다.\nSNS 트렌드에서 안 잡힙니다. 그래도 등록할까요?`)) return;
 
-  const ym = $('#ym').value || ymNow();
-  const base = { year_month: ym, source_id: $('#source').value, region: $('#region').value,
-                 brand_fit: [...SESS_FIT], uploaded_by: ME,
-                 platform_id: (SOURCES.find(s=>s.source_id===$('#source').value)||{}).platform_id || null };
-  let done = 0, failed = [];
+  const noImg = tgt.filter(x => !x.meta.image_url).length;
+  if(noImg && !confirm(`이미지 URL이 없는 사진이 ${noImg}장 있습니다.\n대시보드에 사진 없이 텍스트로만 뜹니다. 그래도 등록할까요?`)) return;
 
-  for(const it of tgt){
-    try{
-      busy(true, `저장 중… ${done+1}/${tgt.length}`);
-
-      // 1) 중복 확인
-      const { data:dup } = await sb.from('images').select('image_id').eq('file_hash', it.hash).maybeSingle();
-      if(dup){ toast(`이미 있는 사진 — ${dup.image_id}`); URL.revokeObjectURL(it.preview);
-               QUEUE_IMGS.splice(QUEUE_IMGS.indexOf(it),1); done++; continue; }
-
-      // 2) 행 먼저 생성 → image_id 확보
-      const { data:row, error:e1 } = await sb.from('images').insert({
-        ...base,
-        account:     it.meta.account || null,
-        likes:       it.meta.likes ? parseInt(String(it.meta.likes).replace(/[^0-9]/g,''),10) : null,
-        brand:       it.meta.brand || $('#sessBrand').value || null,
-        category:    it.meta.category || null,
-        note:        it.meta.note || null,
-        source_url:  it.meta.source_url || null,
-        is_celeb:    !!it.meta.celeb_name,
-        celeb_name:  it.meta.celeb_name || null,
-        is_main:     String(it.meta.is_main) === 'true',
-        trend_kind:  (it.meta.trend_kind||[]).length ? it.meta.trend_kind : null,
-        category_sub: it.meta.category_sub || null,
-        seasons:     (it.meta.seasons||[]).length ? it.meta.seasons : null,
-        release_date: it.meta.release_date || null,
-        quant_signal: it.meta.quant_signal || null,
-        file_hash:   it.hash,
-        mime_type:   it.videoFile ? it.videoFile.type : 'image/jpeg',
-        file_size:   (it.videoFile || it.full.blob).size,
-        width:       it.full.w,
-        height:      it.full.h,
-        upload_status: 'pending'
-      }).select('image_id').single();
-      if(e1) throw e1;
-      const id = row.image_id;
-
-      // 3) 업로드 (영상이면 원본 영상 + 프레임 썸네일)
-      const isVid = !!it.videoFile;
-      const ext = isVid ? (it.videoFile.name.split('.').pop() || 'mp4').toLowerCase() : 'jpg';
-      const p  = isVid ? `videos/${ym}/${id}.${ext}` : `images/${ym}/${id}.jpg`;
-      const pt = `thumbs/${ym}/${id}.jpg`;
-      const up = { cacheControl:'604800', upsert:true };
-      const [u1,u2] = await Promise.all([
-        sb.storage.from('media').upload(p,  isVid ? it.videoFile : it.full.blob,
-          { ...up, contentType: isVid ? it.videoFile.type : 'image/jpeg' }),
-        sb.storage.from('media').upload(pt, it.thumb.blob, { ...up, contentType:'image/jpeg' })
-      ]);
-      if(u1.error) throw u1.error;
-      if(u2.error) throw u2.error;
-
-      // 4) URL 채우기
-      const { error:e2 } = await sb.from('images').update({
-        storage_path: p, thumb_path: pt,
-        file_url:  sb.storage.from('media').getPublicUrl(p).data.publicUrl,
-        thumb_url: sb.storage.from('media').getPublicUrl(pt).data.publicUrl,
-        upload_status: 'complete'
-      }).eq('image_id', id);
-      if(e2) throw e2;
-
-      // 5) 연결
-      const km2 = it.meta.kwMeta || {};
-      const links = it.meta.entities.map((eid,ix)=>({ image_id:id, entity_id:eid, sort_order:ix,
-        role: km2[eid]?.mv ? 'movement' : (ix===0 ? 'cover' : 'evidence'),
-        trend_stage: km2[eid]?.stage || null,
-        mapping_method:'manual', created_by:ME }));
-      /* MOVEMENT 를 골랐으면 role='movement' 로 같이 붙입니다 — 흐름 추적은 이걸로 합니다 */
-      if(it.meta.movement && !it.meta.entities.includes(it.meta.movement))
-        links.push({ image_id:id, entity_id:it.meta.movement, sort_order:99,
-                     role:'movement', mapping_method:'manual', created_by:ME });
-      if(links.length){
-        const { error:e3 } = await sb.from('asset_entities').upsert(links);
-        if(e3) throw e3;
-      }
-      if(it.meta.tags.length){
-        const { error:e4 } = await sb.from('asset_tags').insert(
-          it.meta.tags.map(t=>({ image_id:id, tag_type:'attribute', tag_value:t })));
-        if(e4) throw e4;
-      }
-      const bn = it.meta.brand || $('#sessBrand').value;
-      if(bn) await ensureBrand(bn, ym);
-      if(it.meta.celeb_name) await ensureCeleb(it.meta.celeb_name, it.meta.account);
-
-      URL.revokeObjectURL(it.preview);
-      QUEUE_IMGS.splice(QUEUE_IMGS.indexOf(it),1);
-      done++;
-    }catch(e){ console.error(e); failed.push(`${it.name}: ${e.message}`); }
-  }
+  busy(true, '등록 중…');
+  const rows = tgt.map(it => ({
+    source_type: 'sns',
+    category:    it.meta.category || null,
+    keyword:     it.meta.keyword,
+    url:         it.meta.source_url || null,
+    image_url:   it.meta.image_url || null,
+    note:        it.meta.note || null
+  }));
+  const { error } = await sb.from('trend_signals').insert(rows);
   busy(false);
+  if(error){ die(error, 'trend_signals 등록'); return; }
+
+  for(const it of tgt){ URL.revokeObjectURL(it.preview); QUEUE_IMGS.splice(QUEUE_IMGS.indexOf(it),1); }
   renderImgCards();
-  toast(failed.length ? `${done}장 저장 · ${failed.length}장 실패 — ${failed[0]}` : `${done}장 저장했습니다`);
-  if(failed.length) console.table(failed);
-  await loadAll();
+  toast(`${tgt.length}장 SNS 트렌드에 등록했습니다 — 대시보드에서 바로 확인 가능해요`);
 };
 
 async function ensureBrand(name, ym){
@@ -1712,8 +1432,8 @@ function applyGubun(){
   const g = GUBUN[$('#gubun').value] || GUBUN.SNS;
   /* 모드 전환 — 숨겨둔 기존 모드 버튼을 그대로 누릅니다 */
   document.querySelector(`#modes [data-mode="${g.mode}"]`)?.click();
-  /* 출처 UI */
-  $('#srcWrap').style.display = (g.srcs || g.free) ? '' : 'none';
+  /* 출처 UI — 항상 숨김 */
+  $('#srcWrap').style.display = 'none';
   $('#srcSel').hidden = !g.srcs; $('#srcTxt').hidden = !g.free;
   if(g.srcs) $('#srcSel').innerHTML = g.srcs.map(x=>`<option>${x}</option>`).join('');
   /* 동영상이면 파일 입력이 영상도 받게 */
