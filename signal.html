@@ -102,6 +102,7 @@ tr.krow{cursor:pointer} tr.krow:hover{background:#faf6ec}
 .kwcard a.kwlink{font-size:10.5px; font-weight:700; color:var(--acc); text-decoration:none; display:inline-block; margin-top:6px}
 .kwcard .volbar{height:5px; border-radius:3px; background:#f3ede3; overflow:hidden; margin:8px 0}
 .kwcard .volbar i{display:block; height:100%; border-radius:3px; background:var(--acc)}
+.kwcard .kwauthor{font-size:9px; font-weight:800; letter-spacing:.04em; margin-top:-2px; margin-bottom:2px}
 .kwcard.hot{border-color:var(--acc); box-shadow:0 0 0 1px var(--acc) inset}
 .kwcard.hot .volbar{height:7px}
 .kwcard .relbadge{display:block; margin-top:8px; background:#fdf3ef; border:1px solid #f1d9cf; color:var(--acc);
@@ -134,10 +135,18 @@ a{color:var(--acc)}
 <main>
   <section id="catTrendView" class="view on">
     <h2 id="ovTitle"></h2>
-    <div class="sub">카테고리를 고르면 SNS·뉴스레터 트렌드를 볼 수 있어요 (라이프스타일은 항상 같이 보여요)</div>
+    <div class="sub" id="catSub"></div>
     <div class="fbar" id="catBar"></div>
 
-    <div class="srcBlock">
+    <div class="srcBlock" id="lifeBlock">
+      <h4 class="srcTitle">라이프스타일 트렌드 <span id="lifeCnt" class="srcCnt"></span></h4>
+      <div class="sub">소비자 활동·문화·행태 트렌드</div>
+      <div class="kwgrid" id="lifeKwGrid"></div>
+      <button class="morebtn" id="lifeMoreBtn" style="display:none"></button>
+      <div class="kwlist" id="lifeKwMore" style="display:none"></div>
+    </div>
+
+    <div class="srcBlock" id="newsBlock">
       <h4 class="srcTitle">패션 트렌드 <span id="newsCnt" class="srcCnt"></span></h4>
       <div class="sub">기사·리포트에서 추출한 트렌드 키워드 — 이미지는 아직 수집되지 않아 텍스트로만 표시돼요</div>
       <div class="kwgrid" id="newsKwGrid"></div>
@@ -145,15 +154,7 @@ a{color:var(--acc)}
       <div class="kwlist" id="newsKwMore" style="display:none"></div>
     </div>
 
-    <div class="srcBlock">
-      <h4 class="srcTitle">라이프스타일 트렌드 <span id="lifeCnt" class="srcCnt"></span></h4>
-      <div class="sub">소비자 활동·문화·행태 트렌드 — 어떤 카테고리를 보든 항상 같이 보여드려요</div>
-      <div class="kwgrid" id="lifeKwGrid"></div>
-      <button class="morebtn" id="lifeMoreBtn" style="display:none"></button>
-      <div class="kwlist" id="lifeKwMore" style="display:none"></div>
-    </div>
-
-    <div class="srcBlock">
+    <div class="srcBlock" id="snsBlock">
       <h4 class="srcTitle">SNS 트렌드 <span id="snsCnt" class="srcCnt"></span></h4>
       <div class="sub">인스타 릴스 등 바이럴 콘텐츠에 실제로 달린 해시태그 언급 빈도순 — 이미지는 아직 수집되지 않아 텍스트로만 표시돼요</div>
       <div class="kwgrid" id="snsKwGrid"></div>
@@ -187,6 +188,7 @@ const FASHION_SIG = [];
 const LIFESTYLE_SIG = [];
 let SNS_VIRAL = [];
 const CAT_LABEL = {top:'상의',outer:'아우터',pants:'팬츠',shoes:'슈즈',acc:'액세서리',dress:'스커트 & 드레스',bag:'백',etc:'컬러',lifestyle:'라이프스타일'};
+const AUTHOR_COLOR = { jisoo:'#c8451f', jin:'#1a7a4a', sohee:'#4a6fb5' };
 
 /* ── SNS 바이럴 구글시트 실시간 연동 (SHEET_VIRAL) ── */
 const SHEET_VIRAL_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTS-uKmAPEaO-ee3-Du5iIPFBIQTdVDYbkYJG3fjl_XWKA6vxPHqHzy2kEQjwobfs4a2QOxUuHpMCce/pub?output=csv';
@@ -523,7 +525,7 @@ function snsCategoriesOf(s){
   return (s.subcat||'').split(',').map(x=>x.trim()).map(x=>SNS_SUBCAT_MAP[x]).filter(Boolean);
 }
 
-const CATS = ['outer','top','pants','dress','shoes','bag','acc','etc','lifestyle'];
+const CATS = ['lifestyle','outer','top','pants','dress','shoes','bag','acc','etc'];
 const REV_CAT_LABEL = Object.fromEntries(Object.entries(CAT_LABEL).map(([k,v]) => [v,k]));
 
 /* admin.html에서 Supabase trend_signals 테이블로 올린 항목들 — 페이지 로드 시 fetch해서 채움 */
@@ -539,29 +541,43 @@ async function loadTrendSignals(){
       if(r.source_type === 'news'){
         SB_NEWS.push({ url: r.url, note: r.keyword, category: REV_CAT_LABEL[r.category] || r.category || 'etc',
           keywords: [r.keyword], summary: r.note || '', image_url: r.image_url, stage: 'early',
-          source: r.source, region: r.region });
+          source: r.source, region: r.region, author: r.author });
       } else if(r.source_type === 'lifestyle'){
         SB_LIFESTYLE.push({ url: r.url, note: r.keyword, category: 'lifestyle',
           keywords: [r.keyword], summary: r.note || '', image_url: r.image_url, stage: 'early',
-          related: null, related_note: '', source: r.source, region: r.region });
+          related: null, related_note: '', source: r.source, region: r.region, author: r.author });
       } else if(r.source_type === 'sns'){
         SB_SNS.push({ category: REV_CAT_LABEL[r.category] || r.category || 'etc', keyword: r.keyword,
-          note: r.note || '', url: r.url, image_url: r.image_url, source: r.source, region: r.region });
+          note: r.note || '', url: r.url, image_url: r.image_url, source: r.source, region: r.region,
+          author: r.author });
       }
     }
     renderStatic();
     try{ window.parent.postMessage('ta-signals-updated', '*'); }catch(e){}
   }catch(e){ console.warn('trend_signals 로드 실패:', e); }
 }
-let scatF = 'top';
+let scatF = 'lifestyle';
 
 function drawCatBar(){
   $('#catBar').innerHTML = CATS.map(c =>
     `<button class="${c===scatF?'on':''}" data-c="${c}">${esc(CAT_LABEL[c]||c)}</button>`).join('');
   $('#catBar').onclick = e => {
     const b = e.target.closest('button'); if(!b) return;
-    scatF = b.dataset.c; drawCatBar(); drawNewsGrid(); drawSnsForCat();
+    scatF = b.dataset.c; drawCatBar(); renderCurrentView();
   };
+}
+
+/* 라이프스타일 탭은 카테고리 무관 콘텐츠라 패션 트렌드/SNS 트렌드 블록 대신 자기 블록만 보여줌 */
+function renderCurrentView(){
+  const isLife = scatF === 'lifestyle';
+  $('#lifeBlock').style.display = isLife ? '' : 'none';
+  $('#newsBlock').style.display = isLife ? 'none' : '';
+  $('#snsBlock').style.display  = isLife ? 'none' : '';
+  $('#catSub').textContent = isLife
+    ? '소비자 활동·문화·행태 트렌드를 모아봤어요 — 다른 카테고리를 고르면 패션·SNS 트렌드를 볼 수 있어요'
+    : '카테고리를 고르면 패션·SNS 트렌드를 볼 수 있어요';
+  if(isLife) drawLifeBlock();
+  else { drawNewsGrid(); drawSnsForCat(); }
 }
 
 function normKw(k){ return String(k||'').trim().toLowerCase(); }
@@ -628,6 +644,8 @@ function kwCardHTML(entry, i, exampleFn, showScore, metaOverride, maxVal){
   const img = entry.items.find(it => it.image_url)?.image_url;
   const region = entry.items.find(it => it.region)?.region;
   const source = entry.items.find(it => it.source)?.source;
+  const authors = [...new Set(entry.items.map(it => it.author).filter(Boolean))];
+  const authorColor = authors.length ? (AUTHOR_COLOR[authors[0]] || 'var(--acc)') : 'var(--acc)';
   const hot = entry.count > 1;
   return `<div class="kwcard${hot ? ' hot' : ''}">
     ${img ? `<div class="kwphotowrap">
@@ -636,8 +654,9 @@ function kwCardHTML(entry, i, exampleFn, showScore, metaOverride, maxVal){
       ${source ? `<div class="kwsrc">${esc(source)}</div>` : ''}
     </div>` : ''}
     <div class="kwname">${esc(entry.label)}</div>
+    ${authors.length ? `<div class="kwauthor" style="color:${authorColor}">${esc(authors.join(', '))}</div>` : ''}
     <div class="kwmeta">${meta}</div>
-    <div class="volbar"><i style="width:${pct}%"></i></div>
+    <div class="volbar"><i style="width:${pct}%; background:${authorColor}"></i></div>
     ${exampleFn(entry)}
   </div>`;
 }
@@ -667,7 +686,7 @@ function aggregateManualSns(items){
     if(!map.has(key)) map.set(key, { label: it.keyword, count: 0, score: 0, items: [] });
     const e = map.get(key); e.count++;
     e.items.push({ content: it.note, score: 0, post_url: it.url, image_url: it.image_url,
-      source: it.source, region: it.region });
+      source: it.source, region: it.region, author: it.author });
   }
   return [...map.values()];
 }
@@ -731,15 +750,13 @@ function drawLifeBlock(){
 $('#lifeKwGrid').addEventListener('click', e => {
   const b = e.target.closest('.relbadge'); if(!b) return;
   scatF = b.dataset.c;
-  drawCatBar(); drawNewsGrid(); drawSnsForCat();
+  drawCatBar(); renderCurrentView();
   $('#catBar').scrollIntoView({ behavior: 'smooth', block: 'start' });
 });
 
 function renderStatic(){
   drawCatBar();
-  drawNewsGrid();
-  drawSnsForCat();
-  drawLifeBlock();
+  renderCurrentView();
 }
 
 if(window.self !== window.top) $('#backLink').style.display = 'none';   // 대시보드 탭 안에서는 숨김

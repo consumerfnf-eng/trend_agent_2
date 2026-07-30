@@ -246,6 +246,12 @@ tbody tr:hover{background:#fdfcf9}
           <option value="lifestyle">라이프스타일 트렌드</option>
           <option value="sns" selected>SNS 트렌드</option>
         </select></div>
+      <div style="max-width:120px"><label class="f">작성자</label>
+        <select id="author">
+          <option value="jisoo">jisoo</option>
+          <option value="jin">jin</option>
+          <option value="sohee">sohee</option>
+        </select></div>
       <div style="max-width:170px; display:none" id="srcWrap"><label class="f">출처</label>
         <select id="srcSel"></select>
         <input id="srcTxt" placeholder="VOGUE, 하입비스트…" hidden></div>
@@ -1385,7 +1391,8 @@ $('#saveImgs').onclick = async () => {
     image_url:   it.meta.image_url || null,
     note:        it.meta.note || null,
     source:      $('#source').value || null,
-    region:      $('#region').value || null
+    region:      $('#region').value || null,
+    author:      $('#author').value || null
   }));
   const { error } = await sb.from('trend_signals').insert(rows);
   busy(false);
