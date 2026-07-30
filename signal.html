@@ -669,18 +669,47 @@ function subItemHTML(it){
   </div>`;
 }
 
+function bigItemBody(it){
+  if(!it) return '';
+  const isSns = it.post_url !== undefined || it.content !== undefined;
+  const text = isSns ? (it.content || '') : (it.summary || it.note || '');
+  const link = isSns ? it.post_url : it.url;
+  const linkLabel = isSns ? '대표 게시물 보기' : '원문 보기';
+  const snippet = isSns && text.length > 60 ? text.slice(0,60)+'…' : text;
+  return `${text ? `<div class="kwex">${esc(snippet)}</div>` : ''}${link ? `<a class="kwlink" href="${esc(link)}" target="_blank" rel="noopener">${linkLabel} →</a>` : ''}`;
+}
+
 function kwCardHTML(entry, i, exampleFn, showScore, metaOverride, maxVal){
   const meta = metaOverride ? metaOverride(entry) : `${entry.count}건 언급${showScore ? ` · 스코어 ${entry.score.toLocaleString()}` : ''}`;
   const val = showScore ? entry.score : entry.count;
   const pct = maxVal ? Math.max(6, Math.round(val / maxVal * 100)) : 0;
-  const authors = [...new Set(entry.items.map(it => it.author).filter(Boolean))];
-  const authorColor = authors.length === 1 ? (AUTHOR_COLOR[authors[0]] || 'var(--acc)') : 'var(--acc)';
-  const hot = entry.count > 1;
   const first = entry.items[0];
   const rel = first && first.related
     ? `<button class="relbadge" data-c="${esc(first.related)}">→ ${esc(CAT_LABEL[first.related]||first.related)} 트렌드로 이어짐 — ${esc(first.related_note||'')}</button>`
     : '';
-  return `<div class="kwcard${hot ? ' hot' : ''}">
+
+  /* 키워드를 올린 게 한 건뿐이면 원래처럼 사진 큰 카드로, 2건 이상 겹치면 묶어서 보여줌 */
+  if(entry.items.length <= 1){
+    const it = first;
+    const authorColor = it?.author ? (AUTHOR_COLOR[it.author] || 'var(--acc)') : 'var(--acc)';
+    return `<div class="kwcard">
+      ${it?.image_url ? `<div class="kwphotowrap">
+        <img class="kwphoto" src="${esc(it.image_url)}" alt="" loading="lazy">
+        ${it.region ? `<div class="kwregion">${esc(it.region)}</div>` : ''}
+        ${it.source ? `<div class="kwsrc">${esc(it.source)}</div>` : ''}
+      </div>` : ''}
+      <div class="kwname">${esc(entry.label)}</div>
+      ${it?.author ? `<div class="kwauthor" style="color:${authorColor}">${esc(it.author)}</div>` : ''}
+      <div class="kwmeta">${meta}</div>
+      <div class="volbar"><i style="width:${pct}%; background:${authorColor}"></i></div>
+      ${bigItemBody(it)}
+      ${rel}
+    </div>`;
+  }
+
+  const authors = [...new Set(entry.items.map(it => it.author).filter(Boolean))];
+  const authorColor = authors.length === 1 ? (AUTHOR_COLOR[authors[0]] || 'var(--acc)') : 'var(--acc)';
+  return `<div class="kwcard hot">
     <div class="kwname">${esc(entry.label)}</div>
     <div class="kwmeta">${meta}</div>
     <div class="volbar"><i style="width:${pct}%; background:${authorColor}"></i></div>
