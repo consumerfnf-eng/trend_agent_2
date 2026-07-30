@@ -713,6 +713,15 @@ tbody tr:hover{background:#fdfcf9}
     <button class="btn ghost sm" id="dnaAdd" style="margin-top:6px">＋ 라이프스타일 추가</button></div>
   <div style="height:20px"></div>
 
+  <h3 class="sub">키워드 동의어 <span class="mini">— 같은 트렌드인데 다르게 적힌 표현을 하나로 묶어서 대시보드에 보여줘요 (예: 젤꾸 → 젤리슈즈)</span></h3>
+  <div class="row" style="margin-bottom:8px">
+    <div style="max-width:180px"><label class="f">다르게 적힌 표현</label><input id="aliasFrom" placeholder="젤꾸"></div>
+    <div style="max-width:180px"><label class="f">묶어서 보여줄 대표 키워드</label><input id="aliasTo" placeholder="젤리슈즈"></div>
+    <div style="align-self:flex-end"><button class="btn sm" id="aliasAdd">추가</button></div>
+  </div>
+  <div class="tw"><table><thead><tr><th>표현</th><th>대표 키워드로 묶임</th><th></th></tr></thead><tbody id="aliasBody"></tbody></table></div>
+  <div style="height:20px"></div>
+
   <h3 class="sub">검색량 수집</h3>
   <div class="bar" style="margin-bottom:14px">
     <button class="btn sm" id="sigRun">검색량 지금 갱신 — 네이버에 다녀오기</button>
@@ -3170,6 +3179,29 @@ $('#adBody').onclick = async e => {
   toast('삭제했습니다'); renderAdmins();
 };
 
+/* ── 키워드 동의어 — 같은 트렌드를 다르게 적은 표현을 하나로 묶어서 signal.html 대시보드에 보여줌 ── */
+async function renderAliases(){
+  const { data, error } = await sb.from('keyword_aliases').select('*').order('canonical');
+  if(error){ $('#aliasBody').innerHTML = '<tr><td colspan="3"><div class="empty">keyword_aliases 테이블이 아직 없습니다 (README 참고).</div></td></tr>'; return; }
+  $('#aliasBody').innerHTML = (data||[]).map(a=>`
+    <tr><td>${esc(a.alias)}</td><td>${esc(a.canonical)}</td>
+      <td><button class="btn danger sm" data-aliasdel="${esc(a.alias)}">삭제</button></td></tr>`).join('')
+    || '<tr><td colspan="3"><div class="empty">아직 등록된 동의어가 없습니다.</div></td></tr>';
+}
+$('#aliasAdd').onclick = async () => {
+  const from = $('#aliasFrom').value.trim(); const to = $('#aliasTo').value.trim();
+  if(!from || !to) return toast('두 칸 다 채워주세요');
+  const { error } = await sb.from('keyword_aliases').upsert({ alias: from, canonical: to }, { onConflict: 'alias' });
+  if(error) return die(error, '키워드 동의어 추가');
+  $('#aliasFrom').value=''; $('#aliasTo').value=''; toast('추가했습니다 — 대시보드에 바로 반영돼요'); renderAliases();
+};
+$('#aliasBody').onclick = async e => {
+  const b = e.target.closest('[data-aliasdel]'); if(!b) return;
+  if(!confirm(`"${b.dataset.aliasdel}" 동의어 매핑을 삭제할까요?`)) return;
+  await sb.from('keyword_aliases').delete().eq('alias', b.dataset.aliasdel);
+  toast('삭제했습니다'); renderAliases();
+};
+
 /* ═══════════ 탭 ═══════════ */
 /* ═══════════════ 맵 — 드래그 배치 ═══════════════ */
 let MV = [], MN = [], MEDGE = [], mCur = null, mSel = null, mLinkFrom = null;
@@ -3877,7 +3909,7 @@ async function nextSlot(viewId, t){
 }
 
 const LOADERS = { feed:renderFeed, queue:renderQueue, map:loadMap, cluster:loadClusterTab,
-  conf: async () => { await renderAdmins(); await loadDna(); } };
+  conf: async () => { await renderAdmins(); await loadDna(); await renderAliases(); } };
 $('#tabs').onclick = e => {
   const b = e.target.closest('button'); if(!b) return;
   $$('#tabs button').forEach(x=>x.classList.toggle('on', x===b));

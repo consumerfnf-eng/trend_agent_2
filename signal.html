@@ -582,14 +582,19 @@ function renderCurrentView(){
 
 function normKw(k){ return String(k||'').trim().toLowerCase(); }
 
+/* admin.html 설정 탭에서 등록한 키워드 동의어(예: 젤꾸 → 젤리슈즈) — 로드되면 채워짐 */
+let ALIAS_MAP = {};
+function canonKw(raw){ return ALIAS_MAP[normKw(raw)] || raw; }
+
 /* 뉴스레터: 기사에 태깅된 keywords를 병합·집계 (동일 키워드 기사 여러 건이면 합쳐서 카운트) */
 function aggregateNewsKw(items){
   const map = new Map();
   for(const s of items){
     const kws = (s.keywords && s.keywords.length) ? s.keywords : [s.note.slice(0,24)];
     for(const raw of kws){
-      const key = normKw(raw);
-      if(!map.has(key)) map.set(key, { label: raw, count: 0, items: [] });
+      const label = canonKw(raw);
+      const key = normKw(label);
+      if(!map.has(key)) map.set(key, { label, count: 0, items: [] });
       const e = map.get(key); e.count++; e.items.push(s);
     }
   }
@@ -610,8 +615,9 @@ function aggregateSnsKw(items){
     const tags = extractHashtags(s.content);
     if(!tags.length){ genericCount++; continue; }
     for(const raw of tags){
-      const key = normKw(raw);
-      if(!map.has(key)) map.set(key, { label: '#'+raw, count: 0, score: 0, items: [] });
+      const label = '#' + canonKw(raw);
+      const key = normKw(label);
+      if(!map.has(key)) map.set(key, { label, count: 0, score: 0, items: [] });
       const e = map.get(key); e.count++; e.score += s.score; if(!e.items.includes(s)) e.items.push(s);
     }
   }
@@ -682,8 +688,9 @@ function drawNewsGrid(){
 function aggregateManualSns(items){
   const map = new Map();
   for(const it of items){
-    const key = normKw(it.keyword);
-    if(!map.has(key)) map.set(key, { label: it.keyword, count: 0, score: 0, items: [] });
+    const label = canonKw(it.keyword);
+    const key = normKw(label);
+    if(!map.has(key)) map.set(key, { label, count: 0, score: 0, items: [] });
     const e = map.get(key); e.count++;
     e.items.push({ content: it.note, score: 0, post_url: it.url, image_url: it.image_url,
       source: it.source, region: it.region, author: it.author });
@@ -772,9 +779,19 @@ window.TA_SIGNAL_DATA = {
     NEWS_SIG: NEWS_SIG.length, SUPABASE_URL })
 };
 
+async function loadAliases(){
+  try{
+    const { data, error } = await sb.from('keyword_aliases').select('alias,canonical');
+    if(error){ console.warn('keyword_aliases 로드 실패 (테이블이 아직 없을 수 있음):', error.message); return; }
+    ALIAS_MAP = Object.fromEntries((data||[]).map(r => [normKw(r.alias), r.canonical]));
+    renderStatic();
+  }catch(e){ console.warn('keyword_aliases 로드 실패:', e); }
+}
+
 load();
 renderStatic();
 loadTrendSignals();
+loadAliases();
 // loadSnsSheet();  // SNS 데이터 일단 비활성화 — 다시 켜려면 이 줄 주석 해제
 </script>
 </body>
