@@ -88,6 +88,7 @@ tr.krow{cursor:pointer} tr.krow:hover{background:#faf6ec}
 .kwgrid::-webkit-scrollbar{height:6px}
 .kwgrid::-webkit-scrollbar-thumb{background:var(--hair); border-radius:3px}
 .kwgrid .kwcard{flex:0 0 calc(25% - 9px); min-width:220px; scroll-snap-align:start}
+.kwgrid .kwcard.hot{flex:0 0 calc(50% - 14px); min-width:340px}
 .kwcard{background:var(--card); border:1px solid var(--hair); border-radius:10px; padding:14px; position:relative}
 .kwcard .kwphotowrap{position:relative; width:calc(100% + 28px); margin:-14px -14px 10px}
 .kwcard .kwphoto{width:100%; display:block; aspect-ratio:3/4; object-fit:cover; background:#efeae1;
@@ -103,6 +104,13 @@ tr.krow{cursor:pointer} tr.krow:hover{background:#faf6ec}
 .kwcard .volbar{height:5px; border-radius:3px; background:#f3ede3; overflow:hidden; margin:8px 0}
 .kwcard .volbar i{display:block; height:100%; border-radius:3px; background:var(--acc)}
 .kwcard .kwauthor{font-size:9px; font-weight:800; letter-spacing:.04em; margin-top:-2px; margin-bottom:2px}
+.kwcard .kwsubrow{display:flex; gap:8px; overflow-x:auto; margin-top:8px; padding-bottom:2px; scrollbar-width:thin}
+.kwcard .kwsubrow::-webkit-scrollbar{height:5px}
+.kwcard .kwsubrow::-webkit-scrollbar-thumb{background:var(--hair); border-radius:3px}
+.kwcard .kwsub{flex:0 0 128px; background:#faf7f2; border:1px solid var(--hair); border-radius:8px; padding:8px}
+.kwcard .kwsubimg{width:100%; height:72px; object-fit:cover; border-radius:6px; margin-bottom:6px; background:#efeae1; display:block}
+.kwcard .kwsubauthor{font-size:9px; font-weight:800; letter-spacing:.04em; margin-bottom:3px}
+.kwcard .kwsubtxt{font-size:10px; color:var(--sub); line-height:1.4; margin-bottom:4px}
 .kwcard.hot{border-color:var(--acc); box-shadow:0 0 0 1px var(--acc) inset}
 .kwcard.hot .volbar{height:7px}
 .kwcard .relbadge{display:block; margin-top:8px; background:#fdf3ef; border:1px solid #f1d9cf; color:var(--acc);
@@ -188,7 +196,7 @@ const FASHION_SIG = [];
 const LIFESTYLE_SIG = [];
 let SNS_VIRAL = [];
 const CAT_LABEL = {top:'상의',outer:'아우터',pants:'팬츠',shoes:'슈즈',acc:'액세서리',dress:'스커트 & 드레스',bag:'백',etc:'컬러',lifestyle:'라이프스타일'};
-const AUTHOR_COLOR = { jisoo:'#c8451f', jin:'#1a7a4a', sohee:'#4a6fb5' };
+const AUTHOR_COLOR = { jisoo:'#c8451f', jin:'#b19cd9', sohee:'#4a6fb5' };
 
 /* ── SNS 바이럴 구글시트 실시간 연동 (SHEET_VIRAL) ── */
 const SHEET_VIRAL_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTS-uKmAPEaO-ee3-Du5iIPFBIQTdVDYbkYJG3fjl_XWKA6vxPHqHzy2kEQjwobfs4a2QOxUuHpMCce/pub?output=csv';
@@ -643,27 +651,41 @@ function snsExampleHTML(entry){
   return `<div class="kwex">${esc(snippet)}</div><a class="kwlink" href="${esc(top.post_url)}" target="_blank" rel="noopener">대표 게시물 보기 →</a>`;
 }
 
+/* 항목 하나(뉴스/SNS 원문 1건)를 카드 안 작은 서브카드로 표시 — 출처마다 필드명이 달라서 여기서 흡수함 */
+function subItemHTML(it){
+  const isSns = it.post_url !== undefined || it.content !== undefined;
+  const text = isSns ? (it.content || '') : (it.summary || it.note || '');
+  const link = isSns ? it.post_url : it.url;
+  const linkLabel = isSns ? '게시물 보기' : '원문 보기';
+  const snippet = text.length > 70 ? text.slice(0,70)+'…' : text;
+  const authorColor = it.author ? (AUTHOR_COLOR[it.author] || 'var(--acc)') : null;
+  const meta = [it.source, it.region].filter(Boolean).join(' · ');
+  return `<div class="kwsub">
+    ${it.image_url ? `<img class="kwsubimg" src="${esc(it.image_url)}" alt="" loading="lazy">` : ''}
+    ${it.author ? `<div class="kwsubauthor" style="color:${authorColor}">${esc(it.author)}</div>` : ''}
+    ${text ? `<div class="kwsubtxt">${esc(snippet)}</div>` : ''}
+    ${link ? `<a class="kwlink" href="${esc(link)}" target="_blank" rel="noopener">${linkLabel} →</a>` : ''}
+    ${meta ? `<div class="mini">${esc(meta)}</div>` : ''}
+  </div>`;
+}
+
 function kwCardHTML(entry, i, exampleFn, showScore, metaOverride, maxVal){
   const meta = metaOverride ? metaOverride(entry) : `${entry.count}건 언급${showScore ? ` · 스코어 ${entry.score.toLocaleString()}` : ''}`;
   const val = showScore ? entry.score : entry.count;
   const pct = maxVal ? Math.max(6, Math.round(val / maxVal * 100)) : 0;
-  const img = entry.items.find(it => it.image_url)?.image_url;
-  const region = entry.items.find(it => it.region)?.region;
-  const source = entry.items.find(it => it.source)?.source;
   const authors = [...new Set(entry.items.map(it => it.author).filter(Boolean))];
-  const authorColor = authors.length ? (AUTHOR_COLOR[authors[0]] || 'var(--acc)') : 'var(--acc)';
+  const authorColor = authors.length === 1 ? (AUTHOR_COLOR[authors[0]] || 'var(--acc)') : 'var(--acc)';
   const hot = entry.count > 1;
+  const first = entry.items[0];
+  const rel = first && first.related
+    ? `<button class="relbadge" data-c="${esc(first.related)}">→ ${esc(CAT_LABEL[first.related]||first.related)} 트렌드로 이어짐 — ${esc(first.related_note||'')}</button>`
+    : '';
   return `<div class="kwcard${hot ? ' hot' : ''}">
-    ${img ? `<div class="kwphotowrap">
-      <img class="kwphoto" src="${esc(img)}" alt="" loading="lazy">
-      ${region ? `<div class="kwregion">${esc(region)}</div>` : ''}
-      ${source ? `<div class="kwsrc">${esc(source)}</div>` : ''}
-    </div>` : ''}
     <div class="kwname">${esc(entry.label)}</div>
-    ${authors.length ? `<div class="kwauthor" style="color:${authorColor}">${esc(authors.join(', '))}</div>` : ''}
     <div class="kwmeta">${meta}</div>
     <div class="volbar"><i style="width:${pct}%; background:${authorColor}"></i></div>
-    ${exampleFn(entry)}
+    <div class="kwsubrow">${entry.items.map(subItemHTML).join('')}</div>
+    ${rel}
   </div>`;
 }
 
