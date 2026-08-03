@@ -85,8 +85,10 @@ tr.krow{cursor:pointer} tr.krow:hover{background:#faf6ec}
 .srcTitle{font-size:13px; margin:0 0 2px; display:flex; align-items:center; gap:8px}
 .srcCnt{font-size:10px; font-weight:700; color:var(--acc); background:#fdf3ef; padding:2px 8px; border-radius:9px}
 .bubbleWrap{display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin:14px 0 18px}
-.bubble{border-radius:50%; background:#fff; border:1px solid var(--hair); display:flex; align-items:center;
+.bubble{position:relative; border-radius:50%; background:#fff; border:1px solid var(--hair); display:flex; align-items:center;
   justify-content:center; flex-direction:column; flex-shrink:0; cursor:pointer; transition:border-color .15s; text-align:center; padding:4px}
+.bubble .linkdot{position:absolute; top:-5px; right:-5px; font-size:10px; background:#fff; border:1px solid var(--hair);
+  border-radius:50%; width:18px; height:18px; display:flex; align-items:center; justify-content:center}
 .bubble:hover{border-color:var(--tx)}
 .bubble .bn{font-weight:700; color:var(--tx); line-height:1.2; word-break:keep-word}
 .bubble .bc{color:var(--sub)}
@@ -124,6 +126,8 @@ tr.krow{cursor:pointer} tr.krow:hover{background:#faf6ec}
 .kwcard .relbadge{display:block; margin-top:8px; background:#fdf3ef; border:1px solid #f1d9cf; color:var(--acc);
   font-size:10.5px; font-weight:700; padding:6px 10px; border-radius:8px; cursor:pointer; text-align:left; font-family:inherit}
 .kwcard .relbadge:hover{background:#f8e7de}
+.kwcard .relbadge.back{background:#eef2fb; border-color:#d6e0f5; color:#3a5bb0}
+.kwcard .relbadge.back:hover{background:#e2e9f9}
 .morebtn{margin-top:14px; background:none; border:1px solid var(--hair); border-radius:20px; padding:8px 18px; font-size:11px; font-weight:700; cursor:pointer; color:var(--tx)}
 .kwlist{margin-top:10px; display:flex; flex-direction:column; gap:6px}
 .kwrow{display:flex; justify-content:space-between; align-items:center; padding:8px 12px; border:1px solid var(--hair); border-radius:8px; font-size:11.5px}
@@ -549,6 +553,7 @@ const REV_CAT_LABEL = Object.fromEntries(Object.entries(CAT_LABEL).map(([k,v]) =
 
 /* admin.html에서 Supabase trend_signals 테이블로 올린 항목들 — 페이지 로드 시 fetch해서 채움 */
 let SB_NEWS = [], SB_LIFESTYLE = [], SB_SNS = [];
+let LIFESTYLE_LINKS = [];   /* 라이프스타일 키워드 → 다른 카테고리 키워드 연결 목록 (related/related_keyword/related_note 있는 것만) */
 
 async function loadTrendSignals(){
   try{
@@ -564,13 +569,16 @@ async function loadTrendSignals(){
       } else if(r.source_type === 'lifestyle'){
         SB_LIFESTYLE.push({ url: r.url, note: r.keyword, category: 'lifestyle',
           keywords: [r.keyword], summary: r.note || '', image_url: r.image_url, stage: 'early',
-          related: null, related_note: '', source: r.source, region: r.region, author: r.author });
+          related: r.related || null, related_keyword: r.related_keyword || '', related_note: r.related_note || '',
+          source: r.source, region: r.region, author: r.author });
       } else if(r.source_type === 'sns'){
         SB_SNS.push({ category: REV_CAT_LABEL[r.category] || r.category || 'etc', keyword: r.keyword,
           note: r.note || '', url: r.url, image_url: r.image_url, source: r.source, region: r.region,
           author: r.author });
       }
     }
+    LIFESTYLE_LINKS = SB_LIFESTYLE.filter(s => s.related && s.related_keyword)
+      .map(s => ({ cat: s.related, kw: s.related_keyword, note: s.related_note, srcLabel: s.note }));
     renderStatic();
     try{ window.parent.postMessage('ta-signals-updated', '*'); }catch(e){}
   }catch(e){ console.warn('trend_signals 로드 실패:', e); }
@@ -695,7 +703,12 @@ function kwCardHTML(entry, i, exampleFn, showScore, metaOverride, maxVal){
   const pct = maxVal ? Math.max(6, Math.round(val / maxVal * 100)) : 0;
   const first = entry.items[0];
   const rel = first && first.related
-    ? `<button class="relbadge" data-c="${esc(first.related)}">→ ${esc(CAT_LABEL[first.related]||first.related)} 트렌드로 이어짐 — ${esc(first.related_note||'')}</button>`
+    ? `<button class="relbadge" data-c="${esc(first.related)}" data-kw="${esc(first.related_keyword||'')}">→ ${esc(CAT_LABEL[first.related]||first.related)} '${esc(first.related_keyword||'')}' 트렌드로 이어짐 — ${esc(first.related_note||'')}</button>`
+    : '';
+  /* 역방향: 지금 이 카드가 속한 카테고리로 연결해둔 라이프스타일 키워드가 있는지 확인 */
+  const backLink = LIFESTYLE_LINKS.find(l => l.cat === scatF && normKw(l.kw) === normKw(entry.label));
+  const back = backLink
+    ? `<button class="relbadge back" data-c="lifestyle" data-kw="${esc(backLink.srcLabel)}">↔ 라이프스타일 '${esc(backLink.srcLabel)}' 트렌드와 연결 — ${esc(backLink.note||'')}</button>`
     : '';
 
   /* 키워드를 올린 게 한 건뿐이면 원래처럼 사진 큰 카드로, 2건 이상 겹치면 묶어서 보여줌 */
@@ -709,10 +722,9 @@ function kwCardHTML(entry, i, exampleFn, showScore, metaOverride, maxVal){
         ${it.source ? `<div class="kwsrc">${esc(it.source)}</div>` : ''}
       </div>` : ''}
       <div class="kwname">${esc(entry.label)}</div>
-      <div class="kwmeta">${meta}</div>
       <div class="volbar"><i style="width:${pct}%; background:${authorColor}"></i></div>
       ${bigItemBody(it)}
-      ${rel}
+      ${rel}${back}
     </div>`;
   }
 
@@ -720,25 +732,29 @@ function kwCardHTML(entry, i, exampleFn, showScore, metaOverride, maxVal){
   const authorColor = authors.length === 1 ? (AUTHOR_COLOR[authors[0]] || 'var(--acc)') : 'var(--acc)';
   return `<div class="kwcard hot" data-kwlabel="${esc(entry.label)}">
     <div class="kwname">${esc(entry.label)}</div>
-    <div class="kwmeta">${meta}</div>
     <div class="volbar"><i style="width:${pct}%; background:${authorColor}"></i></div>
     <div class="kwsubrow">${entry.items.map(subItemHTML).join('')}</div>
-    ${rel}
+    ${rel}${back}
   </div>`;
 }
 
-/* 언급 건수 기준 버블 요약 — 카드 위에 표시, 카테고리/섹션이 바뀔 때마다 새로 계산됨(정적 아님) */
-function bubbleHTML(ranked, gridSel){
-  if(!ranked.length) return '';
-  const top = ranked.slice(0, 14);
+/* 언급 건수 기준 버블 요약 — 카드 위에 표시, 카테고리/섹션이 바뀔 때마다 새로 계산됨(정적 아님).
+   1건 언급은 "겹침"이 아니라서 버블에서는 제외하고, 카드 목록에는 그대로 나옴 */
+function bubbleHTML(ranked, gridSel, catCtx){
+  const top = ranked.filter(e => e.count >= 2).slice(0, 14);
+  if(!top.length) return '';
   const maxVal = Math.max(...top.map(e => e.count), 1);
-  const minD = 44, maxD = 128;
+  const minD = 40, maxD = 152;
   return top.map((e,i) => {
-    const d = Math.round(minD + (maxD-minD) * Math.sqrt(e.count / maxVal));
-    const isTop = i === 0 && e.count > 1;
-    const nameSize = d >= 96 ? 14 : d >= 68 ? 12.5 : d >= 52 ? 11 : 10;
+    const d = Math.round(minD + (maxD-minD) * (e.count / maxVal));   /* 선형 — 언급량 차이가 크기 차이로 확실히 드러나게 */
+    const isTop = i === 0;
+    const nameSize = d >= 100 ? 15 : d >= 72 ? 13 : d >= 55 ? 11.5 : 10;
     const countSize = nameSize - 2;
+    const hasFwd = e.items.some(it => it.related);
+    const hasRev = catCtx && LIFESTYLE_LINKS.some(l => l.cat === catCtx && normKw(l.kw) === normKw(e.label));
+    const linked = hasFwd || hasRev;
     return `<div class="bubble${isTop ? ' top' : ''}" style="width:${d}px; height:${d}px" data-kw="${esc(e.label)}" data-target="${gridSel}">
+      ${linked ? '<span class="linkdot" title="다른 카테고리와 연결됨">🔗</span>' : ''}
       ${isTop ? '<span style="font-size:11px">🔥</span>' : ''}
       <span class="bn" style="font-size:${nameSize}px">${esc(e.label)}</span>
       <span class="bc" style="font-size:${countSize}px">${e.count}건</span>
@@ -746,11 +762,11 @@ function bubbleHTML(ranked, gridSel){
   }).join('');
 }
 
-function renderKwBlock(gridSel, moreBtnSel, moreListSel, cntSel, ranked, exampleFn, showScore, emptyMsg, bigN=8, metaOverride, bubbleSel){
+function renderKwBlock(gridSel, moreBtnSel, moreListSel, cntSel, ranked, exampleFn, showScore, emptyMsg, bigN=8, metaOverride, bubbleSel, catCtx){
   const maxVal = ranked.length ? Math.max(...ranked.map(e => showScore ? e.score : e.count)) : 0;
   $(gridSel).innerHTML = ranked.length ? ranked.map((e,i)=>kwCardHTML(e,i,exampleFn,showScore,metaOverride,maxVal)).join('') : `<div class="empty">${emptyMsg}</div>`;
   $(cntSel).textContent = ranked.length ? `키워드 ${ranked.length}개 · 언급 많은 순` : '';
-  if(bubbleSel) $(bubbleSel).innerHTML = bubbleHTML(ranked, gridSel);
+  if(bubbleSel) $(bubbleSel).innerHTML = bubbleHTML(ranked, gridSel, catCtx);
   const moreBtn = $(moreBtnSel), moreList = $(moreListSel);
   moreBtn.style.display = 'none';
   moreList.style.display = 'none';
@@ -761,7 +777,7 @@ function drawNewsGrid(){
   const catItems = [...NEWS_SIG, ...SB_NEWS].filter(s => s.category === scatF);
   const ranked = aggregateNewsKw(catItems);
   renderKwBlock('#newsKwGrid','#newsMoreBtn','#newsKwMore','#newsCnt', ranked, newsExampleHTML, false,
-    '해당 카테고리의 뉴스레터 시그널이 아직 없습니다', 8, undefined, '#newsBubble');
+    '해당 카테고리의 뉴스레터 시그널이 아직 없습니다', 8, undefined, '#newsBubble', scatF);
 }
 
 /* Supabase로 올라온 수동 SNS 항목을 해시태그 집계 결과와 합침 */
@@ -784,7 +800,7 @@ function drawSnsForCat(){
   const manual = aggregateManualSns(SB_SNS.filter(s => s.category === scatF));
   const combined = [...manual, ...ranked].sort((a,b) => b.score - a.score || b.count - a.count);
   renderKwBlock('#snsKwGrid','#snsMoreBtn','#snsKwMore','#snsCnt', combined, snsExampleHTML, true,
-    '해당 카테고리의 SNS 시그널이 아직 없습니다', 8, undefined, '#snsBubble');
+    '해당 카테고리의 SNS 시그널이 아직 없습니다', 8, undefined, '#snsBubble', scatF);
   $('#snsGenericNote').textContent = genericCount
     ? `해시태그가 없는 콘텐츠 ${genericCount}건은 키워드 집계에서 제외했어요`
     : '';
@@ -830,15 +846,26 @@ function lifeExampleHTML(entry){
 function drawLifeBlock(){
   const ranked = aggregateLifestyleThemes([...LIFESTYLE_SIG, ...SB_LIFESTYLE]);
   renderKwBlock('#lifeKwGrid','#lifeMoreBtn','#lifeKwMore','#lifeCnt', ranked, lifeExampleHTML, false,
-    '아직 연동된 데이터가 없습니다', 8, undefined, '#lifeBubble');
+    '아직 연동된 데이터가 없습니다', 8, undefined, '#lifeBubble', 'lifestyle');
 }
 
-/* 라이프스타일 카드의 "관련 카테고리로 이어짐" 배지를 누르면 해당 카테고리로 바로 이동 */
-$('#lifeKwGrid').addEventListener('click', e => {
+function highlightCardByLabel(label){
+  const norm = normKw(label);
+  const card = [...document.querySelectorAll('.kwcard')].find(c => normKw(c.dataset.kwlabel||'') === norm);
+  if(!card){ $('#catBar').scrollIntoView({ behavior:'smooth', block:'start' }); return; }
+  card.scrollIntoView({ behavior:'smooth', block:'center' });
+  card.style.transition = 'outline-color .2s';
+  card.style.outline = '2px solid var(--tx)';
+  card.style.outlineOffset = '-2px';
+  setTimeout(() => { card.style.outline = ''; card.style.outlineOffset = ''; }, 1200);
+}
+
+/* 관련 트렌드 배지(정방향 → / 역방향 ↔) 클릭 → 해당 카테고리로 전환 후 그 키워드 카드로 이동+강조 */
+document.addEventListener('click', e => {
   const b = e.target.closest('.relbadge'); if(!b) return;
   scatF = b.dataset.c;
   drawCatBar(); renderCurrentView();
-  $('#catBar').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  setTimeout(() => highlightCardByLabel(b.dataset.kw), 60);
 });
 
 /* 버블 요약 클릭 → 그 키워드의 카드로 스크롤 이동 + 잠깐 강조 */
@@ -848,9 +875,10 @@ document.addEventListener('click', e => {
   const card = [...grid.querySelectorAll('.kwcard')].find(c => c.dataset.kwlabel === b.dataset.kw);
   if(!card) return;
   card.scrollIntoView({ behavior:'smooth', inline:'center', block:'nearest' });
-  card.style.transition = 'box-shadow .2s';
-  card.style.boxShadow = '0 0 0 2px var(--tx)';
-  setTimeout(() => { card.style.boxShadow = ''; }, 1200);
+  card.style.transition = 'outline-color .2s';
+  card.style.outline = '2px solid var(--tx)';
+  card.style.outlineOffset = '-2px';
+  setTimeout(() => { card.style.outline = ''; card.style.outlineOffset = ''; }, 1200);
 });
 
 function renderStatic(){
