@@ -84,6 +84,14 @@ tr.krow{cursor:pointer} tr.krow:hover{background:#faf6ec}
 .srcBlock{margin-top:30px; padding-top:18px; border-top:1px solid var(--hair)}
 .srcTitle{font-size:13px; margin:0 0 2px; display:flex; align-items:center; gap:8px}
 .srcCnt{font-size:10px; font-weight:700; color:var(--acc); background:#fdf3ef; padding:2px 8px; border-radius:9px}
+.bubbleWrap{display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin:14px 0 18px}
+.bubble{border-radius:50%; background:#fff; border:1px solid var(--hair); display:flex; align-items:center;
+  justify-content:center; flex-direction:column; flex-shrink:0; cursor:pointer; transition:border-color .15s; text-align:center; padding:4px}
+.bubble:hover{border-color:var(--tx)}
+.bubble .bn{font-weight:700; color:var(--tx); line-height:1.2; word-break:keep-word}
+.bubble .bc{color:var(--sub)}
+.bubble.top{background:var(--tx); border-color:var(--tx)}
+.bubble.top .bn, .bubble.top .bc{color:#fff}
 .kwgrid{display:flex; gap:12px; margin-top:12px; overflow-x:auto; overflow-y:hidden; scroll-snap-type:x proximity; padding-bottom:6px; scrollbar-width:thin}
 .kwgrid::-webkit-scrollbar{height:6px}
 .kwgrid::-webkit-scrollbar-thumb{background:var(--hair); border-radius:3px}
@@ -149,6 +157,7 @@ a{color:var(--acc)}
     <div class="srcBlock" id="lifeBlock">
       <h4 class="srcTitle">라이프스타일 트렌드 <span id="lifeCnt" class="srcCnt"></span></h4>
       <div class="sub">소비자 활동·문화·행태 트렌드</div>
+      <div class="bubbleWrap" id="lifeBubble"></div>
       <div class="kwgrid" id="lifeKwGrid"></div>
       <button class="morebtn" id="lifeMoreBtn" style="display:none"></button>
       <div class="kwlist" id="lifeKwMore" style="display:none"></div>
@@ -157,6 +166,7 @@ a{color:var(--acc)}
     <div class="srcBlock" id="newsBlock">
       <h4 class="srcTitle">패션 트렌드 <span id="newsCnt" class="srcCnt"></span></h4>
       <div class="sub">기사·리포트에서 추출한 트렌드 키워드 — 이미지는 아직 수집되지 않아 텍스트로만 표시돼요</div>
+      <div class="bubbleWrap" id="newsBubble"></div>
       <div class="kwgrid" id="newsKwGrid"></div>
       <button class="morebtn" id="newsMoreBtn" style="display:none"></button>
       <div class="kwlist" id="newsKwMore" style="display:none"></div>
@@ -165,6 +175,7 @@ a{color:var(--acc)}
     <div class="srcBlock" id="snsBlock">
       <h4 class="srcTitle">SNS 트렌드 <span id="snsCnt" class="srcCnt"></span></h4>
       <div class="sub">인스타 릴스 등 바이럴 콘텐츠에 실제로 달린 해시태그 언급 빈도순 — 이미지는 아직 수집되지 않아 텍스트로만 표시돼요</div>
+      <div class="bubbleWrap" id="snsBubble"></div>
       <div class="kwgrid" id="snsKwGrid"></div>
       <div class="genericNote" id="snsGenericNote"></div>
       <button class="morebtn" id="snsMoreBtn" style="display:none"></button>
@@ -661,8 +672,7 @@ function subItemHTML(it){
   const authorColor = it.author ? (AUTHOR_COLOR[it.author] || 'var(--acc)') : null;
   const meta = [it.source, it.region].filter(Boolean).join(' · ');
   return `<div class="kwsub">
-    ${it.image_url ? `<img class="kwsubimg" src="${esc(it.image_url)}" alt="" loading="lazy">` : ''}
-    ${it.author ? `<div class="kwsubauthor" style="color:${authorColor}">${esc(it.author)}</div>` : ''}
+    ${it.image_url ? `<img class="kwsubimg" src="${esc(it.image_url)}" alt="" loading="lazy" ${it.author ? `style="border-bottom:3px solid ${authorColor}"` : ''}>` : ''}
     ${text ? `<div class="kwsubtxt">${esc(snippet)}</div>` : ''}
     ${link ? `<a class="kwlink" href="${esc(link)}" target="_blank" rel="noopener">${linkLabel} →</a>` : ''}
     ${meta ? `<div class="mini">${esc(meta)}</div>` : ''}
@@ -692,14 +702,13 @@ function kwCardHTML(entry, i, exampleFn, showScore, metaOverride, maxVal){
   if(entry.items.length <= 1){
     const it = first;
     const authorColor = it?.author ? (AUTHOR_COLOR[it.author] || 'var(--acc)') : 'var(--acc)';
-    return `<div class="kwcard">
+    return `<div class="kwcard" data-kwlabel="${esc(entry.label)}">
       ${it?.image_url ? `<div class="kwphotowrap">
         <img class="kwphoto" src="${esc(it.image_url)}" alt="" loading="lazy">
         ${it.region ? `<div class="kwregion">${esc(it.region)}</div>` : ''}
         ${it.source ? `<div class="kwsrc">${esc(it.source)}</div>` : ''}
       </div>` : ''}
       <div class="kwname">${esc(entry.label)}</div>
-      ${it?.author ? `<div class="kwauthor" style="color:${authorColor}">${esc(it.author)}</div>` : ''}
       <div class="kwmeta">${meta}</div>
       <div class="volbar"><i style="width:${pct}%; background:${authorColor}"></i></div>
       ${bigItemBody(it)}
@@ -709,7 +718,7 @@ function kwCardHTML(entry, i, exampleFn, showScore, metaOverride, maxVal){
 
   const authors = [...new Set(entry.items.map(it => it.author).filter(Boolean))];
   const authorColor = authors.length === 1 ? (AUTHOR_COLOR[authors[0]] || 'var(--acc)') : 'var(--acc)';
-  return `<div class="kwcard hot">
+  return `<div class="kwcard hot" data-kwlabel="${esc(entry.label)}">
     <div class="kwname">${esc(entry.label)}</div>
     <div class="kwmeta">${meta}</div>
     <div class="volbar"><i style="width:${pct}%; background:${authorColor}"></i></div>
@@ -718,10 +727,30 @@ function kwCardHTML(entry, i, exampleFn, showScore, metaOverride, maxVal){
   </div>`;
 }
 
-function renderKwBlock(gridSel, moreBtnSel, moreListSel, cntSel, ranked, exampleFn, showScore, emptyMsg, bigN=8, metaOverride){
+/* 언급 건수 기준 버블 요약 — 카드 위에 표시, 카테고리/섹션이 바뀔 때마다 새로 계산됨(정적 아님) */
+function bubbleHTML(ranked, gridSel){
+  if(!ranked.length) return '';
+  const top = ranked.slice(0, 14);
+  const maxVal = Math.max(...top.map(e => e.count), 1);
+  const minD = 44, maxD = 128;
+  return top.map((e,i) => {
+    const d = Math.round(minD + (maxD-minD) * Math.sqrt(e.count / maxVal));
+    const isTop = i === 0 && e.count > 1;
+    const nameSize = d >= 96 ? 14 : d >= 68 ? 12.5 : d >= 52 ? 11 : 10;
+    const countSize = nameSize - 2;
+    return `<div class="bubble${isTop ? ' top' : ''}" style="width:${d}px; height:${d}px" data-kw="${esc(e.label)}" data-target="${gridSel}">
+      ${isTop ? '<span style="font-size:11px">🔥</span>' : ''}
+      <span class="bn" style="font-size:${nameSize}px">${esc(e.label)}</span>
+      <span class="bc" style="font-size:${countSize}px">${e.count}건</span>
+    </div>`;
+  }).join('');
+}
+
+function renderKwBlock(gridSel, moreBtnSel, moreListSel, cntSel, ranked, exampleFn, showScore, emptyMsg, bigN=8, metaOverride, bubbleSel){
   const maxVal = ranked.length ? Math.max(...ranked.map(e => showScore ? e.score : e.count)) : 0;
   $(gridSel).innerHTML = ranked.length ? ranked.map((e,i)=>kwCardHTML(e,i,exampleFn,showScore,metaOverride,maxVal)).join('') : `<div class="empty">${emptyMsg}</div>`;
   $(cntSel).textContent = ranked.length ? `키워드 ${ranked.length}개 · 언급 많은 순` : '';
+  if(bubbleSel) $(bubbleSel).innerHTML = bubbleHTML(ranked, gridSel);
   const moreBtn = $(moreBtnSel), moreList = $(moreListSel);
   moreBtn.style.display = 'none';
   moreList.style.display = 'none';
@@ -732,7 +761,7 @@ function drawNewsGrid(){
   const catItems = [...NEWS_SIG, ...SB_NEWS].filter(s => s.category === scatF);
   const ranked = aggregateNewsKw(catItems);
   renderKwBlock('#newsKwGrid','#newsMoreBtn','#newsKwMore','#newsCnt', ranked, newsExampleHTML, false,
-    '해당 카테고리의 뉴스레터 시그널이 아직 없습니다');
+    '해당 카테고리의 뉴스레터 시그널이 아직 없습니다', 8, undefined, '#newsBubble');
 }
 
 /* Supabase로 올라온 수동 SNS 항목을 해시태그 집계 결과와 합침 */
@@ -755,7 +784,7 @@ function drawSnsForCat(){
   const manual = aggregateManualSns(SB_SNS.filter(s => s.category === scatF));
   const combined = [...manual, ...ranked].sort((a,b) => b.score - a.score || b.count - a.count);
   renderKwBlock('#snsKwGrid','#snsMoreBtn','#snsKwMore','#snsCnt', combined, snsExampleHTML, true,
-    '해당 카테고리의 SNS 시그널이 아직 없습니다');
+    '해당 카테고리의 SNS 시그널이 아직 없습니다', 8, undefined, '#snsBubble');
   $('#snsGenericNote').textContent = genericCount
     ? `해시태그가 없는 콘텐츠 ${genericCount}건은 키워드 집계에서 제외했어요`
     : '';
@@ -801,7 +830,7 @@ function lifeExampleHTML(entry){
 function drawLifeBlock(){
   const ranked = aggregateLifestyleThemes([...LIFESTYLE_SIG, ...SB_LIFESTYLE]);
   renderKwBlock('#lifeKwGrid','#lifeMoreBtn','#lifeKwMore','#lifeCnt', ranked, lifeExampleHTML, false,
-    '아직 연동된 데이터가 없습니다');
+    '아직 연동된 데이터가 없습니다', 8, undefined, '#lifeBubble');
 }
 
 /* 라이프스타일 카드의 "관련 카테고리로 이어짐" 배지를 누르면 해당 카테고리로 바로 이동 */
@@ -810,6 +839,18 @@ $('#lifeKwGrid').addEventListener('click', e => {
   scatF = b.dataset.c;
   drawCatBar(); renderCurrentView();
   $('#catBar').scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
+
+/* 버블 요약 클릭 → 그 키워드의 카드로 스크롤 이동 + 잠깐 강조 */
+document.addEventListener('click', e => {
+  const b = e.target.closest('.bubble'); if(!b) return;
+  const grid = document.querySelector(b.dataset.target); if(!grid) return;
+  const card = [...grid.querySelectorAll('.kwcard')].find(c => c.dataset.kwlabel === b.dataset.kw);
+  if(!card) return;
+  card.scrollIntoView({ behavior:'smooth', inline:'center', block:'nearest' });
+  card.style.transition = 'box-shadow .2s';
+  card.style.boxShadow = '0 0 0 2px var(--tx)';
+  setTimeout(() => { card.style.boxShadow = ''; }, 1200);
 });
 
 function renderStatic(){
