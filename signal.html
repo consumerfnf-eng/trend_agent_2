@@ -84,7 +84,9 @@ tr.krow{cursor:pointer} tr.krow:hover{background:#faf6ec}
 .srcBlock{margin-top:30px; padding-top:18px; border-top:1px solid var(--hair)}
 .srcTitle{font-size:13px; margin:0 0 2px; display:flex; align-items:center; gap:8px}
 .srcCnt{font-size:10px; font-weight:700; color:var(--acc); background:#fdf3ef; padding:2px 8px; border-radius:9px}
-.bubbleWrap{display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin:14px 0 18px}
+.bubbleWrap{margin:14px 0 18px}
+.bubbleRow{display:flex; align-items:center; flex-wrap:wrap; gap:10px}
+.bubble.on{border-color:var(--acc); box-shadow:0 0 0 2px var(--acc) inset}
 .bubble{position:relative; border-radius:50%; background:#fff; border:1px solid var(--hair); display:flex; align-items:center;
   justify-content:center; flex-direction:column; flex-shrink:0; cursor:pointer; transition:border-color .15s; text-align:center; padding:4px}
 .bubble .linkdot{position:absolute; top:-5px; right:-5px; font-size:10px; background:#fff; border:1px solid var(--hair);
@@ -97,7 +99,8 @@ tr.krow{cursor:pointer} tr.krow:hover{background:#faf6ec}
 .kwgrid{display:flex; gap:12px; margin-top:12px; overflow-x:auto; overflow-y:hidden; scroll-snap-type:x proximity; padding-bottom:6px; scrollbar-width:thin}
 .kwgrid::-webkit-scrollbar{height:6px}
 .kwgrid::-webkit-scrollbar-thumb{background:var(--hair); border-radius:3px}
-.kwgrid .kwcard{flex:0 0 calc(25% - 9px); min-width:220px; scroll-snap-align:start}
+.kwgrid .kwcard{flex:0 0 calc(25% - 9px); width:calc(25% - 9px); max-width:calc(25% - 9px);
+  min-width:220px; box-sizing:border-box; overflow:hidden; scroll-snap-align:start}
 .kwgrid .kwcard.hot{flex:0 0 calc(50% - 14px); min-width:340px}
 .kwcard{background:var(--card); border:1px solid var(--hair); border-radius:10px; padding:14px; position:relative}
 .kwcard .kwphotowrap{position:relative; width:calc(100% + 28px); margin:-14px -14px 10px}
@@ -107,6 +110,37 @@ tr.krow{cursor:pointer} tr.krow:hover{background:#faf6ec}
   background:rgba(0,0,0,.55); padding:2px 7px; border-radius:8px}
 .kwcard .kwsrc{position:absolute; bottom:10px; right:10px; font-size:9px; font-weight:800; color:#fff;
   background:rgba(0,0,0,.55); padding:2px 7px; border-radius:8px}
+/* 여러 기사가 묶인 카드 — 사진은 단일 카드와 같은 크기로, 가로로 넘겨봄 */
+.kwcard .kwslidewrap{position:relative; width:calc(100% + 28px); margin:-14px -14px 10px}
+.kwcard .kwslides{display:flex; overflow-x:auto; scroll-snap-type:x mandatory; scrollbar-width:none; scroll-behavior:smooth}
+.kwcard .kwslides::-webkit-scrollbar{display:none}
+.kwcard .kwnav{position:absolute; top:42%; transform:translateY(-50%); width:28px; height:28px; border-radius:50%;
+  background:rgba(0,0,0,.5); color:#fff; border:0; cursor:pointer; font-size:16px; font-weight:700; line-height:1;
+  display:flex; align-items:center; justify-content:center; z-index:2; padding:0; font-family:inherit}
+.kwcard .kwnav:hover{background:rgba(0,0,0,.75)}
+.kwcard .kwnav.prev{left:8px}
+.kwcard .kwnav.next{right:8px}
+.kwcard .kwslide{position:relative; flex:0 0 100%; scroll-snap-align:start}
+.kwcard .kwslide img{width:100%; display:block; aspect-ratio:3/4; object-fit:cover; background:#efeae1}
+.kwcard .kwslide:first-child img{border-radius:10px 0 0 0}
+.kwcard .kwslide:last-child img{border-radius:0 10px 0 0}
+.kwcard .kwslide .authorline{position:absolute; left:0; right:0; bottom:0; height:4px}
+.kwcard .kwdots{position:absolute; left:0; right:0; bottom:12px; display:flex; justify-content:center; gap:6px; z-index:2}
+.kwcard .kwdot{width:7px; height:7px; border-radius:50%; background:rgba(255,255,255,.5); cursor:pointer;
+  box-shadow:0 0 0 1px rgba(0,0,0,.2); transition:background .15s, transform .15s}
+.kwcard .kwdot.on{background:#fff; transform:scale(1.25)}
+/* 묶임 표시 — 왼쪽 세로선과 가지로 "이 기사들이 한 키워드로 묶였다"를 나타냄 */
+.kwcard .grouphead{font-size:9.5px; font-weight:800; color:var(--acc); letter-spacing:.03em; margin:8px 0 6px}
+.kwcard .grouplist{margin-left:4px; padding-left:11px; border-left:2px solid var(--acc);
+  display:flex; flex-direction:column; gap:9px}
+.kwcard .groupitem{position:relative}
+.kwcard .groupitem::before{content:''; position:absolute; left:-11px; top:7px; width:7px; height:2px; background:var(--acc)}
+.kwcard .groupitem .gtxt{font-size:10.5px; color:var(--sub); line-height:1.45; margin-bottom:3px}
+.kwcard .groupitem .gmeta{font-size:9px; color:var(--sub); opacity:.8; margin-top:2px}
+.bubbleTabs{display:flex; gap:4px; margin:2px 0 8px}
+.bubbleTabs button{font-size:10px; font-weight:800; letter-spacing:.03em; padding:4px 11px; border-radius:20px;
+  background:#f2efe9; border:1px solid #e2ddd3; color:#6b6357; cursor:pointer; font-family:inherit}
+.bubbleTabs button.on{background:var(--ink); border-color:var(--ink); color:#fff}
 .kwcard .kwname{font-size:15px; font-weight:800; margin-bottom:4px; line-height:1.3}
 .kwcard .kwmeta{font-size:10.5px; color:var(--acc); font-weight:700; margin-bottom:8px}
 .kwcard .kwex{font-size:11px; color:var(--sub); line-height:1.5}
@@ -128,8 +162,11 @@ tr.krow{cursor:pointer} tr.krow:hover{background:#faf6ec}
   background:#f2efe9; border:1px solid #e2ddd3; color:#6b6357; cursor:pointer; white-space:nowrap}
 .kwcard .tagchip:hover{background:var(--acc); border-color:var(--acc); color:#fff}
 .kwcard .tagchip.on{background:var(--acc); border-color:var(--acc); color:#fff}
-.kwcard .relbadge{display:block; margin-top:8px; background:#fdf3ef; border:1px solid #f1d9cf; color:var(--acc);
-  font-size:10.5px; font-weight:700; padding:6px 10px; border-radius:8px; cursor:pointer; text-align:left; font-family:inherit}
+.kwcard .relbadge{display:block; width:100%; margin-top:6px; background:#fdf3ef; border:1px solid #f1d9cf; color:var(--acc);
+  font-size:10px; font-weight:700; padding:5px 8px; border-radius:8px; cursor:pointer; text-align:left; font-family:inherit;
+  box-sizing:border-box; white-space:normal; overflow-wrap:anywhere; word-break:break-word; line-height:1.35}
+.kwcard .relmore{display:block; margin-top:5px; font-size:9.5px; font-weight:700; color:var(--sub);
+  background:none; border:0; padding:0; cursor:pointer; text-align:left; font-family:inherit}
 .kwcard .relbadge:hover{background:#f8e7de}
 .kwcard .relbadge.back{background:#eef2fb; border-color:#d6e0f5; color:#3a5bb0}
 .kwcard .relbadge.back:hover{background:#e2e9f9}
@@ -152,7 +189,7 @@ a{color:var(--acc)}
 </head>
 <body>
 <header>
-  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260804-14</span></h1>
+  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260804-21</span></h1>
   <a href="index.html" id="backLink" style="font-size:11px;letter-spacing:.12em;font-weight:700;color:var(--acc);text-decoration:none;border:1px solid var(--acc);padding:6px 12px">← DASHBOARD</a>
   <select id="mSel"></select>
 </header>
@@ -199,7 +236,7 @@ a{color:var(--acc)}
 
 <script src="config.js"></script>
 <script type="module">
-console.log("TREND AGENT signal.html v260804-14");
+console.log("TREND AGENT signal.html v260804-21");
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ══ 설정 — 다른 파일들과 같은 값 ══ */
@@ -218,6 +255,27 @@ const LIFESTYLE_SIG = [];
 let SNS_VIRAL = [];
 const CAT_LABEL = {top:'상의',outer:'아우터',pants:'팬츠',shoes:'슈즈',acc:'액세서리',dress:'스커트 & 드레스',bag:'백',etc:'컬러',lifestyle:'라이프스타일'};
 const AUTHOR_COLOR = { jisoo:'#c8451f', jin:'#b19cd9', sohee:'#4a6fb5' };
+
+/* 막대바 색 — 작성자가 한 명이면 그 색, 여러 명이면 건수 비율대로 나눠 칠함 */
+function authorBarColor(items){
+  const counts = new Map();
+  for(const it of (items || [])){
+    if(!it || !it.author) continue;
+    counts.set(it.author, (counts.get(it.author) || 0) + 1);
+  }
+  if(!counts.size) return 'var(--acc)';
+  const list = [...counts.entries()];
+  if(list.length === 1) return AUTHOR_COLOR[list[0][0]] || 'var(--acc)';
+  const total = list.reduce((a, [, n]) => a + n, 0);
+  let at = 0;
+  const stops = list.map(([name, n]) => {
+    const from = at, to = at + (n / total) * 100;
+    at = to;
+    const c = AUTHOR_COLOR[name] || 'var(--acc)';
+    return `${c} ${from.toFixed(2)}%, ${c} ${to.toFixed(2)}%`;
+  }).join(', ');
+  return `linear-gradient(90deg, ${stops})`;
+}
 
 /* ── SNS 바이럴 구글시트 실시간 연동 (SHEET_VIRAL) ── */
 const SHEET_VIRAL_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTS-uKmAPEaO-ee3-Du5iIPFBIQTdVDYbkYJG3fjl_XWKA6vxPHqHzy2kEQjwobfs4a2QOxUuHpMCce/pub?output=csv';
@@ -830,8 +888,15 @@ function kwCardHTML(entry, i, exampleFn, showScore, metaOverride, maxVal){
   const fwd = scatF === 'lifestyle'
     ? LIFESTYLE_LINKS.filter(l => normKw(l.life) === normKw(entry.label))
     : [];
-  const rel = fwd.map(l =>
-    `<button class="relbadge" data-c="${esc(l.cat)}" data-kw="${esc(l.kw)}">→ ${esc(CAT_LABEL[l.cat]||l.cat)} '${esc(l.kw)}' 트렌드로 이어짐${l.note ? ` — ${esc(l.note)}` : ''}</button>`).join('');
+  /* 연결이 많으면 카드가 길어지므로 3개까지만 보이고 나머지는 접어둠 */
+  const REL_MAX = 3;
+  const relBtn = l =>
+    `<button class="relbadge" data-c="${esc(l.cat)}" data-kw="${esc(l.kw)}">→ ${esc(CAT_LABEL[l.cat]||l.cat)} '${esc(l.kw)}' 트렌드로 이어짐${l.note ? ` — ${esc(l.note)}` : ''}</button>`;
+  const rel = fwd.slice(0, REL_MAX).map(relBtn).join('')
+    + (fwd.length > REL_MAX
+        ? `<div class="relhide" style="display:none">${fwd.slice(REL_MAX).map(relBtn).join('')}</div>`
+          + `<button class="relmore">+ 연결된 트렌드 ${fwd.length - REL_MAX}개 더 보기</button>`
+        : '');
   /* 역방향: 패션 카드 → 이 키워드와 연결된 라이프스타일 키워드 */
   const backs = scatF === 'lifestyle' ? []
     : LIFESTYLE_LINKS.filter(l => l.cat === scatF && normKw(l.kw) === normKw(entry.label));
@@ -848,7 +913,7 @@ function kwCardHTML(entry, i, exampleFn, showScore, metaOverride, maxVal){
   /* 키워드를 올린 게 한 건뿐이면 원래처럼 사진 큰 카드로, 2건 이상 겹치면 묶어서 보여줌 */
   if(entry.items.length <= 1){
     const it = first;
-    const authorColor = it?.author ? (AUTHOR_COLOR[it.author] || 'var(--acc)') : 'var(--acc)';
+    const authorColor = authorBarColor([it]);
     return `<div class="kwcard" data-kwlabel="${esc(entry.label)}">
       ${it?.image_url ? `<div class="kwphotowrap">
         <img class="kwphoto" src="${esc(it.image_url)}" alt="" loading="lazy">
@@ -862,21 +927,88 @@ function kwCardHTML(entry, i, exampleFn, showScore, metaOverride, maxVal){
     </div>`;
   }
 
-  const authors = [...new Set(entry.items.map(it => it.author).filter(Boolean))];
-  const authorColor = authors.length === 1 ? (AUTHOR_COLOR[authors[0]] || 'var(--acc)') : 'var(--acc)';
+  const authorColor = authorBarColor(entry.items);
+  const slides = entry.items.map(it => {
+    const ac = it.author ? (AUTHOR_COLOR[it.author] || 'var(--acc)') : null;
+    return `<div class="kwslide">
+      <img src="${esc(it.image_url || '')}" alt="" loading="lazy">
+      ${it.region ? `<div class="kwregion">${esc(it.region)}</div>` : ''}
+      ${it.source ? `<div class="kwsrc">${esc(it.source)}</div>` : ''}
+      ${ac ? `<div class="authorline" style="background:${ac}"></div>` : ''}
+    </div>`;
+  }).join('');
+  const dots = entry.items.map((_, i) => `<span class="kwdot${i===0?' on':''}" data-i="${i}"></span>`).join('');
+  const list = entry.items.map(it => {
+    const txt = it.summary || it.note || '';
+    const meta = [it.source, it.region].filter(Boolean).join(' · ');
+    return `<div class="groupitem">
+      ${txt ? `<div class="gtxt">${esc(txt.length > 95 ? txt.slice(0,95)+'…' : txt)}</div>` : ''}
+      ${it.url ? `<a class="kwlink" href="${esc(it.url)}" target="_blank" rel="noopener">원문 보기 →</a>` : ''}
+      ${meta ? `<div class="gmeta">${esc(meta)}</div>` : ''}
+    </div>`;
+  }).join('');
   return `<div class="kwcard hot" data-kwlabel="${esc(entry.label)}">
+    <div class="kwslidewrap">
+      <div class="kwslides">${slides}</div>
+      <button class="kwnav prev" aria-label="이전 사진">‹</button>
+      <button class="kwnav next" aria-label="다음 사진">›</button>
+      <div class="kwdots">${dots}</div>
+    </div>
     <div class="kwname">${esc(entry.label)}</div>
     <div class="volbar"><i style="width:${pct}%; background:${authorColor}"></i></div>
-    <div class="kwsubrow">${entry.items.map(subItemHTML).join('')}</div>
+    <div class="grouphead">🔥 같은 키워드로 묶인 기사 ${entry.items.length}건</div>
+    <div class="grouplist">${list}</div>
     ${tagRow}${rel}${back}
   </div>`;
 }
 
 /* 언급 건수 기준 버블 요약 — 카드 위에 표시, 카테고리/섹션이 바뀔 때마다 새로 계산됨(정적 아님).
    1건 언급은 "겹침"이 아니라서 버블에서는 제외하고, 카드 목록에는 그대로 나옴 */
+/* 섹션별 버블 보기 모드 — 'kw'(키워드) 또는 'tag'(해시태그) */
+const BUBBLE_MODE = {};
+/* 해시태그 버블은 태그 필터를 걸어도 목록이 줄지 않도록,
+   월 필터만 적용한 데이터로 따로 계산한다 */
+const TAG_POOL = {};
+
+/* 그 섹션에 달린 해시태그를 빈도순으로 집계 (모든 태그 포함) */
+function aggregateTags(ranked){
+  const map = new Map();
+  for(const e of ranked){
+    for(const it of (e.items || [])){
+      for(const t of (it.tags || [])){
+        /* 범용 태그(#컬러 #소재 등)도 버블에 함께 표시한다 */
+        if(!map.has(t)) map.set(t, { label: t, count: 0, kws: new Set() });
+        const v = map.get(t);
+        v.count++; v.kws.add(e.label);
+      }
+    }
+  }
+  return [...map.values()].sort((a,b) => b.count - a.count || a.label.localeCompare(b.label));
+}
+
+/* 해시태그 버블 — 크기는 빈도 비례, 누르면 그 태그가 달린 카드만 남음 */
+function tagBubbleHTML(ranked){
+  const top = aggregateTags(ranked).slice(0, 14);
+  if(!top.length) return '<div class="empty" style="padding:10px 0">이 섹션에는 아직 해시태그가 없습니다</div>';
+  const maxVal = Math.max(...top.map(e => e.count), 1);
+  const minD = 40, maxD = 152;
+  return top.map((e,i) => {
+    const d = Math.round(minD + (maxD-minD) * (e.count / maxVal));
+    const isTop = i === 0;
+    const nameSize = d >= 100 ? 15 : d >= 72 ? 13 : d >= 55 ? 11.5 : 10;
+    const on = tagFilter === e.label;
+    return `<div class="bubble${isTop ? ' top' : ''}${on ? ' on' : ''}" style="width:${d}px; height:${d}px"
+      data-tagbubble="${esc(e.label)}" title="키워드 ${e.kws.size}개에 사용됨">
+      <span class="bn" style="font-size:${nameSize}px">#${esc(e.label)}</span>
+      <span class="bc" style="font-size:${nameSize-2}px">${e.count}건</span>
+    </div>`;
+  }).join('');
+}
+
 function bubbleHTML(ranked, gridSel, catCtx){
-  let top = ranked.filter(e => e.count >= 2).slice(0, 14);
-  if(!top.length) top = ranked.slice(0, 14);   /* 겹치는 키워드가 아직 없으면 전체를 그대로 보여줌 */
+  /* 버블에는 그 섹션의 키워드를 모두 표시한다.
+     겹치는 것(2건 이상)은 크기와 🔥로 구분되므로 1건짜리를 빼지 않는다 */
+  const top = ranked.slice(0, 14);
   if(!top.length) return '';
   const maxVal = Math.max(...top.map(e => e.count), 1);
   const minD = 40, maxD = 152;
@@ -902,7 +1034,15 @@ function renderKwBlock(gridSel, moreBtnSel, moreListSel, cntSel, ranked, example
   const maxVal = ranked.length ? Math.max(...ranked.map(e => showScore ? e.score : e.count)) : 0;
   $(gridSel).innerHTML = ranked.length ? ranked.map((e,i)=>kwCardHTML(e,i,exampleFn,showScore,metaOverride,maxVal)).join('') : `<div class="empty">${emptyMsg}</div>`;
   $(cntSel).textContent = ranked.length ? `키워드 ${ranked.length}개 · 언급 많은 순` : '';
-  if(bubbleSel) $(bubbleSel).innerHTML = bubbleHTML(ranked, gridSel, catCtx);
+  if(bubbleSel){
+    const mode = BUBBLE_MODE[bubbleSel] || 'kw';
+    const tabs = `<div class="bubbleTabs" data-bubble="${bubbleSel}">
+      <button data-mode="kw"${mode==='kw'?' class="on"':''}>키워드</button>
+      <button data-mode="tag"${mode==='tag'?' class="on"':''}>해시태그</button>
+    </div>`;
+    const body = mode === 'tag' ? tagBubbleHTML(TAG_POOL[bubbleSel] || ranked) : bubbleHTML(ranked, gridSel, catCtx);
+    $(bubbleSel).innerHTML = tabs + `<div class="bubbleRow">${body}</div>`;
+  }
   const moreBtn = $(moreBtnSel), moreList = $(moreListSel);
   moreBtn.style.display = 'none';
   moreList.style.display = 'none';
@@ -912,6 +1052,7 @@ function renderKwBlock(gridSel, moreBtnSel, moreListSel, cntSel, ranked, example
 function drawNewsGrid(){
   const catItems = [...NEWS_SIG, ...SB_NEWS].filter(s => s.category === scatF && visible(s));
   const ranked = aggregateNewsKw(catItems);
+  TAG_POOL['#newsBubble'] = aggregateNewsKw([...NEWS_SIG, ...SB_NEWS].filter(s => s.category === scatF && inMonth(s)));
   renderKwBlock('#newsKwGrid','#newsMoreBtn','#newsKwMore','#newsCnt', ranked, newsExampleHTML, false,
     '해당 카테고리의 뉴스레터 시그널이 아직 없습니다', 8, undefined, '#newsBubble', scatF);
 }
@@ -935,6 +1076,7 @@ function drawSnsForCat(){
   const { ranked, genericCount } = aggregateSnsKw(catItems);
   const manual = aggregateManualSns(SB_SNS.filter(s => s.category === scatF && visible(s)));
   const combined = [...manual, ...ranked].sort((a,b) => b.score - a.score || b.count - a.count);
+  TAG_POOL['#snsBubble'] = aggregateManualSns(SB_SNS.filter(s => s.category === scatF && inMonth(s)));
   renderKwBlock('#snsKwGrid','#snsMoreBtn','#snsKwMore','#snsCnt', combined, snsExampleHTML, true,
     '해당 카테고리의 SNS 시그널이 아직 없습니다', 8, undefined, '#snsBubble', scatF);
   $('#snsGenericNote').textContent = genericCount
@@ -978,6 +1120,7 @@ function lifeExampleHTML(entry){
 
 function drawLifeBlock(){
   const ranked = aggregateLifestyleThemes([...LIFESTYLE_SIG, ...SB_LIFESTYLE].filter(visible));
+  TAG_POOL['#lifeBubble'] = aggregateLifestyleThemes([...LIFESTYLE_SIG, ...SB_LIFESTYLE].filter(inMonth));
   renderKwBlock('#lifeKwGrid','#lifeMoreBtn','#lifeKwMore','#lifeCnt', ranked, lifeExampleHTML, false,
     '아직 연동된 데이터가 없습니다', 8, undefined, '#lifeBubble', 'lifestyle');
 }
@@ -992,6 +1135,51 @@ function highlightCardByLabel(label){
   card.style.outlineOffset = '-2px';
   setTimeout(() => { card.style.outline = ''; card.style.outlineOffset = ''; }, 1200);
 }
+
+/* 묶인 카드 사진 넘기기 — 화살표 */
+document.addEventListener('click', e => {
+  const b = e.target.closest('.kwnav'); if(!b) return;
+  e.stopPropagation();
+  const box = b.parentElement.querySelector('.kwslides'); if(!box) return;
+  const w = box.clientWidth;
+  box.scrollBy({ left: b.classList.contains('next') ? w : -w, behavior:'smooth' });
+});
+
+/* 묶인 카드 사진 넘기기 — 아래 점 누르기 */
+document.addEventListener('click', e => {
+  const d = e.target.closest('.kwdot'); if(!d) return;
+  e.stopPropagation();
+  const box = d.closest('.kwslidewrap')?.querySelector('.kwslides'); if(!box) return;
+  box.scrollTo({ left: box.clientWidth * Number(d.dataset.i || 0), behavior:'smooth' });
+});
+
+/* 사진을 넘기면 현재 위치를 점에 표시 */
+document.addEventListener('scroll', e => {
+  const box = e.target;
+  if(!box.classList || !box.classList.contains('kwslides')) return;
+  const idx = Math.round(box.scrollLeft / Math.max(box.clientWidth, 1));
+  const dots = box.parentElement.querySelectorAll('.kwdot');
+  dots.forEach((d, i) => d.classList.toggle('on', i === idx));
+}, true);
+
+/* 버블 보기 전환 — 키워드 / 해시태그 */
+document.addEventListener('click', e => {
+  const b = e.target.closest('.bubbleTabs button'); if(!b) return;
+  const wrap = b.closest('.bubbleTabs');
+  BUBBLE_MODE[wrap.dataset.bubble] = b.dataset.mode;
+  renderCurrentView();
+});
+
+/* 연결 배지 더보기 */
+document.addEventListener('click', e => {
+  const b = e.target.closest('.relmore'); if(!b) return;
+  e.stopPropagation();
+  const box = b.previousElementSibling;
+  if(!box || !box.classList.contains('relhide')) return;
+  const open = box.style.display !== 'none';
+  box.style.display = open ? 'none' : 'block';
+  b.textContent = open ? b.textContent.replace('접기', '더 보기') : '접기';
+});
 
 /* 해시태그 칩 클릭 → 같은 태그가 달린 항목만 걸러 봄. 같은 칩을 다시 누르면 해제 */
 document.addEventListener('click', e => {
@@ -1012,6 +1200,12 @@ document.addEventListener('click', e => {
 /* 버블 요약 클릭 → 그 키워드의 카드로 스크롤 이동 + 잠깐 강조 */
 document.addEventListener('click', e => {
   const b = e.target.closest('.bubble'); if(!b) return;
+  /* 해시태그 버블이면 그 태그로 걸러 보기 (같은 버블 다시 누르면 해제) */
+  if(b.dataset.tagbubble !== undefined){
+    tagFilter = (tagFilter === b.dataset.tagbubble) ? null : b.dataset.tagbubble;
+    renderCurrentView();
+    return;
+  }
   const grid = document.querySelector(b.dataset.target); if(!grid) return;
   const card = [...grid.querySelectorAll('.kwcard')].find(c => c.dataset.kwlabel === b.dataset.kw);
   if(!card) return;
