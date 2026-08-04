@@ -152,7 +152,7 @@ a{color:var(--acc)}
 </head>
 <body>
 <header>
-  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260804-13</span></h1>
+  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260804-14</span></h1>
   <a href="index.html" id="backLink" style="font-size:11px;letter-spacing:.12em;font-weight:700;color:var(--acc);text-decoration:none;border:1px solid var(--acc);padding:6px 12px">← DASHBOARD</a>
   <select id="mSel"></select>
 </header>
@@ -199,7 +199,7 @@ a{color:var(--acc)}
 
 <script src="config.js"></script>
 <script type="module">
-console.log("TREND AGENT signal.html v260804-13");
+console.log("TREND AGENT signal.html v260804-14");
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ══ 설정 — 다른 파일들과 같은 값 ══ */
@@ -972,11 +972,8 @@ function lifeExampleHTML(entry){
   const rows = entry.items.map((s,i) => `
     <div class="kwex" style="margin-bottom:2px">${esc(s.summary || s.note)}</div>
     <a class="kwlink" href="${esc(s.url)}" target="_blank" rel="noopener">${entry.items.length>1?`원문${i+1}`:'원문 보기'} →</a>`).join('<div style="height:6px"></div>');
-  const first = entry.items[0];
-  const rel = first.related
-    ? `<button class="relbadge" data-c="${esc(first.related)}">→ ${esc(CAT_LABEL[first.related]||first.related)} 트렌드로 이어짐 — ${esc(first.related_note||'')}</button>`
-    : '';
-  return `${rows}${rel}`;
+  /* 연결 배지는 카드 바깥(kwCardHTML)에서 그리므로 여기서는 본문만 반환 */
+  return rows;
 }
 
 function drawLifeBlock(){
