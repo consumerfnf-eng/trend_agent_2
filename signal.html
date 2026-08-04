@@ -152,7 +152,7 @@ a{color:var(--acc)}
 </head>
 <body>
 <header>
-  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260804-12</span></h1>
+  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260804-13</span></h1>
   <a href="index.html" id="backLink" style="font-size:11px;letter-spacing:.12em;font-weight:700;color:var(--acc);text-decoration:none;border:1px solid var(--acc);padding:6px 12px">← DASHBOARD</a>
   <select id="mSel"></select>
 </header>
@@ -199,7 +199,7 @@ a{color:var(--acc)}
 
 <script src="config.js"></script>
 <script type="module">
-console.log("TREND AGENT signal.html v260804-12");
+console.log("TREND AGENT signal.html v260804-13");
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ══ 설정 — 다른 파일들과 같은 값 ══ */
@@ -597,7 +597,7 @@ function buildLinks(lifeItems, newsItems){
   /* 1) 사람이 직접 지정한 연결 (trend_signals.related / related_keyword) — 최우선 */
   for(const s of lifeItems){
     if(s.related && s.related_keyword){
-      add({ life: (s.keywords||[])[0] || s.note, cat: s.related,
+      add({ life: canonKw((s.keywords||[])[0] || s.note), cat: s.related,
         kw: s.related_keyword, note: s.related_note || '', auto: false });
     }
   }
@@ -609,7 +609,7 @@ function buildLinks(lifeItems, newsItems){
   }
   /* 2) 해시태그를 공유하면 자동 연결 — 태그를 붙일수록 정확해짐 */
   for(const s of lifeItems){
-    const life = (s.keywords||[])[0] || s.note;
+    const life = canonKw((s.keywords||[])[0] || s.note);
     const lifeTags = (s.tags || []).filter(t => !GENERIC_TAGS.has(t));
     if(!lifeTags.length) continue;
     for(const [, hit] of pool){
@@ -620,7 +620,7 @@ function buildLinks(lifeItems, newsItems){
   }
   /* 3) 규칙 사전 기반 자동 연결 — 태그가 아직 없는 항목을 위한 보조 */
   for(const s of lifeItems){
-    const life = (s.keywords||[])[0] || s.note;
+    const life = canonKw((s.keywords||[])[0] || s.note);
     const rule = LIFE_LINK_RULES[life]; if(!rule) continue;
     for(const cand of rule.kws){
       const hit = pool.get(normKw(cand)); if(!hit) continue;
@@ -958,7 +958,7 @@ const LIFESTYLE_THEME_MAP = {
 function aggregateLifestyleThemes(items){
   const map = new Map();
   for(const it of dedupeItems(items)){
-    const kw = (it.keywords||[])[0] || it.note;
+    const kw = canonKw((it.keywords||[])[0] || it.note);
     const theme = LIFESTYLE_THEME_MAP[kw] || kw;
     if(!map.has(theme)) map.set(theme, { label: theme, count: 0, items: [], seenUrls: new Set() });
     const e = map.get(theme);
