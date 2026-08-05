@@ -16,7 +16,10 @@ header h1 span{color:var(--sub); font-weight:600; font-size:11px; margin-left:8p
 nav{display:flex; gap:4px; margin-left:20px}
 nav button{border:0; background:none; color:var(--sub); padding:7px 12px; cursor:pointer; font:inherit; border-radius:6px}
 nav button.on{background:var(--tx); color:#fff; font-weight:700}
-#mSel{margin-left:auto; background:#fff; color:var(--tx); border:1px solid var(--hair); border-radius:6px; padding:6px 10px; font:inherit}
+.mrange{margin-left:auto; display:flex; align-items:center; gap:6px; font-size:11px; color:var(--sub)}
+.mrange label{font-weight:700; letter-spacing:.06em; text-transform:uppercase}
+.mrange select{background:#fff; color:var(--tx); border:1px solid var(--hair); border-radius:6px; padding:6px 10px; font:inherit}
+.mrange span{color:var(--sub)}
 main{padding:20px 22px; max-width:1200px; margin:0 auto}
 .view{display:none} .view.on{display:block}
 h2{font-size:16px; margin-bottom:2px}
@@ -96,14 +99,15 @@ tr.krow{cursor:pointer} tr.krow:hover{background:#faf6ec}
 .bubble .bc{color:var(--sub)}
 .bubble.top{background:var(--tx); border-color:var(--tx)}
 .bubble.top .bn, .bubble.top .bc{color:#fff}
-.kwgrid{display:flex; gap:12px; margin-top:12px; overflow-x:auto; overflow-y:hidden; scroll-snap-type:x proximity; padding-bottom:6px; scrollbar-width:thin}
-.kwgrid::-webkit-scrollbar{height:6px}
-.kwgrid::-webkit-scrollbar-thumb{background:var(--hair); border-radius:3px}
-.kwgrid .kwcard{flex:0 0 calc(25% - 9px); width:calc(25% - 9px); max-width:calc(25% - 9px);
-  min-width:220px; box-sizing:border-box; overflow:hidden; scroll-snap-align:start}
-.kwgrid .kwcard.hot{flex:0 0 calc(50% - 14px); min-width:340px}
-.kwcard{background:var(--card); border:1px solid var(--hair); border-radius:10px; padding:14px; position:relative}
-.kwcard .kwphotowrap{position:relative; width:calc(100% + 28px); margin:-14px -14px 10px}
+.kwgrid{display:grid; grid-template-columns:repeat(5, minmax(0, 1fr)); gap:14px; margin-top:14px}
+@media (max-width:1100px){ .kwgrid{grid-template-columns:repeat(4, minmax(0, 1fr))} }
+@media (max-width:900px){ .kwgrid{grid-template-columns:repeat(3, minmax(0, 1fr))} }
+@media (max-width:640px){ .kwgrid{grid-template-columns:repeat(2, minmax(0, 1fr))} }
+.kwgrid .kwcard{width:100%; min-width:0; box-sizing:border-box; overflow:hidden}
+.kwcard{background:var(--card); border:1px solid var(--hair); border-radius:10px; padding:14px; position:relative;
+  display:flex; flex-direction:column}
+.kwcard .kwphotowrap{position:relative; width:calc(100% + 28px); margin:-14px -14px 10px; overflow:hidden}
+.kwcard .kwphotowrap .authorline{position:absolute; left:0; right:0; bottom:0; height:4px}
 .kwcard .kwphoto{width:100%; display:block; aspect-ratio:3/4; object-fit:cover; background:#efeae1;
   border-radius:10px 10px 0 0}
 .kwcard .kwdate{position:absolute; top:10px; left:10px; font-size:9px; font-weight:800; color:#fff;
@@ -200,7 +204,12 @@ a{color:var(--acc)}
 <header>
   <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260805-03</span></h1>
   <a href="index.html" id="backLink" style="font-size:11px;letter-spacing:.12em;font-weight:700;color:var(--acc);text-decoration:none;border:1px solid var(--acc);padding:6px 12px">← DASHBOARD</a>
-  <select id="mSel"></select>
+  <div class="mrange">
+    <label>기간</label>
+    <select id="mFrom"></select>
+    <span>~</span>
+    <select id="mTo"></select>
+  </div>
 </header>
 
 <main>
@@ -349,7 +358,10 @@ async function loadSnsSheet(){
   }
 }
 
-let ENTS = [], SIG = [], CNT = {}, COVER = {}, TAGS = [], month = 'ALL';   /* 'ALL' = 전체 기간 */
+let ENTS = [], SIG = [], CNT = {}, COVER = {}, TAGS = [];
+const _thisYm = new Date().toISOString().slice(0,7);
+let monthStart = _thisYm, monthEnd = _thisYm;   /* 월 범위 필터 — 처음엔 이번 달 */
+let month = _thisYm;   /* 예전 API 호환용 (사용하는 곳이 있어서 남김) */
 let catF = 'All', brandF = 'All';
 
 const SRC_PRI = ['instagram','naver','sometrend','naver_blog','community','google','manual'];
@@ -451,7 +463,20 @@ async function load(){
   /* 월 선택 목록은 trend_signals(발행일) 기준으로 loadTrendSignals()에서 만듦 — 여기서는 만들지 않음 */
   draw();
 }
-$('#mSel').onchange = () => { month = $('#mSel').value; draw(); renderCurrentView(); };
+/* 월 범위 변경: 시작 > 종료면 자동 정렬. 값 바뀌면 즉시 다시 그림 */
+function _onMonthRangeChange(){
+  monthStart = $('#mFrom').value;
+  monthEnd   = $('#mTo').value;
+  if(monthStart && monthEnd && monthStart > monthEnd){
+    /* 사용자가 시작을 뒤로 늘리면 종료도 같이 밀어줌 (반대도 동일) */
+    if(this && this.id === 'mFrom') $('#mTo').value = monthStart, monthEnd = monthStart;
+    else $('#mFrom').value = monthEnd, monthStart = monthEnd;
+  }
+  month = monthEnd;
+  draw(); renderCurrentView();
+}
+$('#mFrom').onchange = _onMonthRangeChange;
+$('#mTo').onchange   = _onMonthRangeChange;
 
 /* FEED 기준(연결 1건+) 키워드 중 검색량 상위 5 */
 function top5(region, srcOnly){
@@ -705,19 +730,29 @@ function buildLinks(lifeItems, newsItems){
 /* 월 구분 기준 = 시트 탭(sheet_month). 없으면 발행일 → 등록일 순으로 대체 */
 const ymOf = r => String(r.sheet_month || r.published_at || r.created_at || '').slice(0, 7);
 
-/* 월 선택 목록을 실제 데이터에 있는 발행월로 채움 */
+/* 월 범위 컨트롤(시작월 ~ 종료월). 실제 데이터에 있는 발행월들로 옵션을 채움.
+   기본값: 데이터에 이번 달이 있으면 이번 달만, 없으면 데이터의 가장 최신 월 하나 */
 function buildMonthOptions(){
   const months = [...new Set([...SB_NEWS, ...SB_LIFESTYLE, ...SB_SNS].map(s => s.ym).filter(Boolean))]
-    .sort().reverse();
-  $('#mSel').innerHTML = `<option value="ALL">전체 기간</option>` +
-    months.map(m => `<option value="${m}">${m.replace('-', '년 ')}월</option>`).join('');
-  if(month !== 'ALL' && !months.includes(month)) month = 'ALL';
-  $('#mSel').value = month;
+    .sort();   /* 오래된 → 최신 순 */
+  if(!months.length){ $('#mFrom') && ($('#mFrom').innerHTML = ''); $('#mTo') && ($('#mTo').innerHTML = ''); draw(); return; }
+  const opts = months.map(m => `<option value="${m}">${m.replace('-', '년 ')}월</option>`).join('');
+  $('#mFrom').innerHTML = opts;
+  $('#mTo').innerHTML   = opts;
+  /* 기본값 결정: 데이터에 이번 달이 있으면 그것만, 아니면 최신 월 하나 */
+  const now = _thisYm;
+  const defaultYm = months.includes(now) ? now : months[months.length - 1];
+  if(!months.includes(monthStart)) monthStart = defaultYm;
+  if(!months.includes(monthEnd))   monthEnd   = defaultYm;
+  if(monthStart > monthEnd){ const t = monthStart; monthStart = monthEnd; monthEnd = t; }
+  $('#mFrom').value = monthStart;
+  $('#mTo').value   = monthEnd;
+  month = monthEnd;   /* 예전 API 호환용 */
   draw();
 }
 
-/* 선택한 월에 해당하는 항목만 통과 (발행월 정보가 없는 정적 데이터는 항상 통과) */
-const inMonth = s => month === 'ALL' || !s.ym || s.ym === month;
+/* 선택한 월 범위(monthStart~monthEnd)에 해당하는 항목만 통과. 발행월 정보가 없는 정적 데이터는 항상 통과 */
+const inMonth = s => !s.ym || (s.ym >= monthStart && s.ym <= monthEnd);
 /* 선택한 해시태그가 있으면 그 태그가 달린 항목만 통과 */
 const inTag = s => !tagFilter || (s.tags || []).includes(tagFilter);
 /* 화면에 실제로 그릴지 판단하는 최종 필터 */
@@ -901,19 +936,23 @@ function bigItemBody(it){
   return `${text ? `<div class="kwex">${esc(snippet)}</div>` : ''}${link ? `<a class="kwlink" href="${esc(link)}" target="_blank" rel="noopener">${linkLabel} →</a>` : ''}`;
 }
 
-function kwCardHTML(entry, i, exampleFn, showScore, metaOverride, maxVal){
-  const meta = metaOverride ? metaOverride(entry) : `${entry.count}건 언급${showScore ? ` · 스코어 ${entry.score.toLocaleString()}` : ''}`;
-  const val = showScore ? entry.score : entry.count;
-  const pct = maxVal ? Math.max(6, Math.round(val / maxVal * 100)) : 0;
-  const first = entry.items[0];
-  /* 정방향: 라이프스타일 카드 → 연결된 패션 카테고리 키워드 (여러 개면 여러 줄) */
+/* 카드 하나 = 원문 1건. 겹치는 키워드도 카드는 각자 하나씩 표시.
+   해시태그 필터로 여러 카드를 한번에 볼 수 있음. 모든 카드는 동일 크기·구조. */
+function itemCardHTML(entry, it){
+  const isSns = it.post_url !== undefined || it.content !== undefined;
+  const text = isSns ? (it.content || '') : (it.summary || it.note || '');
+  const link = isSns ? it.post_url : it.url;
+  const linkLabel = isSns ? '게시물 보기' : '원문 보기';
+  const snippet = text.length > 110 ? text.slice(0, 110) + '…' : text;
+  const authorColor = it.author ? (AUTHOR_COLOR[it.author] || 'var(--acc)') : null;
+
+  /* 정방향: 라이프스타일 카드 → 연결된 패션 카테고리 키워드 */
   const fwd = scatF === 'lifestyle'
     ? LIFESTYLE_LINKS.filter(l => normKw(l.life) === normKw(entry.label))
     : [];
-  /* 연결이 많으면 카드가 길어지므로 3개까지만 보이고 나머지는 접어둠 */
-  const REL_MAX = 3;
+  const REL_MAX = 2;
   const relBtn = l =>
-    `<button class="relbadge" data-c="${esc(l.cat)}" data-kw="${esc(l.kw)}">→ ${esc(CAT_LABEL[l.cat]||l.cat)} '${esc(l.kw)}' 트렌드로 이어짐${l.note ? ` — ${esc(l.note)}` : ''}</button>`;
+    `<button class="relbadge" data-c="${esc(l.cat)}" data-kw="${esc(l.kw)}">→ ${esc(CAT_LABEL[l.cat]||l.cat)} '${esc(l.kw)}'${l.note ? ` — ${esc(l.note)}` : ''}</button>`;
   const rel = fwd.slice(0, REL_MAX).map(relBtn).join('')
     + (fwd.length > REL_MAX
         ? `<div class="relhide" style="display:none">${fwd.slice(REL_MAX).map(relBtn).join('')}</div>`
@@ -923,67 +962,43 @@ function kwCardHTML(entry, i, exampleFn, showScore, metaOverride, maxVal){
   const backs = scatF === 'lifestyle' ? []
     : LIFESTYLE_LINKS.filter(l => l.cat === scatF && normKw(l.kw) === normKw(entry.label));
   const back = backs.map(l =>
-    `<button class="relbadge back" data-c="lifestyle" data-kw="${esc(l.life)}">↔ 라이프스타일 '${esc(l.life)}' 트렌드와 연결${l.note ? ` — ${esc(l.note)}` : ''}</button>`).join('');
+    `<button class="relbadge back" data-c="lifestyle" data-kw="${esc(l.life)}">↔ 라이프스타일 '${esc(l.life)}'${l.note ? ` — ${esc(l.note)}` : ''}</button>`).join('');
 
-  /* 해시태그 칩 — 이 키워드에 달린 태그를 모아서 표시, 누르면 같은 태그만 걸러 봄 */
-  const entryTags = [...new Set(entry.items.flatMap(it => it.tags || []))];
-  const tagRow = entryTags.length
-    ? `<div class="tagrow">${entryTags.map(t =>
+  /* 이 원문에 달린 해시태그 — 누르면 같은 태그 카드만 필터링 */
+  const itemTags = it.tags || [];
+  const tagRow = itemTags.length
+    ? `<div class="tagrow">${itemTags.map(t =>
         `<button class="tagchip${tagFilter === t ? ' on' : ''}" data-tag="${esc(t)}">#${esc(t)}</button>`).join('')}</div>`
     : '';
 
-  /* 키워드를 올린 게 한 건뿐이면 원래처럼 사진 큰 카드로, 2건 이상 겹치면 묶어서 보여줌 */
-  if(entry.items.length <= 1){
-    const it = first;
-    const authorColor = authorBarColor([it]);
-    return `<div class="kwcard" data-kwlabel="${esc(entry.label)}">
-      ${it?.image_url ? `<div class="kwphotowrap">
-        <img class="kwphoto" src="${esc(it.image_url)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="imgFail(this)">
-        ${it.ym ? `<div class="kwdate">${esc(it.ym)}</div>` : ''}
-        ${it.region ? `<div class="kwregion">${esc(it.region)}</div>` : ''}
-        ${it.source ? `<div class="kwsrc">${esc(it.source)}</div>` : ''}
-      </div>` : ''}
-      <div class="kwname">${esc(entry.label)}</div>
-      <div class="volbar"><i style="width:${pct}%; background:${authorColor}"></i></div>
-      ${bigItemBody(it)}
-      ${tagRow}${rel}${back}
-    </div>`;
-  }
-
-  const authorColor = authorBarColor(entry.items);
-  const slides = entry.items.map(it => {
-    const ac = it.author ? (AUTHOR_COLOR[it.author] || 'var(--acc)') : null;
-    return `<div class="kwslide">
-      <img src="${esc(it.image_url || '')}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="imgFail(this)">
+  return `<div class="kwcard" data-kwlabel="${esc(entry.label)}">
+    <div class="kwphotowrap">
+      ${it.image_url
+        ? `<img class="kwphoto" src="${esc(it.image_url)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="imgFail(this)">`
+        : `<div class="kwphoto imgfail"></div>`}
       ${it.ym ? `<div class="kwdate">${esc(it.ym)}</div>` : ''}
       ${it.region ? `<div class="kwregion">${esc(it.region)}</div>` : ''}
       ${it.source ? `<div class="kwsrc">${esc(it.source)}</div>` : ''}
-      ${ac ? `<div class="authorline" style="background:${ac}"></div>` : ''}
-    </div>`;
-  }).join('');
-  const dots = entry.items.map((_, i) => `<span class="kwdot${i===0?' on':''}" data-i="${i}"></span>`).join('');
-  const list = entry.items.map(it => {
-    const txt = it.summary || it.note || '';
-    const meta = [it.source, it.region].filter(Boolean).join(' · ');
-    return `<div class="groupitem">
-      ${txt ? `<div class="gtxt">${esc(txt.length > 95 ? txt.slice(0,95)+'…' : txt)}</div>` : ''}
-      ${it.url ? `<a class="kwlink" href="${esc(it.url)}" target="_blank" rel="noopener">원문 보기 →</a>` : ''}
-      ${meta ? `<div class="gmeta">${esc(meta)}</div>` : ''}
-    </div>`;
-  }).join('');
-  const multiAuthor = authorCount(entry.items) >= 2;
-  return `<div class="kwcard${multiAuthor ? ' hot' : ''}" data-kwlabel="${esc(entry.label)}">
-    <div class="kwslidewrap">
-      <div class="kwslides">${slides}</div>
-      <button class="kwnav prev" aria-label="이전 사진">‹</button>
-      <button class="kwnav next" aria-label="다음 사진">›</button>
-      <div class="kwdots">${dots}</div>
+      ${authorColor ? `<div class="authorline" style="background:${authorColor}"></div>` : ''}
     </div>
     <div class="kwname">${esc(entry.label)}</div>
-    <div class="volbar"><i style="width:${pct}%; background:${authorColor}"></i></div>
-    <div class="grouplist">${list}</div>
+    ${text ? `<div class="kwex">${esc(snippet)}</div>` : ''}
+    ${link ? `<a class="kwlink" href="${esc(link)}" target="_blank" rel="noopener">${linkLabel} →</a>` : ''}
     ${tagRow}${rel}${back}
   </div>`;
+}
+
+/* ranked 리스트를 개별 카드들로 펼침. 각 entry의 items 안 원문들을 각각 카드 하나씩 */
+function flatCardsHTML(ranked){
+  const cards = [];
+  for(const entry of ranked){
+    for(const it of (entry.items || [])){
+      cards.push({ entry, it, ym: it.ym || '' });
+    }
+  }
+  /* 최신 발행월 순으로 정렬, 없으면 뒤로 */
+  cards.sort((a,b) => (b.ym || '0').localeCompare(a.ym || '0'));
+  return cards.map(({entry, it}) => itemCardHTML(entry, it)).join('');
 }
 
 /* 언급 건수 기준 버블 요약 — 카드 위에 표시, 카테고리/섹션이 바뀔 때마다 새로 계산됨(정적 아님).
@@ -1057,9 +1072,9 @@ function bubbleHTML(ranked, gridSel, catCtx){
 }
 
 function renderKwBlock(gridSel, moreBtnSel, moreListSel, cntSel, ranked, exampleFn, showScore, emptyMsg, bigN=8, metaOverride, bubbleSel, catCtx){
-  const maxVal = ranked.length ? Math.max(...ranked.map(e => showScore ? e.score : e.count)) : 0;
-  $(gridSel).innerHTML = ranked.length ? ranked.map((e,i)=>kwCardHTML(e,i,exampleFn,showScore,metaOverride,maxVal)).join('') : `<div class="empty">${emptyMsg}</div>`;
-  $(cntSel).textContent = ranked.length ? `키워드 ${ranked.length}개 · 언급 많은 순` : '';
+  $(gridSel).innerHTML = ranked.length ? flatCardsHTML(ranked) : `<div class="empty">${emptyMsg}</div>`;
+  const totalCards = ranked.reduce((n,e) => n + (e.items || []).length, 0);
+  $(cntSel).textContent = totalCards ? `${totalCards}건 · 최신 순` : '';
   if(bubbleSel){
     const mode = BUBBLE_MODE[bubbleSel] || 'kw';
     const tabs = `<div class="bubbleTabs" data-bubble="${bubbleSel}">
