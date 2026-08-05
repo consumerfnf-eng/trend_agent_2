@@ -179,6 +179,17 @@ header h1{font-family:'Playfair Display',serif; font-size:22px}
 #brandMain{padding:26px 30px}
 #brandMain h2{font-family:'Playfair Display',serif; font-size:28px; border-bottom:1px solid var(--ink); padding-bottom:8px; margin-bottom:18px}
 .bgrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:16px}
+.bkws{display:flex; flex-wrap:wrap; gap:4px; margin-top:8px}
+.bkw{font-size:10px; font-weight:700; padding:3px 8px; border-radius:20px; background:#f2efe9;
+  border:1px solid #e2ddd3; color:#6b6357}
+.bkw.ghost{background:none; color:var(--sub)}
+.btags{display:flex; flex-wrap:wrap; gap:4px; margin-top:6px}
+.btag{font-size:9.5px; font-weight:700; color:#c8451f}
+.blinks{display:flex; gap:8px; margin-top:10px; flex-wrap:wrap}
+.blink{font-size:10.5px; font-weight:800; color:#c8451f; text-decoration:none;
+  border:1px solid #f1d9cf; background:#fdf3ef; padding:5px 10px; border-radius:8px}
+.blink:hover{background:#c8451f; color:#fff}
+.blink.ghost{color:var(--sub); border-color:var(--hair); background:none}
 .bcard{background:#fff; border:1px solid var(--hair); border-radius:10px; padding:16px 18px; cursor:pointer; transition:transform .15s, border-color .15s; position:relative; overflow:hidden}
 .bcard:hover{transform:translateY(-3px); border-color:#c9bfa9}
 .bcard .peek{position:absolute; top:14px; right:0; width:132px; border:1px solid var(--hair); border-radius:6px;
@@ -210,7 +221,7 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
 <body>
 
 <header>
-  <h1>TREND AGENT</h1>
+  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260805-02</span></h1>
   <div class="tabs">
     <button data-v="signal" class="on">TREND SIGNAL</button>
     <button data-v="keywords">TREND KEYWORDS</button>
@@ -251,7 +262,7 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
 
     <div class="kwfbar" id="kwCatBar2"></div>
     <div class="kwtablewrap"><table>
-      <thead><tr><th>Keyword</th><th>Category</th><th>Source</th><th>Stage</th><th>검색량 추이</th><th>변화</th></tr></thead>
+      <thead><tr><th>Keyword</th><th>Category</th><th>Source</th><th>해시태그</th><th>등장 월</th><th>검색량 추이</th><th>변화</th></tr></thead>
       <tbody id="kwBody2"></tbody>
     </table></div>
   </div>
@@ -305,6 +316,8 @@ async function load(){
       sb.from('search_signals').select('entity_id,week,volume,source').limit(8000),
       sb.from('entity_proposals').select('*').limit(1000)
     ]);
+    /* 아래 테이블들은 예전 프로젝트 것이라 새 Supabase엔 없습니다.
+       없으면 FEED / KEY BRAND 화면만 비고, 나머지 기능은 정상 동작합니다. */
     for(const r of [f,b,ents,cnts,ae]) if(r.error) throw r.error;
     FEED = f.data; BRANDS = b.data; ENTS = ents.data;
 
@@ -349,7 +362,7 @@ async function load(){
                       String(b2.first_seen||'').localeCompare(String(a.first_seen||'')))
       .slice(0, 12);
 
-    renderBrands();
+    buildBrandView();
   }catch(e){
     /* v_feed/v_key_brands 등은 예전 스키마 — 새 프로젝트엔 아직 없어서 실패가 정상입니다.
        KEY BRAND 데이터가 따로 연동되기 전까지는 조용히 건너뜁니다 */
@@ -688,67 +701,151 @@ document.addEventListener('click', e => {
 });
 
 /* ═══ KEY BRAND ═══ */
-function renderBrands(){
+/* ═══ KEY BRAND — trend_signals.brands + brand_vocabulary로 구성 ═══
+   기사에서 언급된 브랜드를 모아 언급 건수·등장 월·관련 키워드를 보여주고,
+   인스타그램과 공식 홈페이지로 연결한다. */
+let BRAND_ROWS = [];
+
+async function buildBrandView(){
   const bg = $('#bgrid');
-  if(!BRANDS.length){ bg.innerHTML = '<div class="empty" style="grid-column:1/-1">등록된 브랜드가 없습니다.</div>'; return; }
-  bg.innerHTML = BRANDS.map(b => {
-    const photos = b.photos || [];
-    const links = (b.links || []).map(l =>
-      `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)} ↗</a>`).join(' · ');
-    const note = [b.verify_note ? esc(b.verify_note) : '', links].filter(Boolean).join('<br>');
+  if(!bg) return;
+  try{
+    const [sig, voc] = await Promise.all([
+      sb.from('trend_signals').select('keyword,category,brands,tags,sheet_month,url,image_url,note'),
+      sb.from('brand_vocabulary').select('*')
+    ]);
+    if(sig.error){ console.warn('trend_signals 로드 실패:', sig.error.message); return; }
+
+    const vocMap = {};
+    for(const v of (voc.data || [])) vocMap[v.brand] = v;
+
+    const map = new Map();
+    for(const r of (sig.data || [])){
+      for(const b of (r.brands || [])){
+        if(!map.has(b)) map.set(b, { brand:b, count:0, kws:new Set(), months:new Set(),
+          tags:new Set(), cats:new Set(), items:[] });
+        const e = map.get(b);
+        e.count++;
+        if(r.keyword) e.kws.add(r.keyword);
+        if(r.sheet_month) e.months.add(r.sheet_month);
+        if(r.category) e.cats.add(r.category);
+        for(const t of (r.tags || [])) e.tags.add(t);
+        if(r.image_url && e.items.length < 4) e.items.push(r);
+      }
+    }
+
+    BRAND_ROWS = [...map.values()].map(e => ({
+      ...e,
+      kws:[...e.kws], months:[...e.months].sort(), tags:[...e.tags], cats:[...e.cats],
+      voc: vocMap[e.brand] || {}
+    })).sort((a,b) =>
+      (b.voc.is_key ? 1 : 0) - (a.voc.is_key ? 1 : 0) ||
+      b.count - a.count ||
+      a.brand.localeCompare(b.brand));
+
+    drawBrandCards();
+  }catch(e){ console.warn('KEY BRAND 생성 실패:', e); }
+}
+
+/* 링크가 없으면 검색 링크로 대신 연결 — 주소를 지어내지 않기 위함 */
+function brandLinks(v, name){
+  const ig = v.instagram
+    ? `<a class="blink" href="${esc(v.instagram)}" target="_blank" rel="noopener">Instagram ↗</a>`
+    : `<a class="blink ghost" href="https://www.google.com/search?q=${encodeURIComponent(name + ' instagram')}" target="_blank" rel="noopener">Instagram 찾기 ↗</a>`;
+  const web = v.website
+    ? `<a class="blink" href="${esc(v.website)}" target="_blank" rel="noopener">공식 홈페이지 ↗</a>`
+    : `<a class="blink ghost" href="https://www.google.com/search?q=${encodeURIComponent(name + ' 공식 홈페이지')}" target="_blank" rel="noopener">홈페이지 찾기 ↗</a>`;
+  return ig + web;
+}
+
+function drawBrandCards(){
+  const bg = $('#bgrid');
+  if(!BRAND_ROWS.length){
+    bg.innerHTML = '<div style="color:var(--sub);padding:24px">아직 브랜드가 없습니다 — brands_setup SQL을 실행하면 기사 요약에서 브랜드를 뽑아냅니다</div>';
+    return;
+  }
+  const CAT_LABEL = window.KW_CATLABEL2 || {};
+  bg.innerHTML = BRAND_ROWS.map(e => {
+    const v = e.voc;
+    const months = e.months.map(m => m.replace('-', '.')).join(', ');
+    const kws = e.kws.slice(0, 6).map(k => `<span class="bkw">${esc(k)}</span>`).join('');
+    const more = e.kws.length > 6 ? `<span class="bkw ghost">+${e.kws.length - 6}</span>` : '';
+    const tags = e.tags.slice(0, 4).map(t => `<span class="btag">#${esc(t)}</span>`).join('');
+    const thumb = e.items[0]?.image_url
+      ? `<img class="peek" src="${esc(e.items[0].image_url)}" alt="" loading="lazy">` : '';
     return `<div class="bcard">
-      <div class="k">${esc(b.tier || '')} · ${esc(b.origin || '')}</div>
-      <h3>${esc(b.brand_name)}</h3>
-      <div class="li">${b.headline || '<span style="color:var(--sub)">연결된 트렌드 정보 없음</span>'}</div>
-      ${photos.length ? `<img class="peek" src="${esc(photos[0].thumb_url || photos[0].file_url)}" alt="" loading="lazy">` : ''}
-      <div class="gptline">${note || '<span style="color:var(--sub)">검증 노트가 아직 없습니다.</span>'}</div>
-      <div class="foot"><span class="pill ${esc(b.signal)}">${esc(b.signal)}</span>
-        <span class="pct">${esc(b.growth_pct || '')}</span></div>
+      <div class="k">${v.is_key ? '★ 관심 브랜드 · ' : ''}언급 ${e.count}건${months ? ' · ' + esc(months) : ''}</div>
+      <h3>${esc(e.brand)}</h3>
+      ${thumb}
+      <div class="bkws">${kws}${more}</div>
+      ${tags ? `<div class="btags">${tags}</div>` : ''}
+      <div class="blinks">${brandLinks(v, e.brand)}</div>
     </div>`;
   }).join('');
-  bg.onclick = e => {
-    if(e.target.closest('a')) return;
-    const c = e.target.closest('.bcard'); if(!c) return;
-    const b = BRANDS[[...bg.children].indexOf(c)];
-    if(b) openBrandPanel(b);
-  };
 }
 
 /* ═══ TREND KEYWORDS — signal.html(iframe)에 공개된 SNS/뉴스레터/리테일 데이터를 그대로 가져와 통합 테이블로 표시 ═══ */
 let kwCatF2 = '전체';
 
-function buildKwTable2(){
-  const frame = $('#signalFrame');
-  const data = frame && frame.contentWindow && frame.contentWindow.TA_SIGNAL_DATA;
-  if(!data) return;
-  const { getSnsViral, getNewsSig, getRetailSig, getManualSns, aggregateSnsKw, aggregateManualSns, aggregateNewsKw, snsCategoriesOf, CAT_LABEL, CATS } = data;
+/* trend_signals를 직접 읽어 통합 키워드 표를 만든다.
+   예전에는 signal.html(iframe)에서 값을 넘겨받았는데, iframe 로딩 시점에 따라
+   표가 비는 일이 있어서 Supabase를 직접 읽는 방식으로 바꿨다. */
+const KW_CATLABEL_FALLBACK = {
+  outer:'아우터', top:'상의', pants:'팬츠', skirtdress:'스커트 & 드레스',
+  shoes:'슈즈', bag:'백', acc:'액세서리', etc:'컬러', lifestyle:'라이프스타일'
+};
 
-  const rows = [];
-  const { ranked: snsRanked } = aggregateSnsKw(getSnsViral());
-  for(const e of snsRanked){
-    const cats = [...new Set(e.items.flatMap(s => snsCategoriesOf(s)))];
-    rows.push({ label: e.label, cats, source: 'SNS', badge: 'SNS',
-      note: `SNS ${e.count}건 언급 · 스코어 ${e.score.toLocaleString()}` });
-  }
-  const manualRanked = aggregateManualSns(getManualSns());
-  for(const e of manualRanked){
-    const cats = [...new Set(e.items.map(s => s.category).filter(Boolean))];
-    rows.push({ label: e.label, cats, source: 'SNS', badge: 'SNS', note: e.items[0]?.content || '' });
-  }
-  const newsRanked = aggregateNewsKw(getNewsSig());
-  for(const e of newsRanked){
-    const cats = [...new Set(e.items.map(s => s.category))];
-    rows.push({ label: e.label, cats, source: '뉴스레터', badge: 'NEWS',
-      note: e.items[0].summary || e.items[0].note });
-  }
-  for(const s of getRetailSig()){
-    rows.push({ label: `${s.brand} — ${s.product}`, cats: [s.category], source: '리테일', badge: 'RETAIL', note: s.note });
-  }
+async function buildKwTable2(){
+  try{
+    const [sig, ali] = await Promise.all([
+      sb.from('trend_signals').select('*').order('created_at', { ascending:false }),
+      sb.from('keyword_aliases').select('alias,canonical')
+    ]);
+    if(sig.error){ console.warn('trend_signals 로드 실패:', sig.error.message); return; }
 
-  window.KW_ROWS2 = rows; window.KW_CATLABEL2 = CAT_LABEL;
-  drawKwCatBar2(CATS);
-  drawKwBody2();
-  loadAllVolumeData();
+    /* 별칭 — 표기가 다른 키워드를 대표 이름으로 합침 */
+    const norm = v => String(v || '').toLowerCase().replace(/[\s\-_/+,.'"]/g, '');
+    const aliasMap = Object.fromEntries((ali.data || []).map(r => [norm(r.alias), r.canonical]));
+    const canon = raw => aliasMap[norm(raw)] || raw;
+
+    /* 카테고리 라벨 — 한글 카테고리는 그대로, 영문 코드면 한글로 */
+    const CAT_LABEL = { ...KW_CATLABEL_FALLBACK };
+    const catsSet = new Set();
+
+    const map = new Map();
+    for(const r of (sig.data || [])){
+      if(!r.keyword) continue;
+      const label = canon(r.keyword);
+      const key = norm(label);
+      const cat = r.category || '기타';
+      catsSet.add(cat);
+      const src = r.source_type === 'sns' ? 'SNS'
+                : r.source_type === 'lifestyle' ? '라이프스타일' : '뉴스레터';
+      const badge = r.source_type === 'sns' ? 'SNS' : 'NEWS';
+      if(!map.has(key)){
+        map.set(key, { label, cats:[], source:src, badge, note:r.note || '',
+          count:0, tags:new Set(), months:new Set() });
+      }
+      const e = map.get(key);
+      e.count++;
+      if(!e.cats.includes(cat)) e.cats.push(cat);
+      if(!e.note && r.note) e.note = r.note;
+      for(const t of (r.tags || [])) e.tags.add(t);
+      if(r.sheet_month) e.months.add(r.sheet_month);
+    }
+
+    const rows = [...map.values()]
+      .map(e => ({ ...e, tags:[...e.tags], months:[...e.months].sort() }))
+      .sort((a,b) => b.count - a.count || a.label.localeCompare(b.label));
+
+    window.KW_ROWS2 = rows;
+    window.KW_CATLABEL2 = CAT_LABEL;
+    drawKwCatBar2([...catsSet].sort());
+    drawKwBody2();
+    loadAllVolumeData();
+  }catch(e){
+    console.warn('키워드 표 생성 실패:', e);
+  }
 }
 
 /* 표에 나온 모든 키워드의 검색량을 한 번에 가져와서 각 행에 미니 그래프로 표시 */
@@ -803,15 +900,19 @@ function drawKwBody2(){
     const pct = pts ? changePct(pts) : null;
     const pctHtml = pct == null ? '<span class="mini">준비중</span>'
       : `<span style="color:${pct>=0?'#1a7a4a':'#c8451f'};font-weight:700;font-size:11px">${pct>=0?'▲':'▼'} ${Math.abs(pct)}%</span>`;
+    const tags = (r.tags || []).slice(0, 3).map(t => `<span class="pillb2">#${esc(t)}</span>`).join(' ');
+    const months = (r.months || []).map(m => m.replace('-', '.')).join(', ');
+    const cnt = r.count > 1 ? `<span style="color:#c8451f;font-weight:800">🔥 ${r.count}건</span> ` : '';
     return `<tr class="${SELECTED_KW.includes(r.label)?'kwsel':''}" data-kw="${esc(r.label)}">
-      <td><b>${esc(r.label)}</b><div class="mini">${esc(r.note).slice(0,70)}${r.note.length>70?'…':''}</div></td>
+      <td><b>${esc(r.label)}</b><div class="mini">${cnt}${esc(r.note).slice(0,70)}${r.note.length>70?'…':''}</div></td>
       <td>${r.cats.map(c => esc(CAT_LABEL[c]||c)).join(', ')}</td>
       <td><span class="srcbadge2 ${r.badge}">${esc(r.source)}</span></td>
-      <td><span class="pillb2">New</span></td>
+      <td>${tags || '<span class="mini">-</span>'}</td>
+      <td><span class="mini">${esc(months) || '-'}</span></td>
       <td>${spark || '<span class="mini">준비중</span>'}</td>
       <td>${pctHtml}</td>
     </tr>`;
-  }).join('') : '<tr><td colspan="6" style="text-align:center;color:var(--sub);padding:24px">해당 카테고리 키워드가 없습니다</td></tr>';
+  }).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--sub);padding:24px">해당 카테고리 키워드가 없습니다</td></tr>';
 }
 
 /* ── 네이버 데이터랩 검색량 그래프 — 표에서 키워드 클릭하면 최대 5개까지 비교 ── */
@@ -906,8 +1007,11 @@ async function drawVolumeChart(){
     `<span class="navlegend-item"><span class="navlegend-swatch" style="background:${NAV_COLORS[i%NAV_COLORS.length]}"></span>${esc(kw)}</span>`).join('');
 }
 
-$('#signalFrame').addEventListener('load', buildKwTable2);
+/* signal.html에서 데이터가 갱신되면 표도 다시 그림 */
 window.addEventListener('message', e => { if(e.data === 'ta-signals-updated') buildKwTable2(); });
+/* 페이지가 열리면 iframe 상태와 무관하게 바로 표를 만든다 */
+buildKwTable2();
+buildBrandView();
 
 /* ═══ 탭 ═══ */
 const TABNOTE = { signal:'FEED 키워드의 검색량 — 네이버 · 구글 · 썸트렌드',
@@ -920,6 +1024,7 @@ document.querySelector('.tabs').addEventListener('click', e => {
   ['signal','keywords','brand'].forEach(v => $('#' + v + 'View').classList.toggle('on', b.dataset.v === v));
   if(b.dataset.v === 'signal'){ const f = $('#signalFrame'); if(!f.src) f.src = f.dataset.src; }
   if(b.dataset.v === 'keywords'){ buildKwTable2(); }
+  if(b.dataset.v === 'brand'){ buildBrandView(); }
   $('#noteTxt').textContent = TABNOTE[b.dataset.v];
 });
 

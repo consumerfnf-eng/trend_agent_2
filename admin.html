@@ -219,9 +219,10 @@ tbody tr:hover{background:#fdfcf9}
 <div id="app" hidden>
 <header>
   <h1>TREND <em>AGENT</em></h1>
-  <span class="mini" id="verStamp" style="margin-left:8px;opacity:.55">v260723-17</span>
+  <span class="mini" id="verStamp" style="margin-left:8px;opacity:.55">v260805-01</span>
   <div class="tabs" id="tabs">
     <button data-v="intake" class="on">업로드</button>
+    <button data-v="manage">등록 관리</button>
     <button data-v="conf">설정</button>
   </div>
   <div class="who"><span id="whoTxt"></span><button class="btn ghost sm" id="logout">로그아웃</button></div>
@@ -259,6 +260,14 @@ tbody tr:hover{background:#fdfcf9}
       <div style="max-width:180px"><label class="f">소스</label><select id="source"></select></div>
       <div style="max-width:100px"><label class="f">시장</label>
         <select id="region"><option value="GL">GLOBAL</option><option value="KR" selected>KR</option><option value="CN">CN</option></select></div>
+      <div style="min-width:240px; flex:1"><label class="f">브랜드 — 여러 개 선택 가능</label>
+        <div style="display:flex; gap:6px">
+          <input id="brandInput" list="brandList" placeholder="사전에서 고르거나 직접 입력 후 Enter">
+          <button class="btn ghost sm" id="brandAi" title="요약에서 브랜드 자동 추출">AI 추출</button>
+        </div>
+        <datalist id="brandList"></datalist>
+        <div id="brandChips" style="display:flex; flex-wrap:wrap; gap:4px; margin-top:6px"></div>
+      </div>
       <div style="display:none"><label class="f">관찰 브랜드</label>
         <div style="display:flex; gap:6px">
           <select id="sessBrand" style="flex:1"><option value="">브랜드 선택</option></select>
@@ -694,6 +703,35 @@ tbody tr:hover{background:#fdfcf9}
 </section>
 
 <!-- ── 설정 ── -->
+<!-- ── 등록 관리 — 잘못 올린 항목 삭제 ── -->
+<section id="manageView" class="view">
+  <div class="sess">
+    <h3>등록 관리 <span class="mini" style="font-weight:400">— 잘못 등록했거나 중복된 항목을 지웁니다</span></h3>
+    <div class="row">
+      <div style="max-width:170px"><label class="f">구분</label>
+        <select id="mgType">
+          <option value="">전체</option>
+          <option value="news">패션 트렌드</option>
+          <option value="lifestyle">라이프스타일 트렌드</option>
+          <option value="sns">SNS 트렌드</option>
+        </select></div>
+      <div style="max-width:150px"><label class="f">귀속 월</label>
+        <select id="mgMonth"><option value="">전체</option></select></div>
+      <div style="flex:1"><label class="f">검색</label>
+        <input id="mgSearch" placeholder="키워드 · 요약 · 브랜드로 찾기"></div>
+      <div style="max-width:110px; display:flex; align-items:flex-end">
+        <button class="btn ghost sm" id="mgReload" style="width:100%">새로고침</button></div>
+    </div>
+    <div class="bar" style="margin-top:10px">
+      <button class="btn ghost sm" id="mgSelAll">전체선택</button>
+      <button class="btn ghost sm" id="mgSelNone">해제</button>
+      <span class="mini" id="mgCount">0개 선택</span>
+      <button class="btn sm" id="mgDelete" disabled style="background:#c8451f;border-color:#c8451f">선택 삭제</button>
+    </div>
+  </div>
+  <div id="mgList" style="margin-top:12px"></div>
+</section>
+
 <section id="confView" class="view">
   <h2 class="sec">설정</h2>
 
@@ -790,7 +828,7 @@ tbody tr:hover{background:#fdfcf9}
 <div id="busy"><div class="spin"></div><span id="busyMsg">저장 중…</span></div>
 
 <script src="config.js"></script>
-<script>console.log("TREND AGENT admin v260723-17");</script>
+<script>console.log("TREND AGENT admin v260805-01");</script>
 <script type="module">
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -1401,7 +1439,9 @@ $('#saveImgs').onclick = async () => {
     note:        it.meta.note || null,
     source:      $('#source').value || null,
     region:      $('#region').value || null,
-    author:      $('#author').value || null
+    author:      $('#author').value || null,
+    sheet_month: $('#ym').value || null,
+    brands:      SESS_BRANDS.length ? [...SESS_BRANDS] : null
   }));
   const { error } = await sb.from('trend_signals').insert(rows);
   busy(false);
@@ -3909,14 +3949,165 @@ async function nextSlot(viewId, t){
 }
 
 const LOADERS = { feed:renderFeed, queue:renderQueue, map:loadMap, cluster:loadClusterTab,
+  manage: loadManage,
   conf: async () => { await renderAdmins(); await loadDna(); await renderAliases(); } };
 $('#tabs').onclick = e => {
   const b = e.target.closest('button'); if(!b) return;
   $$('#tabs button').forEach(x=>x.classList.toggle('on', x===b));
-  ['intake','feed','dict','brand','celeb','cluster','map','queue','conf'].forEach(v=>
+  ['intake','feed','dict','brand','celeb','cluster','map','queue','manage','conf'].forEach(v=>
     $('#'+v+'View').classList.toggle('on', b.dataset.v===v));
   Promise.resolve(LOADERS[b.dataset.v]?.()).catch(e => die(e, '탭 로딩'));
 };
+
+/* ═══════════════════════════════════════════════════════════
+   브랜드 선택 — 사전에서 고르거나 직접 입력
+   ═══════════════════════════════════════════════════════════ */
+let BRAND_VOC = [];
+let SESS_BRANDS = [];
+
+async function loadBrandVocab(){
+  try{
+    const { data, error } = await sb.from('brand_vocabulary').select('brand,aliases').order('brand');
+    if(error){ console.warn('brand_vocabulary 로드 실패:', error.message); return; }
+    BRAND_VOC = data || [];
+    const dl = $('#brandList');
+    if(dl) dl.innerHTML = BRAND_VOC.map(b => `<option value="${b.brand}">`).join('');
+  }catch(e){ console.warn('brand_vocabulary 로드 실패:', e); }
+}
+
+function drawBrandChips(){
+  const box = $('#brandChips'); if(!box) return;
+  box.innerHTML = SESS_BRANDS.map(b =>
+    `<span class="pill" style="cursor:pointer" data-brand="${b}">${b} ×</span>`).join('')
+    || '<span class="mini">선택된 브랜드 없음</span>';
+}
+
+$('#brandChips')?.addEventListener('click', e => {
+  const c = e.target.closest('[data-brand]'); if(!c) return;
+  SESS_BRANDS = SESS_BRANDS.filter(b => b !== c.dataset.brand);
+  drawBrandChips();
+});
+
+$('#brandInput')?.addEventListener('keydown', e => {
+  if(e.key !== 'Enter') return;
+  e.preventDefault();
+  const v = e.target.value.trim(); if(!v) return;
+  /* 사전에 같은 이름이나 별칭이 있으면 대표 이름으로 바꿔 담는다 */
+  const n = x => String(x||'').toLowerCase().replace(/[\s\-_.]/g,'');
+  const hit = BRAND_VOC.find(b => n(b.brand) === n(v) || (b.aliases||[]).some(a => n(a) === n(v)));
+  const name = hit ? hit.brand : v;
+  if(!SESS_BRANDS.includes(name)) SESS_BRANDS.push(name);
+  e.target.value = '';
+  drawBrandChips();
+});
+
+/* 선택한 사진들의 요약에서 브랜드를 찾아 자동으로 담는다 (사전에 있는 것만) */
+$('#brandAi')?.addEventListener('click', () => {
+  const tgt = (typeof picked === 'function') ? picked() : [];
+  const text = tgt.map(x => `${x.meta?.note || ''} ${x.meta?.keyword || ''}`).join(' ').toLowerCase();
+  if(!text.trim()) return toast('먼저 사진을 선택하고 요약을 채워주세요');
+  let added = 0;
+  for(const b of BRAND_VOC){
+    const terms = [b.brand, ...(b.aliases || [])];
+    if(terms.some(t => t && text.includes(String(t).toLowerCase()))){
+      if(!SESS_BRANDS.includes(b.brand)){ SESS_BRANDS.push(b.brand); added++; }
+    }
+  }
+  drawBrandChips();
+  toast(added ? `브랜드 ${added}개를 찾았습니다 — 틀린 건 눌러서 지우세요` : '사전에 있는 브랜드를 찾지 못했습니다');
+});
+
+/* ═══════════════════════════════════════════════════════════
+   등록 관리 — 잘못 올린 항목 삭제
+   ═══════════════════════════════════════════════════════════ */
+let MG_ROWS = [];
+let MG_SEL = new Set();
+
+async function loadManage(){
+  await loadBrandVocab();
+  const box = $('#mgList');
+  box.innerHTML = '<div class="mini">불러오는 중…</div>';
+  try{
+    const { data, error } = await sb.from('trend_signals').select('*')
+      .order('created_at', { ascending:false }).limit(500);
+    if(error) throw error;
+    MG_ROWS = data || [];
+    MG_SEL.clear();
+    const months = [...new Set(MG_ROWS.map(r => r.sheet_month).filter(Boolean))].sort().reverse();
+    $('#mgMonth').innerHTML = '<option value="">전체</option>' +
+      months.map(m => `<option value="${m}">${m}</option>`).join('');
+    drawManage();
+  }catch(e){
+    box.innerHTML = '<div class="mini">불러오지 못했습니다 — ' + (e.message || e) + '</div>';
+  }
+}
+
+function mgFiltered(){
+  const t = $('#mgType').value, m = $('#mgMonth').value;
+  const q = $('#mgSearch').value.trim().toLowerCase();
+  return MG_ROWS.filter(r => {
+    if(t && r.source_type !== t) return false;
+    if(m && r.sheet_month !== m) return false;
+    if(q){
+      const hay = `${r.keyword||''} ${r.note||''} ${(r.brands||[]).join(' ')} ${(r.tags||[]).join(' ')}`.toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  });
+}
+
+function drawManage(){
+  const rows = mgFiltered();
+  const TYPE = { news:'패션', lifestyle:'라이프', sns:'SNS' };
+  $('#mgList').innerHTML = rows.length ? rows.map(r => `
+    <label style="display:flex; gap:10px; align-items:flex-start; padding:10px 12px; border:1px solid var(--hair);
+      border-radius:10px; margin-bottom:6px; background:${MG_SEL.has(r.id) ? '#fdf3ef' : 'var(--card)'}; cursor:pointer">
+      <input type="checkbox" data-id="${r.id}" ${MG_SEL.has(r.id) ? 'checked' : ''} style="margin-top:3px">
+      ${r.image_url ? `<img src="${r.image_url}" style="width:46px;height:60px;object-fit:cover;border-radius:6px;background:#efeae1" loading="lazy">` : ''}
+      <div style="flex:1; min-width:0">
+        <div style="font-weight:800; font-size:13px">${r.keyword || '(키워드 없음)'}</div>
+        <div class="mini" style="margin-top:2px">
+          ${TYPE[r.source_type] || r.source_type || '-'} · ${r.category || '-'} · ${r.sheet_month || '-'} · ${r.source || '-'} · ${r.author || '-'}
+        </div>
+        <div class="mini" style="margin-top:3px; opacity:.85">${(r.note || '').slice(0, 90)}${(r.note||'').length > 90 ? '…' : ''}</div>
+        ${(r.brands||[]).length ? `<div class="mini" style="margin-top:3px;color:#c8451f">${r.brands.join(' · ')}</div>` : ''}
+      </div>
+      ${r.url ? `<a href="${r.url}" target="_blank" rel="noopener" class="mini" style="white-space:nowrap">원문 ↗</a>` : ''}
+    </label>`).join('')
+    : '<div class="mini" style="padding:20px">조건에 맞는 항목이 없습니다</div>';
+  $('#mgCount').textContent = `${MG_SEL.size}개 선택 · 전체 ${rows.length}개`;
+  $('#mgDelete').disabled = MG_SEL.size === 0;
+}
+
+$('#mgList')?.addEventListener('change', e => {
+  const c = e.target.closest('input[data-id]'); if(!c) return;
+  const id = Number(c.dataset.id);
+  if(c.checked) MG_SEL.add(id); else MG_SEL.delete(id);
+  drawManage();
+});
+$('#mgType')?.addEventListener('change', drawManage);
+$('#mgMonth')?.addEventListener('change', drawManage);
+$('#mgSearch')?.addEventListener('input', drawManage);
+$('#mgReload')?.addEventListener('click', loadManage);
+$('#mgSelAll')?.addEventListener('click', () => { mgFiltered().forEach(r => MG_SEL.add(r.id)); drawManage(); });
+$('#mgSelNone')?.addEventListener('click', () => { MG_SEL.clear(); drawManage(); });
+
+$('#mgDelete')?.addEventListener('click', async () => {
+  const ids = [...MG_SEL];
+  if(!ids.length) return;
+  const names = MG_ROWS.filter(r => ids.includes(r.id)).map(r => r.keyword || '(키워드 없음)');
+  if(!confirm(`${ids.length}개 항목을 삭제합니다.\n\n${names.slice(0,5).join('\n')}${names.length>5 ? `\n… 외 ${names.length-5}개` : ''}\n\n되돌릴 수 없습니다. 진행할까요?`)) return;
+  busy(true, '삭제 중…');
+  const { error } = await sb.from('trend_signals').delete().in('id', ids);
+  busy(false);
+  if(error){ die(error, '삭제'); return; }
+  toast(`${ids.length}개 삭제했습니다`);
+  await loadManage();
+});
+
+
+loadBrandVocab();
+drawBrandChips();
 
 boot();
 </script>
