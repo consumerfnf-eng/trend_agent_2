@@ -132,7 +132,14 @@ tr.krow{cursor:pointer} tr.krow:hover{background:#faf6ec}
   box-shadow:0 0 0 1px rgba(0,0,0,.2); transition:background .15s, transform .15s}
 .kwcard .kwdot.on{background:#fff; transform:scale(1.25)}
 /* 묶임 표시 — 왼쪽 세로선과 가지로 "이 기사들이 한 키워드로 묶였다"를 나타냄 */
-.kwcard .grouphead{font-size:9.5px; font-weight:800; color:var(--acc); letter-spacing:.03em; margin:8px 0 6px}
+.kwcard .grouphead{font-size:9.5px; font-weight:800; color:var(--acc); letter-spacing:.03em; margin:8px 0 6px;
+  display:flex; align-items:center; gap:3px}
+.fire{font-size:17px; line-height:1}
+.imgfail{background:#efeae1 !important; position:relative}
+.imgfail::after{content:'원문 매체가 이미지 사용을 제한합니다'; position:absolute; inset:0;
+  display:flex; align-items:center; justify-content:center; text-align:center; padding:0 14px;
+  font-size:10px; font-weight:600; color:#a99f90; line-height:1.5}
+.bubble .fire{font-size:19px; line-height:1; margin-bottom:1px}
 .kwcard .grouplist{margin-left:4px; padding-left:11px; border-left:2px solid var(--acc);
   display:flex; flex-direction:column; gap:9px}
 .kwcard .groupitem{position:relative}
@@ -191,7 +198,7 @@ a{color:var(--acc)}
 </head>
 <body>
 <header>
-  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260805-01</span></h1>
+  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260805-03</span></h1>
   <a href="index.html" id="backLink" style="font-size:11px;letter-spacing:.12em;font-weight:700;color:var(--acc);text-decoration:none;border:1px solid var(--acc);padding:6px 12px">← DASHBOARD</a>
   <select id="mSel"></select>
 </header>
@@ -238,7 +245,7 @@ a{color:var(--acc)}
 
 <script src="config.js"></script>
 <script type="module">
-console.log("TREND AGENT signal.html v260805-01");
+console.log("TREND AGENT signal.html v260805-03");
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ══ 설정 — 다른 파일들과 같은 값 ══ */
@@ -257,6 +264,11 @@ const LIFESTYLE_SIG = [];
 let SNS_VIRAL = [];
 const CAT_LABEL = {top:'상의',outer:'아우터',pants:'팬츠',shoes:'슈즈',acc:'액세서리',dress:'스커트 & 드레스',bag:'백',etc:'컬러',lifestyle:'라이프스타일'};
 const AUTHOR_COLOR = { jisoo:'#c8451f', jin:'#b19cd9', sohee:'#4a6fb5' };
+
+/* 서로 다른 작성자가 몇 명인지 — 2명 이상이면 여러 사람이 같은 트렌드를 잡았다는 뜻 */
+function authorCount(items){
+  return new Set((items || []).map(it => it && it.author).filter(Boolean)).size;
+}
 
 /* 막대바 색 — 작성자가 한 명이면 그 색, 여러 명이면 건수 비율대로 나눠 칠함 */
 function authorBarColor(items){
@@ -738,6 +750,14 @@ async function loadTrendSignals(){
     try{ window.parent.postMessage('ta-signals-updated', '*'); }catch(e){}
   }catch(e){ console.warn('trend_signals 로드 실패:', e); }
 }
+/* 일부 매체(하이프비스트 등)는 외부에서 이미지를 못 불러가게 막아둡니다.
+   그때 깨진 아이콘 대신 옅은 안내를 보여줍니다 */
+window.imgFail = function(img){
+  img.removeAttribute('src');
+  img.classList.add('imgfail');
+  img.setAttribute('alt', '이미지를 불러올 수 없습니다');
+};
+
 let scatF = 'lifestyle';
 let tagFilter = null;   /* 선택한 해시태그 (null이면 전체) */
 
@@ -918,7 +938,7 @@ function kwCardHTML(entry, i, exampleFn, showScore, metaOverride, maxVal){
     const authorColor = authorBarColor([it]);
     return `<div class="kwcard" data-kwlabel="${esc(entry.label)}">
       ${it?.image_url ? `<div class="kwphotowrap">
-        <img class="kwphoto" src="${esc(it.image_url)}" alt="" loading="lazy">
+        <img class="kwphoto" src="${esc(it.image_url)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="imgFail(this)">
         ${it.ym ? `<div class="kwdate">${esc(it.ym)}</div>` : ''}
         ${it.region ? `<div class="kwregion">${esc(it.region)}</div>` : ''}
         ${it.source ? `<div class="kwsrc">${esc(it.source)}</div>` : ''}
@@ -934,7 +954,7 @@ function kwCardHTML(entry, i, exampleFn, showScore, metaOverride, maxVal){
   const slides = entry.items.map(it => {
     const ac = it.author ? (AUTHOR_COLOR[it.author] || 'var(--acc)') : null;
     return `<div class="kwslide">
-      <img src="${esc(it.image_url || '')}" alt="" loading="lazy">
+      <img src="${esc(it.image_url || '')}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="imgFail(this)">
       ${it.ym ? `<div class="kwdate">${esc(it.ym)}</div>` : ''}
       ${it.region ? `<div class="kwregion">${esc(it.region)}</div>` : ''}
       ${it.source ? `<div class="kwsrc">${esc(it.source)}</div>` : ''}
@@ -951,7 +971,8 @@ function kwCardHTML(entry, i, exampleFn, showScore, metaOverride, maxVal){
       ${meta ? `<div class="gmeta">${esc(meta)}</div>` : ''}
     </div>`;
   }).join('');
-  return `<div class="kwcard hot" data-kwlabel="${esc(entry.label)}">
+  const multiAuthor = authorCount(entry.items) >= 2;
+  return `<div class="kwcard${multiAuthor ? ' hot' : ''}" data-kwlabel="${esc(entry.label)}">
     <div class="kwslidewrap">
       <div class="kwslides">${slides}</div>
       <button class="kwnav prev" aria-label="이전 사진">‹</button>
@@ -960,7 +981,6 @@ function kwCardHTML(entry, i, exampleFn, showScore, metaOverride, maxVal){
     </div>
     <div class="kwname">${esc(entry.label)}</div>
     <div class="volbar"><i style="width:${pct}%; background:${authorColor}"></i></div>
-    <div class="grouphead">🔥 같은 키워드로 묶인 기사 ${entry.items.length}건</div>
     <div class="grouplist">${list}</div>
     ${tagRow}${rel}${back}
   </div>`;
@@ -999,6 +1019,7 @@ function tagBubbleHTML(ranked){
   return top.map((e,i) => {
     const d = Math.round(minD + (maxD-minD) * (e.count / maxVal));
     const isTop = i === 0;
+    const multiAuthor = authorCount(e.items) >= 2;   /* 🔥 조건 — 여러 사람이 같은 키워드를 등록 */
     const nameSize = d >= 100 ? 15 : d >= 72 ? 13 : d >= 55 ? 11.5 : 10;
     const on = tagFilter === e.label;
     return `<div class="bubble${isTop ? ' top' : ''}${on ? ' on' : ''}" style="width:${d}px; height:${d}px"
@@ -1011,7 +1032,7 @@ function tagBubbleHTML(ranked){
 
 function bubbleHTML(ranked, gridSel, catCtx){
   /* 버블에는 그 섹션의 키워드를 모두 표시한다.
-     겹치는 것(2건 이상)은 크기와 🔥로 구분되므로 1건짜리를 빼지 않는다 */
+     크기·순서는 언급량 순, 🔥는 서로 다른 작성자 2명 이상이 같은 키워드를 올렸을 때만 */
   const top = ranked.slice(0, 14);
   if(!top.length) return '';
   const maxVal = Math.max(...top.map(e => e.count), 1);
@@ -1019,6 +1040,7 @@ function bubbleHTML(ranked, gridSel, catCtx){
   return top.map((e,i) => {
     const d = Math.round(minD + (maxD-minD) * (e.count / maxVal));   /* 선형 — 언급량 차이가 크기 차이로 확실히 드러나게 */
     const isTop = i === 0;
+    const multiAuthor = authorCount(e.items) >= 2;   /* 🔥 조건 — 여러 사람이 같은 키워드를 등록 */
     const nameSize = d >= 100 ? 15 : d >= 72 ? 13 : d >= 55 ? 11.5 : 10;
     const countSize = nameSize - 2;
     const hasFwd = catCtx === 'lifestyle' && LIFESTYLE_LINKS.some(l => normKw(l.life) === normKw(e.label));
@@ -1027,7 +1049,7 @@ function bubbleHTML(ranked, gridSel, catCtx){
     const linked = hasFwd || hasRev;
     return `<div class="bubble${isTop ? ' top' : ''}" style="width:${d}px; height:${d}px" data-kw="${esc(e.label)}" data-target="${gridSel}">
       ${linked ? '<span class="linkdot" title="다른 카테고리와 연결됨">🔗</span>' : ''}
-      ${isTop ? '<span style="font-size:11px">🔥</span>' : ''}
+      ${multiAuthor ? '<span class="fire" title="여러 사람이 같은 키워드를 등록했습니다">🔥</span>' : ''}
       <span class="bn" style="font-size:${nameSize}px">${esc(e.label)}</span>
       <span class="bc" style="font-size:${countSize}px">${e.count}건</span>
     </div>`;
