@@ -29,14 +29,26 @@ header h1{font-family:'Playfair Display',serif; font-size:22px}
   font-size:11px; cursor:pointer; font-family:inherit; color:var(--ink)}
 .kwfbar button:hover{border-color:#c9bfa9}
 .kwfbar button.on{background:var(--ink); color:#fff; border-color:var(--ink)}
-.kwtablewrap{background:#fff; border:1px solid var(--hair); border-radius:10px; overflow:hidden; margin-top:12px}
-.kwtablewrap table{width:100%; border-collapse:collapse; table-layout:fixed}
-.kwtablewrap th:nth-child(1), .kwtablewrap td:nth-child(1){width:auto}
+/* 표가 좁아지면 칸 안 글자가 세로로 눌리므로, 최소 너비를 주고 가로 스크롤로 처리 */
+.kwtablewrap{background:#fff; border:1px solid var(--hair); border-radius:10px; overflow-x:auto; margin-top:12px}
+.kwtablewrap table{width:100%; min-width:1120px; border-collapse:collapse; table-layout:fixed}
+/* 열 너비 — 1 키워드(나머지 전부) / 2 카테고리 / 3 소스 / 4 해시태그 / 5 등장월 / 6 검색량 / 7 변화 */
+.kwtablewrap th:nth-child(1), .kwtablewrap td:nth-child(1){width:auto; min-width:260px}
 .kwtablewrap th:nth-child(2), .kwtablewrap td:nth-child(2){width:110px}
-.kwtablewrap th:nth-child(3), .kwtablewrap td:nth-child(3){width:80px}
-.kwtablewrap th:nth-child(4), .kwtablewrap td:nth-child(4){width:60px}
-.kwtablewrap th:nth-child(5), .kwtablewrap td:nth-child(5){width:90px}
-.kwtablewrap th:nth-child(6), .kwtablewrap td:nth-child(6){width:70px}
+.kwtablewrap th:nth-child(3), .kwtablewrap td:nth-child(3){width:120px}
+.kwtablewrap th:nth-child(4), .kwtablewrap td:nth-child(4){width:230px}
+.kwtablewrap th:nth-child(5), .kwtablewrap td:nth-child(5){width:130px}
+.kwtablewrap th:nth-child(6), .kwtablewrap td:nth-child(6){width:130px}
+.kwtablewrap th:nth-child(7), .kwtablewrap td:nth-child(7){width:90px}
+/* 칸 안에서 글자가 세로로 쪼개지지 않게 */
+.kwtablewrap th{white-space:nowrap}
+.kwtablewrap td:nth-child(3), .kwtablewrap td:nth-child(5),
+.kwtablewrap td:nth-child(6), .kwtablewrap td:nth-child(7){white-space:nowrap}
+.kwtablewrap th, .kwtablewrap td{white-space:nowrap}
+.kwtablewrap td:nth-child(1){white-space:normal}
+.kwtablewrap td:nth-child(4){white-space:normal}
+.kwtablewrap td:nth-child(4) .pillb2{display:inline-block; white-space:nowrap; margin:1px 2px 1px 0}
+.kwtablewrap .srcbadge2{display:inline-block; white-space:nowrap}
 .kwtablewrap td:nth-child(1){overflow:hidden}
 .kwtablewrap td:nth-child(1) b{display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 .kwtablewrap td:nth-child(1) .mini{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
@@ -221,7 +233,7 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
 <body>
 
 <header>
-  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260805-02</span></h1>
+  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260805-04</span></h1>
   <div class="tabs">
     <button data-v="signal" class="on">TREND SIGNAL</button>
     <button data-v="keywords">TREND KEYWORDS</button>
