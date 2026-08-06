@@ -175,6 +175,22 @@ tr.krow{cursor:pointer} tr.krow:hover{background:#faf6ec}
 .cmCardTags{display:flex; flex-wrap:wrap; gap:3px; margin-bottom:8px}
 .cmCardLink{font-size:11px; font-weight:600; color:var(--acc); text-decoration:none}
 .cmCardLink:hover{text-decoration:underline}
+/* 다른 카테고리 관련 트렌드 (사진 없이 텍스트+링크만) */
+.cmRelSec{margin-top:34px; padding-top:24px; border-top:1px solid var(--hair)}
+.cmRelHead{font-family:'Cormorant Garamond', serif; font-size:22px; font-weight:600; color:var(--tx); margin-bottom:2px}
+.cmRelSub{font-size:11px; color:var(--sub); margin-bottom:16px}
+.cmRelGroups{display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:22px}
+@media (max-width:900px){ .cmRelGroups{grid-template-columns:repeat(2, minmax(0, 1fr))} }
+@media (max-width:640px){ .cmRelGroups{grid-template-columns:1fr} }
+.cmRelGroup{background:#faf7f2; border-radius:8px; padding:12px 14px}
+.cmRelCat{font-size:10px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; color:var(--acc); margin-bottom:8px}
+.cmRelList{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px}
+.cmRelList li{font-size:12px; line-height:1.4; padding-bottom:6px; border-bottom:1px dashed var(--hair)}
+.cmRelList li:last-child{border-bottom:0; padding-bottom:0}
+.cmRelList a{color:var(--tx); text-decoration:none; font-weight:600}
+.cmRelList a:hover{color:var(--acc); text-decoration:underline}
+.cmRelList span{color:var(--tx); font-weight:600}
+.cmRelTags{display:block; font-size:9.5px; color:var(--sub); font-weight:400; margin-top:2px; letter-spacing:.02em}
 .kwcard .grouplist{margin-left:4px; padding-left:11px; border-left:2px solid var(--acc);
   display:flex; flex-direction:column; gap:9px}
 .kwcard .groupitem{position:relative}
@@ -789,67 +805,36 @@ function buildMonthOptions(){
 const inMonth = s => !s.ym || (s.ym >= monthStart && s.ym <= monthEnd);
 /* 선택한 해시태그가 있으면 그 태그가 달린 항목만 통과 */
 /* ── 태그 클러스터 사전 ─────────────────────────────────────
-   대표 키워드 → 그 밑에 묶이는 유사 키워드들. 태그 정리는 시트에서 하고,
-   대시보드에서는 이 사전으로 "비슷한 것끼리" 하나의 버블로 묶어서 보여준다.
-   유사 태그만 있는 카드도 대표 버블로 딸려 나오게 됨(inTag 참조). */
-const CLUSTERS = {
-  /* 무드/코어 */
-  'retro':       ['nostalgic','y2k','vintage','2000s','revival','90s','retro-runner','retro-sports','retro-blouson','vintage-sports','y2k-blouson','y2k-shorts','anti-quiet-luxury'],
-  'elegant':     ['feminine','luxe','soft','soft-pearl','quiet-luxury','luxury-styling','luxury-sneaker','luxury-collab'],
-  'effortless':  ['nonchalant','slackercore','slacker','worn-in','casual','comfort','natural-mood','loose-fit'],
-  'sportcore':   ['athletic','sports-prep','preppy','retro-sports','track-shorts','track-pants','track-suit','fitted-track-top'],
-  'balletcore':  ['ballet-flat','ribbon','feminine','mary-jane','mary-jane-sneaker'],
-  'playful':     ['whimsical','whimsycore','quirky','bold','pop-color','vivid','mismatch','unexpected'],
-  'sensual':     ['edgy','intimate','experimental','underwear-as-outerwear','see-through','sheer','transparent'],
-  'wellness':    ['recovery','self-care','sauna','cold-plunge','bathhouse','sleep-maxxing','spa-inspired','biohacking','hrv','wearable-tech','easywear','easyware'],
-  'technical':   ['technical-runner','technical-sneaker','techwear','futuristic','futuristic-sole','high-tech','k-tech','ultra-light','metallic'],
-  'outdoor':     ['gorpcore','goretex','trail-runner'],
-  'minimal':     ['neutral','beige','earth-tone','tonal','low-profile','quiet-luxury','clean'],
-  'cozy':        ['homey','homescape','knit','woven','sweater-tee','layered'],
+   대표 키워드 → 그 밑에 묶이는 유사 키워드들.
+   Supabase의 tag_clusters 테이블에서 로드함 (loadTagClusters).
+   테이블은 아직 없거나 로드 실패하면 빈 사전으로 동작(각 태그가 자기 자신을 대표). */
+let CLUSTERS = {};
+let CLUSTERS_KO = {};   /* 대표 → 한국어 별칭 배열 (검색용) */
 
-  /* 컬러 */
-  'red':         ['bright-red','summer-red','red-bag','pop-color','accent'],
-  'blue':        ['aqua-blue','sea-blue','fresh'],
-  'brown':       ['beige','earth-tone','neutral','tonal'],
-  'silver':      ['metallic'],
-
-  /* 소재 */
-  'leather':     ['suede'],
-  'translucent': ['jelly','transparent','sheer','see-through','pvc','mesh'],
-  'faded':       ['washed','worn-in'],
-  'satin':       [],
-  'denim':       ['low-rise','baggy','relaxed'],
-
-  /* 아이템/실루엣 */
-  'sneakers':    ['low-profile','dunk-shape','football-shape','snoafer','loafer-sneaker','mary-jane-sneaker','technical-runner','technical-sneaker','trail-runner','lifestyle-runner','luxury-sneaker','air-rift','shox','samba','laceless','slip-on','sneaker-heel','retro-runner'],
-  'mary-jane':   ['ballet-flat','mary-jane-sneaker','ribbon'],
-  'loafer':      ['summer-loafer','lace-up','snoafer','loafer-sneaker'],
-  'mule':        ['slip-on'],
-  'flip-flop':   ['socks-styling'],
-  'coat':        ['bubble-hem','sculptural','volume','high-collar','funnel-neck','funnel-neck-jacket'],
-  'jacket':      ['micro-jacket','retro-blouson','y2k-blouson','jacket-trend','fitted-track-top','track-suit','shrunk'],
-  'cargo':       ['bermuda','bermuda-length','capri','long-shorts','utility'],
-  'oversized':   ['baggy','loose-fit','anti-bodycon'],
-  'graphic-tee': ['raglan-tee','sweater-tee','personality-piece'],
-  'hair-accessory':['hairband','headband','bandana','ribbon'],
-  'eyewear':     ['oversized-sunglasses','bug-eye'],
-
-  /* 무브먼트/시그널 */
-  'celebrity-style':['celebrity-collab','jennie','dua-lipa','bad-bunny','styling-formula','kendall-jenner'],
-  'search-surge':['trend-forecast','retail-forecast','macro-trend','micro-trend','pinterest-trend','consumer-shift','trendalytics','proportion-shift','2026-in-out'],
-  'runway':      ['runway-trend','menswear','womenswear'],
-  'hybrid':      ['snoafer','loafer-sneaker','mary-jane-sneaker'],
-  'gen-z':       ['text-hip','intellectual','book-club','library'],
-};
-
-/* 유사 태그 → 대표 태그로 역인덱스 (한 유사 태그가 여러 대표에 속할 수 있으면 첫 번째 대표만 사용) */
-const TAG_TO_HEAD = (() => {
-  const m = {};
+let TAG_TO_HEAD = {};   /* 유사 → 대표 역인덱스, CLUSTERS 로드 시 자동 재계산 */
+function rebuildTagIndex(){
+  TAG_TO_HEAD = {};
   for(const [head, arr] of Object.entries(CLUSTERS)){
-    for(const t of arr){ if(!(t in m)) m[t] = head; }
+    for(const t of arr){ if(!(t in TAG_TO_HEAD)) TAG_TO_HEAD[t] = head; }
   }
-  return m;
-})();
+}
+
+async function loadTagClusters(){
+  try {
+    const { data, error } = await sb.from('tag_clusters').select('head, members, ko_aliases');
+    if(error) throw error;
+    const next = {}, nextKo = {};
+    for(const r of (data || [])){
+      next[r.head] = r.members || [];
+      nextKo[r.head] = r.ko_aliases || [];
+    }
+    CLUSTERS = next; CLUSTERS_KO = nextKo;
+    rebuildTagIndex();
+  } catch(e){
+    console.warn('tag_clusters 로드 실패 — 사전 없이 동작:', e?.message || e);
+    CLUSTERS = {}; CLUSTERS_KO = {}; rebuildTagIndex();
+  }
+}
 
 const inTag = s => {
   if(!tagFilter) return true;
@@ -1518,6 +1503,50 @@ function openClusterModal(head){
     </div>`;
   }).join('') : '<div class="empty" style="padding:24px 0">2개 이상 매칭되는 카드가 아직 없어요</div>';
 
+  /* ── 다른 카테고리에서 이 클러스터 태그를 공유하는 관련 트렌드 ── */
+  /* 현재 탭이 아닌 다른 카테고리 카드 중, 이 클러스터 태그가 하나라도 있는 것들 수집.
+     사진 없이 제목·매칭 태그·링크만 카테고리별로 그룹핑해서 표시. */
+  const otherPool = [...NEWS_SIG, ...SB_NEWS, ...SB_LIFESTYLE, ...SB_SNS].filter(s => {
+    if(s.category === scatF) return false;                      /* 현재 카테고리는 제외 */
+    if(scatF === 'lifestyle' && s.category === 'lifestyle') return false;
+    return inMonth(s);
+  });
+  const relatedByCat = {};
+  for(const it of otherPool){
+    const matched = (it.tags || []).filter(t => memberSet.has(t));
+    if(!matched.length) continue;
+    const cat = it.category || 'etc';
+    (relatedByCat[cat] ||= []).push({ it, matched });
+  }
+  /* 각 카테고리 안에서는 매칭 태그 많은 순 → 최신순 */
+  for(const cat in relatedByCat){
+    relatedByCat[cat].sort((a,b) => b.matched.length - a.matched.length
+      || (b.it.ym || '0').localeCompare(a.it.ym || '0'));
+  }
+  const catOrder = Object.keys(relatedByCat).sort((a,b) => (CAT_LABEL[a] || a).localeCompare(CAT_LABEL[b] || b, 'ko'));
+  const relatedHTML = catOrder.length ? `
+    <div class="cmRelSec">
+      <div class="cmRelHead">다른 카테고리 관련 트렌드</div>
+      <div class="cmRelSub">이 클러스터 태그가 걸린 다른 카테고리 카드들 (사진 없이 제목·링크만)</div>
+      <div class="cmRelGroups">${catOrder.map(cat => `
+        <div class="cmRelGroup">
+          <div class="cmRelCat">${esc(CAT_LABEL[cat] || cat)}</div>
+          <ul class="cmRelList">
+            ${relatedByCat[cat].map(({it, matched}) => {
+              const title = it.note || it.keyword || (it.keywords && it.keywords[0]) || '(제목 없음)';
+              const tagStr = matched.map(t => `#${t}`).join(' ');
+              return `<li>
+                ${it.url
+                  ? `<a href="${esc(it.url)}" target="_blank" rel="noopener">${esc(title)}</a>`
+                  : `<span>${esc(title)}</span>`}
+                <span class="cmRelTags">${esc(tagStr)}</span>
+              </li>`;
+            }).join('')}
+          </ul>
+        </div>`).join('')}
+      </div>
+    </div>` : '';
+
   const html = `<div class="cmOverlay">
     <div class="cmBox">
       <button class="cmClose" aria-label="닫기">×</button>
@@ -1525,6 +1554,7 @@ function openClusterModal(head){
       <div class="cmSub">이 클러스터의 유사 키워드 · 매칭 태그 2개 이상인 카드를 겹침 많은 순으로 표시</div>
       <div class="cmChips">${chips}</div>
       <div class="cmGrid">${cardsHTML}</div>
+      ${relatedHTML}
     </div>
   </div>`;
   const wrap = document.createElement('div');
@@ -1569,7 +1599,7 @@ async function loadAliases(){
 
 load();
 renderStatic();
-loadTrendSignals();
+loadTagClusters().then(() => loadTrendSignals());
 loadAliases();
 // loadSnsSheet();  // SNS 데이터 일단 비활성화 — 다시 켜려면 이 줄 주석 해제
 </script>

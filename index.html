@@ -31,27 +31,21 @@ header h1{font-family:'Playfair Display',serif; font-size:22px}
 .kwfbar button.on{background:var(--ink); color:#fff; border-color:var(--ink)}
 /* 표가 좁아지면 칸 안 글자가 세로로 눌리므로, 최소 너비를 주고 가로 스크롤로 처리 */
 .kwtablewrap{background:#fff; border:1px solid var(--hair); border-radius:10px; overflow-x:auto; margin-top:12px}
-.kwtablewrap table{width:100%; min-width:1120px; border-collapse:collapse; table-layout:fixed}
-/* 열 너비 — 1 키워드(나머지 전부) / 2 카테고리 / 3 소스 / 4 해시태그 / 5 등장월 / 6 검색량 / 7 변화 */
-.kwtablewrap th:nth-child(1), .kwtablewrap td:nth-child(1){width:auto; min-width:260px}
-.kwtablewrap th:nth-child(2), .kwtablewrap td:nth-child(2){width:110px}
-.kwtablewrap th:nth-child(3), .kwtablewrap td:nth-child(3){width:120px}
-.kwtablewrap th:nth-child(4), .kwtablewrap td:nth-child(4){width:230px}
-.kwtablewrap th:nth-child(5), .kwtablewrap td:nth-child(5){width:130px}
+.kwtablewrap table{width:100%; min-width:960px; border-collapse:collapse; table-layout:fixed}
+/* 새 컬럼 — 1 해시태그 / 2 한국어 / 3 대표 클러스터 / 4 카테고리 / 5 사용 건수 / 6 검색량 / 7 변화 */
+.kwtablewrap th:nth-child(1), .kwtablewrap td:nth-child(1){width:180px}
+.kwtablewrap th:nth-child(2), .kwtablewrap td:nth-child(2){width:200px}
+.kwtablewrap th:nth-child(3), .kwtablewrap td:nth-child(3){width:130px}
+.kwtablewrap th:nth-child(4), .kwtablewrap td:nth-child(4){width:auto; min-width:130px}
+.kwtablewrap th:nth-child(5), .kwtablewrap td:nth-child(5){width:100px}
 .kwtablewrap th:nth-child(6), .kwtablewrap td:nth-child(6){width:130px}
 .kwtablewrap th:nth-child(7), .kwtablewrap td:nth-child(7){width:90px}
 /* 칸 안에서 글자가 세로로 쪼개지지 않게 */
 .kwtablewrap th{white-space:nowrap}
-.kwtablewrap td:nth-child(3), .kwtablewrap td:nth-child(5),
-.kwtablewrap td:nth-child(6), .kwtablewrap td:nth-child(7){white-space:nowrap}
-.kwtablewrap th, .kwtablewrap td{white-space:nowrap}
-.kwtablewrap td:nth-child(1){white-space:normal}
+.kwtablewrap td:nth-child(5), .kwtablewrap td:nth-child(6), .kwtablewrap td:nth-child(7){white-space:nowrap}
+.kwtablewrap td:nth-child(1) b{display:block; font-family:'Cormorant Garamond', serif; font-size:15px; font-weight:600}
+.kwtablewrap td:nth-child(2){white-space:normal}
 .kwtablewrap td:nth-child(4){white-space:normal}
-.kwtablewrap td:nth-child(4) .pillb2{display:inline-block; white-space:nowrap; margin:1px 2px 1px 0}
-.kwtablewrap .srcbadge2{display:inline-block; white-space:nowrap}
-.kwtablewrap td:nth-child(1){overflow:hidden}
-.kwtablewrap td:nth-child(1) b{display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
-.kwtablewrap td:nth-child(1) .mini{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 .kwtablewrap th{font-size:9px; letter-spacing:.12em; color:var(--sub); text-align:left; padding:10px 12px;
   border-bottom:1px solid var(--hair); text-transform:uppercase}
 .kwtablewrap td{padding:10px 12px; border-bottom:1px solid var(--hair); font-size:12px; vertical-align:middle}
@@ -273,8 +267,13 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
     </div>
 
     <div class="kwfbar" id="kwCatBar2"></div>
+    <div class="kwsearch" style="display:flex; gap:8px; align-items:center; margin:8px 0 6px">
+      <input type="search" id="kwQuery" placeholder="해시태그·한국어 검색 (예: retro / 레트로)"
+        style="flex:1; max-width:340px; background:#fff; border:1px solid var(--hair); border-radius:6px; padding:7px 11px; font:inherit">
+      <span class="mini" id="kwQueryCount"></span>
+    </div>
     <div class="kwtablewrap"><table>
-      <thead><tr><th>Keyword</th><th>Category</th><th>Source</th><th>해시태그</th><th>등장 월</th><th>검색량 추이</th><th>변화</th></tr></thead>
+      <thead><tr><th>해시태그</th><th>한국어</th><th>대표 클러스터</th><th>카테고리</th><th>사용 건수</th><th>검색량 추이</th><th>변화</th></tr></thead>
       <tbody id="kwBody2"></tbody>
     </table></div>
   </div>
@@ -809,46 +808,44 @@ const KW_CATLABEL_FALLBACK = {
 
 async function buildKwTable2(){
   try{
-    const [sig, ali] = await Promise.all([
+    const [sig, tc] = await Promise.all([
       sb.from('trend_signals').select('*').order('created_at', { ascending:false }),
-      sb.from('keyword_aliases').select('alias,canonical')
+      sb.from('tag_clusters').select('head, members, ko_aliases')
     ]);
     if(sig.error){ console.warn('trend_signals 로드 실패:', sig.error.message); return; }
 
-    /* 별칭 — 표기가 다른 키워드를 대표 이름으로 합침 */
-    const norm = v => String(v || '').toLowerCase().replace(/[\s\-_/+,.'"]/g, '');
-    const aliasMap = Object.fromEntries((ali.data || []).map(r => [norm(r.alias), r.canonical]));
-    const canon = raw => aliasMap[norm(raw)] || raw;
+    /* 클러스터 사전: 유사 태그 → 대표, 대표 → 한국어 별칭 배열 */
+    const TAG_TO_HEAD = {}, HEAD_TO_KO = {};
+    for(const r of (tc.data || [])){
+      HEAD_TO_KO[r.head] = r.ko_aliases || [];
+      TAG_TO_HEAD[r.head] = r.head;   /* 대표는 자기 자신을 가리킴 */
+      for(const m of (r.members || [])){ if(!(m in TAG_TO_HEAD)) TAG_TO_HEAD[m] = r.head; }
+    }
 
-    /* 카테고리 라벨 — 한글 카테고리는 그대로, 영문 코드면 한글로 */
+    /* 카테고리 라벨 */
     const CAT_LABEL = { ...KW_CATLABEL_FALLBACK };
     const catsSet = new Set();
 
-    const map = new Map();
+    /* 태그별로 집계: 태그 하나 = 표 한 행 */
+    const map = new Map();   /* key: 태그 문자열 → { label, ko, head, cats, count, sourceCounts } */
     for(const r of (sig.data || [])){
-      if(!r.keyword) continue;
-      const label = canon(r.keyword);
-      const key = norm(label);
+      const tags = r.tags || [];
       const cat = r.category || '기타';
       catsSet.add(cat);
-      const src = r.source_type === 'sns' ? 'SNS'
-                : r.source_type === 'lifestyle' ? '라이프스타일' : '뉴스레터';
-      const badge = r.source_type === 'sns' ? 'SNS' : 'NEWS';
-      if(!map.has(key)){
-        map.set(key, { label, cats:[], source:src, badge, note:r.note || '',
-          count:0, tags:new Set(), months:new Set() });
+      for(const t of tags){
+        if(!map.has(t)){
+          const head = TAG_TO_HEAD[t] || null;
+          const ko = head ? (HEAD_TO_KO[head] || []) : [];
+          map.set(t, { label: t, ko, head, cats: [], count: 0 });
+        }
+        const e = map.get(t);
+        e.count++;
+        if(!e.cats.includes(cat)) e.cats.push(cat);
       }
-      const e = map.get(key);
-      e.count++;
-      if(!e.cats.includes(cat)) e.cats.push(cat);
-      if(!e.note && r.note) e.note = r.note;
-      for(const t of (r.tags || [])) e.tags.add(t);
-      if(r.sheet_month) e.months.add(r.sheet_month);
     }
 
-    const rows = [...map.values()]
-      .map(e => ({ ...e, tags:[...e.tags], months:[...e.months].sort() }))
-      .sort((a,b) => b.count - a.count || a.label.localeCompare(b.label));
+    /* 사전순 정렬 (영문 A→Z, 한글 ㄱ→ㅎ 모두 localeCompare로) */
+    const rows = [...map.values()].sort((a, b) => a.label.localeCompare(b.label, 'en'));
 
     window.KW_ROWS2 = rows;
     window.KW_CATLABEL2 = CAT_LABEL;
@@ -902,30 +899,74 @@ function drawKwCatBar2(CATS){
   };
 }
 
+let kwQuery2 = '';   /* 트렌드 키워드 탭 검색어 */
+
 function drawKwBody2(){
   const CAT_LABEL = window.KW_CATLABEL2 || {};
   const volmap = window.KW_VOLMAP || {};
-  const rows = (window.KW_ROWS2 || []).filter(r => kwCatF2 === '전체' || r.cats.includes(kwCatF2));
+  const q = kwQuery2.trim().toLowerCase().replace(/^#/, '');
+  const rows = (window.KW_ROWS2 || []).filter(r => {
+    if(kwCatF2 !== '전체' && !r.cats.includes(kwCatF2)) return false;
+    if(!q) return true;
+    /* 검색어 매칭: 태그 이름 / 대표 클러스터 / 한국어 별칭 중 하나라도 부분 매치 */
+    if(r.label.toLowerCase().includes(q)) return true;
+    if(r.head && r.head.toLowerCase().includes(q)) return true;
+    if((r.ko || []).some(k => k.toLowerCase().includes(q))) return true;
+    return false;
+  });
+
+  $('#kwQueryCount').textContent = q
+    ? `${rows.length}개 매치`
+    : `총 ${(window.KW_ROWS2 || []).length}개 태그`;
+
   $('#kwBody2').innerHTML = rows.length ? rows.map(r => {
     const pts = volmap[r.label];
     const spark = pts ? sparklineSVG(pts) : '';
     const pct = pts ? changePct(pts) : null;
     const pctHtml = pct == null ? '<span class="mini">준비중</span>'
       : `<span style="color:${pct>=0?'#1a7a4a':'#c8451f'};font-weight:700;font-size:11px">${pct>=0?'▲':'▼'} ${Math.abs(pct)}%</span>`;
-    const tags = (r.tags || []).slice(0, 3).map(t => `<span class="pillb2">#${esc(t)}</span>`).join(' ');
-    const months = (r.months || []).map(m => m.replace('-', '.')).join(', ');
-    const cnt = r.count > 1 ? `<span style="color:#c8451f;font-weight:800">🔥 ${r.count}건</span> ` : '';
-    return `<tr class="${SELECTED_KW.includes(r.label)?'kwsel':''}" data-kw="${esc(r.label)}">
-      <td><b>${esc(r.label)}</b><div class="mini">${cnt}${esc(r.note).slice(0,70)}${r.note.length>70?'…':''}</div></td>
-      <td>${r.cats.map(c => esc(CAT_LABEL[c]||c)).join(', ')}</td>
-      <td><span class="srcbadge2 ${r.badge}">${esc(r.source)}</span></td>
-      <td>${tags || '<span class="mini">-</span>'}</td>
-      <td><span class="mini">${esc(months) || '-'}</span></td>
+    const koStr = (r.ko || []).join(', ');
+    const headBadge = r.head
+      ? (r.head === r.label
+          ? '<span class="mini" style="color:#c8451f;font-weight:700">대표</span>'
+          : `<span class="pillb2">#${esc(r.head)}</span>`)
+      : '<span class="mini">-</span>';
+    const cats = r.cats.map(c => esc(CAT_LABEL[c] || c)).join(', ');
+    const cnt = r.count > 1
+      ? `<span style="color:#c8451f;font-weight:800">🔥 ${r.count}</span>`
+      : `${r.count}`;
+    return `<tr class="${SELECTED_KW.includes(r.label) ? 'kwsel' : ''}" data-kw="${esc(r.label)}">
+      <td><b>#${esc(r.label)}</b></td>
+      <td>${koStr ? esc(koStr) : '<span class="mini">-</span>'}</td>
+      <td>${headBadge}</td>
+      <td><span class="mini">${cats || '-'}</span></td>
+      <td>${cnt}</td>
       <td>${spark || '<span class="mini">준비중</span>'}</td>
       <td>${pctHtml}</td>
     </tr>`;
-  }).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--sub);padding:24px">해당 카테고리 키워드가 없습니다</td></tr>';
+  }).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--sub);padding:24px">해당 조건의 해시태그가 없습니다</td></tr>';
 }
+
+/* 검색창 이벤트 */
+let _kwQTimer = null;
+document.addEventListener('DOMContentLoaded', () => {
+  const inp = document.getElementById('kwQuery');
+  if(inp) inp.addEventListener('input', () => {
+    clearTimeout(_kwQTimer);
+    _kwQTimer = setTimeout(() => { kwQuery2 = inp.value; drawKwBody2(); }, 150);
+  });
+});
+/* 이미 DOMContentLoaded 지났으면 즉시 바인딩 */
+setTimeout(() => {
+  const inp = document.getElementById('kwQuery');
+  if(inp && !inp._bound){
+    inp._bound = true;
+    inp.addEventListener('input', () => {
+      clearTimeout(_kwQTimer);
+      _kwQTimer = setTimeout(() => { kwQuery2 = inp.value; drawKwBody2(); }, 150);
+    });
+  }
+}, 0);
 
 /* ── 네이버 데이터랩 검색량 그래프 — 표에서 키워드 클릭하면 최대 5개까지 비교 ── */
 let SELECTED_KW = [];
