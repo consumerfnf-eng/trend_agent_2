@@ -27,6 +27,18 @@ header h1 em{font-style:normal; color:var(--rising)}
 .who{margin-left:auto; font-size:11px; color:var(--sub); display:flex; align-items:center; gap:10px}
 main{max-width:1180px; margin:0 auto; padding:22px 24px 90px}
 .view{display:none} .view.on{display:block}
+/* 등록 관리 목록 — 전역 input{width:100%} 때문에 체크박스가 폭을 다 먹지 않도록 */
+.mgRow{display:grid; grid-template-columns:20px 46px 1fr auto; gap:12px; align-items:start;
+  padding:11px 14px; border:1px solid var(--hair); border-radius:10px; margin-bottom:7px;
+  background:#fff; cursor:pointer}
+.mgRow.on{background:#fdf3ef; border-color:#f1d9cf}
+.mgRow input[type=checkbox]{width:16px !important; height:16px; margin:3px 0 0; padding:0; flex:none}
+.mgRow img{width:46px; height:60px; object-fit:cover; border-radius:6px; background:#efeae1; display:block}
+.mgRow .mgTitle{font-weight:800; font-size:13px; line-height:1.35; word-break:keep-all}
+.mgRow .mgMeta{font-size:11px; color:var(--sub); margin-top:3px}
+.mgRow .mgNote{font-size:11px; color:var(--sub); opacity:.85; margin-top:4px; line-height:1.5}
+.mgRow .mgBrands{font-size:11px; color:var(--accent); margin-top:4px}
+.mgRow .mgLink{font-size:11px; color:var(--sub); white-space:nowrap; text-decoration:none}
 h2.sec{font-family:'Playfair Display',serif; font-size:24px; border-bottom:1px solid var(--ink);
   padding-bottom:7px; margin:0 0 16px}
 h2.sec span{font-family:'Noto Sans KR'; font-size:12px; color:var(--sub); font-weight:400}
@@ -223,7 +235,7 @@ tbody tr:hover{background:#fdfcf9}
             border:1px solid var(--hair); border-radius:20px; padding:5px 13px; font-size:11px;
             font-weight:800; letter-spacing:.03em; margin-right:14px; background:#fff">← 대시보드</a>
   <h1>TREND <em>AGENT</em></h1>
-  <span class="mini" id="verStamp" style="margin-left:8px;opacity:.55">v260806-01</span>
+  <span class="mini" id="verStamp" style="margin-left:8px;opacity:.55">v260806-02</span>
   <div class="tabs" id="tabs">
     <button data-v="intake" class="on">업로드</button>
     <button data-v="manage">등록 관리</button>
@@ -4064,20 +4076,19 @@ function drawManage(){
   const rows = mgFiltered();
   const TYPE = { news:'패션', lifestyle:'라이프', sns:'SNS' };
   $('#mgList').innerHTML = rows.length ? rows.map(r => `
-    <label style="display:flex; gap:10px; align-items:flex-start; padding:10px 12px; border:1px solid var(--hair);
-      border-radius:10px; margin-bottom:6px; background:${MG_SEL.has(r.id) ? '#fdf3ef' : 'var(--card)'}; cursor:pointer">
-      <input type="checkbox" data-id="${r.id}" ${MG_SEL.has(r.id) ? 'checked' : ''} style="margin-top:3px">
-      ${r.image_url ? `<img src="${r.image_url}" style="width:46px;height:60px;object-fit:cover;border-radius:6px;background:#efeae1" loading="lazy">` : ''}
-      <div style="flex:1; min-width:0">
-        <div style="font-weight:800; font-size:13px">${r.keyword || '(키워드 없음)'}</div>
-        <div class="mini" style="margin-top:2px">
-          ${TYPE[r.source_type] || r.source_type || '-'} · ${r.category || '-'} · ${r.sheet_month || '-'} · ${r.source || '-'} · ${r.author || '-'}
-        </div>
-        <div class="mini" style="margin-top:3px; opacity:.85">${(r.note || '').slice(0, 90)}${(r.note||'').length > 90 ? '…' : ''}</div>
-        ${(r.brands||[]).length ? `<div class="mini" style="margin-top:3px;color:#c8451f">${r.brands.join(' · ')}</div>` : ''}
+    <div class="mgRow${MG_SEL.has(r.id) ? ' on' : ''}" data-row="${r.id}">
+      <input type="checkbox" data-id="${r.id}" ${MG_SEL.has(r.id) ? 'checked' : ''}>
+      ${r.image_url
+        ? `<img src="${r.image_url}" loading="lazy" referrerpolicy="no-referrer">`
+        : '<div style="width:46px;height:60px;border-radius:6px;background:#efeae1"></div>'}
+      <div style="min-width:0">
+        <div class="mgTitle">${esc(r.keyword || '(키워드 없음)')}</div>
+        <div class="mgMeta">${esc(TYPE[r.source_type] || r.source_type || '-')} · ${esc(r.category || '-')} · ${esc(r.sheet_month || '-')} · ${esc(r.source || '-')} · ${esc(r.author || '-')}</div>
+        ${r.note ? `<div class="mgNote">${esc(String(r.note).slice(0, 110))}${String(r.note).length > 110 ? '…' : ''}</div>` : ''}
+        ${(r.brands||[]).length ? `<div class="mgBrands">${esc(r.brands.join(' · '))}</div>` : ''}
       </div>
-      ${r.url ? `<a href="${r.url}" target="_blank" rel="noopener" class="mini" style="white-space:nowrap">원문 ↗</a>` : ''}
-    </label>`).join('')
+      ${r.url ? `<a href="${esc(r.url)}" target="_blank" rel="noopener" class="mgLink">원문 ↗</a>` : '<span></span>'}
+    </div>`).join('')
     : '<div class="mini" style="padding:20px">조건에 맞는 항목이 없습니다</div>';
   $('#mgCount').textContent = `${MG_SEL.size}개 선택 · 전체 ${rows.length}개`;
   $('#mgDelete').disabled = MG_SEL.size === 0;
@@ -4087,6 +4098,14 @@ $('#mgList')?.addEventListener('change', e => {
   const c = e.target.closest('input[data-id]'); if(!c) return;
   const id = Number(c.dataset.id);
   if(c.checked) MG_SEL.add(id); else MG_SEL.delete(id);
+  drawManage();
+});
+/* 행 아무 곳이나 눌러도 선택 토글 (원문 링크·체크박스 클릭은 제외) */
+$('#mgList')?.addEventListener('click', e => {
+  if(e.target.closest('a') || e.target.matches('input[type=checkbox]')) return;
+  const row = e.target.closest('.mgRow'); if(!row) return;
+  const id = Number(row.dataset.row);
+  if(MG_SEL.has(id)) MG_SEL.delete(id); else MG_SEL.add(id);
   drawManage();
 });
 $('#mgType')?.addEventListener('change', drawManage);
