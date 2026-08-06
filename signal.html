@@ -144,6 +144,37 @@ tr.krow{cursor:pointer} tr.krow:hover{background:#faf6ec}
   display:flex; align-items:center; justify-content:center; text-align:center; padding:0 14px;
   font-size:10px; font-weight:600; color:#a99f90; line-height:1.5}
 .bubble .fire{font-size:19px; line-height:1; margin-bottom:1px}
+.bubble .bubbleMore{position:absolute; bottom:-6px; right:-6px; width:22px; height:22px;
+  background:#fff; border:1px solid var(--hair); border-radius:50%; font-size:12px; line-height:1;
+  color:var(--sub); cursor:pointer; padding:0; display:flex; align-items:center; justify-content:center;
+  opacity:.75; transition:opacity .15s, background .15s, color .15s; z-index:2}
+.bubble .bubbleMore:hover{opacity:1; background:var(--tx); color:#fff; border-color:var(--tx)}
+/* 클러스터 상세 모달 */
+.cmOverlay{position:fixed; inset:0; background:rgba(28,26,22,.55); z-index:1000; overflow:auto;
+  padding:40px 20px; display:flex; align-items:flex-start; justify-content:center}
+.cmBox{background:#fff; max-width:1100px; width:100%; border-radius:14px; padding:28px 28px 32px;
+  position:relative; box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.cmClose{position:absolute; top:14px; right:14px; width:32px; height:32px; border:none; background:transparent;
+  font-size:22px; cursor:pointer; color:var(--sub); border-radius:50%; line-height:1}
+.cmClose:hover{background:#f4efe6; color:var(--tx)}
+.cmHead{font-family:'Cormorant Garamond', serif; font-size:38px; font-weight:600; color:var(--tx); margin-bottom:4px}
+.cmSub{font-size:12px; color:var(--sub); margin-bottom:14px}
+.cmChips{display:flex; flex-wrap:wrap; gap:6px; padding-bottom:18px; border-bottom:1px solid var(--hair); margin-bottom:20px}
+.cmChip{font-size:11px; font-weight:600; padding:3px 10px; border-radius:20px; background:#f4efe6; color:var(--tx)}
+.cmChip.head{background:var(--tx); color:#fff}
+.cmChipMini{font-size:10px; padding:1px 7px; border-radius:20px; background:#f4efe6; color:var(--sub); margin-right:3px; display:inline-block; margin-bottom:2px}
+.cmGrid{display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:14px}
+@media (max-width:900px){ .cmGrid{grid-template-columns:repeat(3, minmax(0, 1fr))} }
+@media (max-width:640px){ .cmGrid{grid-template-columns:repeat(2, minmax(0, 1fr))} }
+.cmCard{background:var(--card,#fff); border:1px solid var(--hair); border-radius:10px; overflow:hidden; display:flex; flex-direction:column}
+.cmCard img{width:100%; aspect-ratio:1; object-fit:cover; display:block}
+.cmCardBody{padding:12px}
+.cmMatchBadge{display:inline-block; font-size:10px; font-weight:700; color:var(--acc); background:#fdf3ef; padding:2px 7px; border-radius:9px; margin-bottom:6px}
+.cmCardTitle{font-weight:700; font-size:13px; margin-bottom:5px; line-height:1.35}
+.cmCardText{font-size:11px; color:var(--sub); line-height:1.5; margin-bottom:8px}
+.cmCardTags{display:flex; flex-wrap:wrap; gap:3px; margin-bottom:8px}
+.cmCardLink{font-size:11px; font-weight:600; color:var(--acc); text-decoration:none}
+.cmCardLink:hover{text-decoration:underline}
 .kwcard .grouplist{margin-left:4px; padding-left:11px; border-left:2px solid var(--acc);
   display:flex; flex-direction:column; gap:9px}
 .kwcard .groupitem{position:relative}
@@ -175,6 +206,9 @@ tr.krow{cursor:pointer} tr.krow:hover{background:#faf6ec}
   background:#f2efe9; border:1px solid #e2ddd3; color:#6b6357; cursor:pointer; white-space:nowrap}
 .kwcard .tagchip:hover{background:var(--acc); border-color:var(--acc); color:#fff}
 .kwcard .tagchip.on{background:var(--acc); border-color:var(--acc); color:#fff}
+.kwcard .tagedit{font-size:10px; font-weight:700; padding:2px 6px; border-radius:20px;
+  background:transparent; border:1px dashed var(--hair); color:var(--sub); cursor:pointer; opacity:.55; transition:opacity .15s}
+.kwcard .tagedit:hover{opacity:1; color:var(--tx); border-color:var(--tx)}
 .kwcard .relbadge{display:block; width:100%; margin-top:6px; background:#fdf3ef; border:1px solid #f1d9cf; color:var(--acc);
   font-size:10px; font-weight:700; padding:5px 8px; border-radius:8px; cursor:pointer; text-align:left; font-family:inherit;
   box-sizing:border-box; white-space:normal; overflow-wrap:anywhere; word-break:break-word; line-height:1.35}
@@ -754,7 +788,81 @@ function buildMonthOptions(){
 /* 선택한 월 범위(monthStart~monthEnd)에 해당하는 항목만 통과. 발행월 정보가 없는 정적 데이터는 항상 통과 */
 const inMonth = s => !s.ym || (s.ym >= monthStart && s.ym <= monthEnd);
 /* 선택한 해시태그가 있으면 그 태그가 달린 항목만 통과 */
-const inTag = s => !tagFilter || (s.tags || []).includes(tagFilter);
+/* ── 태그 클러스터 사전 ─────────────────────────────────────
+   대표 키워드 → 그 밑에 묶이는 유사 키워드들. 태그 정리는 시트에서 하고,
+   대시보드에서는 이 사전으로 "비슷한 것끼리" 하나의 버블로 묶어서 보여준다.
+   유사 태그만 있는 카드도 대표 버블로 딸려 나오게 됨(inTag 참조). */
+const CLUSTERS = {
+  /* 무드/코어 */
+  'retro':       ['nostalgic','y2k','vintage','2000s','revival','90s','retro-runner','retro-sports','retro-blouson','vintage-sports','y2k-blouson','y2k-shorts','anti-quiet-luxury'],
+  'elegant':     ['feminine','luxe','soft','soft-pearl','quiet-luxury','luxury-styling','luxury-sneaker','luxury-collab'],
+  'effortless':  ['nonchalant','slackercore','slacker','worn-in','casual','comfort','natural-mood','loose-fit'],
+  'sportcore':   ['athletic','sports-prep','preppy','retro-sports','track-shorts','track-pants','track-suit','fitted-track-top'],
+  'balletcore':  ['ballet-flat','ribbon','feminine','mary-jane','mary-jane-sneaker'],
+  'playful':     ['whimsical','whimsycore','quirky','bold','pop-color','vivid','mismatch','unexpected'],
+  'sensual':     ['edgy','intimate','experimental','underwear-as-outerwear','see-through','sheer','transparent'],
+  'wellness':    ['recovery','self-care','sauna','cold-plunge','bathhouse','sleep-maxxing','spa-inspired','biohacking','hrv','wearable-tech','easywear','easyware'],
+  'technical':   ['technical-runner','technical-sneaker','techwear','futuristic','futuristic-sole','high-tech','k-tech','ultra-light','metallic'],
+  'outdoor':     ['gorpcore','goretex','trail-runner'],
+  'minimal':     ['neutral','beige','earth-tone','tonal','low-profile','quiet-luxury','clean'],
+  'cozy':        ['homey','homescape','knit','woven','sweater-tee','layered'],
+
+  /* 컬러 */
+  'red':         ['bright-red','summer-red','red-bag','pop-color','accent'],
+  'blue':        ['aqua-blue','sea-blue','fresh'],
+  'brown':       ['beige','earth-tone','neutral','tonal'],
+  'silver':      ['metallic'],
+
+  /* 소재 */
+  'leather':     ['suede'],
+  'translucent': ['jelly','transparent','sheer','see-through','pvc','mesh'],
+  'faded':       ['washed','worn-in'],
+  'satin':       [],
+  'denim':       ['low-rise','baggy','relaxed'],
+
+  /* 아이템/실루엣 */
+  'sneakers':    ['low-profile','dunk-shape','football-shape','snoafer','loafer-sneaker','mary-jane-sneaker','technical-runner','technical-sneaker','trail-runner','lifestyle-runner','luxury-sneaker','air-rift','shox','samba','laceless','slip-on','sneaker-heel','retro-runner'],
+  'mary-jane':   ['ballet-flat','mary-jane-sneaker','ribbon'],
+  'loafer':      ['summer-loafer','lace-up','snoafer','loafer-sneaker'],
+  'mule':        ['slip-on'],
+  'flip-flop':   ['socks-styling'],
+  'coat':        ['bubble-hem','sculptural','volume','high-collar','funnel-neck','funnel-neck-jacket'],
+  'jacket':      ['micro-jacket','retro-blouson','y2k-blouson','jacket-trend','fitted-track-top','track-suit','shrunk'],
+  'cargo':       ['bermuda','bermuda-length','capri','long-shorts','utility'],
+  'oversized':   ['baggy','loose-fit','anti-bodycon'],
+  'graphic-tee': ['raglan-tee','sweater-tee','personality-piece'],
+  'hair-accessory':['hairband','headband','bandana','ribbon'],
+  'eyewear':     ['oversized-sunglasses','bug-eye'],
+
+  /* 무브먼트/시그널 */
+  'celebrity-style':['celebrity-collab','jennie','dua-lipa','bad-bunny','styling-formula','kendall-jenner'],
+  'search-surge':['trend-forecast','retail-forecast','macro-trend','micro-trend','pinterest-trend','consumer-shift','trendalytics','proportion-shift','2026-in-out'],
+  'runway':      ['runway-trend','menswear','womenswear'],
+  'hybrid':      ['snoafer','loafer-sneaker','mary-jane-sneaker'],
+  'gen-z':       ['text-hip','intellectual','book-club','library'],
+};
+
+/* 유사 태그 → 대표 태그로 역인덱스 (한 유사 태그가 여러 대표에 속할 수 있으면 첫 번째 대표만 사용) */
+const TAG_TO_HEAD = (() => {
+  const m = {};
+  for(const [head, arr] of Object.entries(CLUSTERS)){
+    for(const t of arr){ if(!(t in m)) m[t] = head; }
+  }
+  return m;
+})();
+
+const inTag = s => {
+  if(!tagFilter) return true;
+  const tags = s.tags || [];
+  /* 클러스터 필터: 대표 키워드가 선택됐으면 대표 + 유사 태그 중 하나라도 카드에 있으면 통과 */
+  const cluster = CLUSTERS[tagFilter];
+  if(cluster){
+    if(tags.includes(tagFilter)) return true;
+    return cluster.some(t => tags.includes(t));
+  }
+  /* 일반(클러스터 아닌) 태그는 예전처럼 정확 일치 */
+  return tags.includes(tagFilter);
+};
 /* 화면에 실제로 그릴지 판단하는 최종 필터 */
 const visible = s => inMonth(s) && inTag(s);
 
@@ -766,16 +874,16 @@ async function loadTrendSignals(){
     for(const r of (data || [])){
       if(!r.keyword) continue;
       if(r.source_type === 'news'){
-        SB_NEWS.push({ url: r.url, note: r.keyword, category: REV_CAT_LABEL[r.category] || r.category || 'etc',
+        SB_NEWS.push({ id: r.id, url: r.url, note: r.keyword, category: REV_CAT_LABEL[r.category] || r.category || 'etc',
           keywords: [r.keyword], summary: r.note || '', image_url: r.image_url, stage: 'early',
           source: r.source, region: r.region, author: r.author, tags: r.tags || [], ym: ymOf(r) });
       } else if(r.source_type === 'lifestyle'){
-        SB_LIFESTYLE.push({ url: r.url, note: r.keyword, category: 'lifestyle',
+        SB_LIFESTYLE.push({ id: r.id, url: r.url, note: r.keyword, category: 'lifestyle',
           keywords: [r.keyword], summary: r.note || '', image_url: r.image_url, stage: 'early',
           related: r.related || null, related_keyword: r.related_keyword || '', related_note: r.related_note || '',
           source: r.source, region: r.region, author: r.author, tags: r.tags || [], ym: ymOf(r) });
       } else if(r.source_type === 'sns'){
-        SB_SNS.push({ category: REV_CAT_LABEL[r.category] || r.category || 'etc', keyword: r.keyword,
+        SB_SNS.push({ id: r.id, category: REV_CAT_LABEL[r.category] || r.category || 'etc', keyword: r.keyword,
           note: r.note || '', url: r.url, image_url: r.image_url, source: r.source, region: r.region,
           author: r.author, tags: r.tags || [], ym: ymOf(r) });
       }
@@ -801,7 +909,9 @@ function drawCatBar(){
     `<button class="${c===scatF?'on':''}" data-c="${c}">${esc(CAT_LABEL[c]||c)}</button>`).join('');
   $('#catBar').onclick = e => {
     const b = e.target.closest('button'); if(!b) return;
-    scatF = b.dataset.c; drawCatBar(); renderCurrentView();
+    scatF = b.dataset.c;
+    tagFilter = null;   /* 카테고리를 옮기면 태그 필터는 자동 해제 — 새 탭의 모든 카드가 보임 */
+    drawCatBar(); renderCurrentView();
   };
 }
 
@@ -964,11 +1074,12 @@ function itemCardHTML(entry, it){
   const back = backs.map(l =>
     `<button class="relbadge back" data-c="lifestyle" data-kw="${esc(l.life)}">↔ 라이프스타일 '${esc(l.life)}'${l.note ? ` — ${esc(l.note)}` : ''}</button>`).join('');
 
-  /* 이 원문에 달린 해시태그 — 누르면 같은 태그 카드만 필터링 */
+  /* 이 원문에 달린 해시태그 — 누르면 같은 태그 카드만 필터링. 연필 아이콘으로 편집 모드 진입 가능 */
   const itemTags = it.tags || [];
-  const tagRow = itemTags.length
-    ? `<div class="tagrow">${itemTags.map(t =>
-        `<button class="tagchip${tagFilter === t ? ' on' : ''}" data-tag="${esc(t)}">#${esc(t)}</button>`).join('')}</div>`
+  const editBtn = it.id ? `<button class="tagedit" data-id="${esc(it.id)}" title="태그 편집">✎</button>` : '';
+  const tagRow = (itemTags.length || it.id)
+    ? `<div class="tagrow" data-id="${esc(it.id||'')}">${itemTags.map(t =>
+        `<button class="tagchip${tagFilter === t ? ' on' : ''}" data-tag="${esc(t)}">#${esc(t)}</button>`).join('')}${editBtn}</div>`
     : '';
 
   return `<div class="kwcard" data-kwlabel="${esc(entry.label)}">
@@ -1009,38 +1120,65 @@ const BUBBLE_MODE = {};
    월 필터만 적용한 데이터로 따로 계산한다 */
 const TAG_POOL = {};
 
-/* 그 섹션에 달린 해시태그를 빈도순으로 집계 (모든 태그 포함) */
-function aggregateTags(ranked){
-  const map = new Map();
+/* 그 섹션의 카드들을 대표 키워드(클러스터) 기준으로 집계.
+   카드 하나가 여러 클러스터에 매칭될 수 있음(예: y2k+retro-runner → retro 클러스터 1건).
+   같은 카드는 같은 클러스터에 중복 카운트하지 않음. */
+function aggregateClusters(ranked){
+  const clusters = new Map();
+  /* 대표+유사 태그 전체 세트를 대표별로 미리 만들어 둠 */
+  const memberSet = {};
+  for(const [head, arr] of Object.entries(CLUSTERS)){
+    memberSet[head] = new Set([head, ...arr]);
+  }
   for(const e of ranked){
     for(const it of (e.items || [])){
-      for(const t of (it.tags || [])){
-        /* 범용 태그(#컬러 #소재 등)도 버블에 함께 표시한다 */
-        if(!map.has(t)) map.set(t, { label: t, count: 0, kws: new Set() });
-        const v = map.get(t);
-        v.count++; v.kws.add(e.label);
+      const tags = it.tags || [];
+      if(!tags.length) continue;
+      /* 이 카드가 매칭되는 대표 키워드들 */
+      const matched = new Set();
+      for(const [head, mset] of Object.entries(memberSet)){
+        for(const t of tags){ if(mset.has(t)){ matched.add(head); break; } }
+      }
+      /* 클러스터에 안 걸리는 태그(고아 태그)는 자기 자신을 대표로 취급 */
+      for(const t of tags){ if(!(t in TAG_TO_HEAD) && !(t in CLUSTERS)){ matched.add(t); } }
+      for(const t of tags){ if(t in CLUSTERS){ matched.add(t); } }
+      for(const head of matched){
+        if(!clusters.has(head)){
+          clusters.set(head, { label: head, count: 0, items: [], authors: new Set(), members: new Set() });
+        }
+        const v = clusters.get(head);
+        v.count++;
+        v.items.push(it);
+        if(it.author) v.authors.add(it.author);
+        for(const t of tags){ v.members.add(t); }
       }
     }
   }
-  return [...map.values()].sort((a,b) => b.count - a.count || a.label.localeCompare(b.label));
+  return [...clusters.values()].sort((a,b) => b.count - a.count || a.label.localeCompare(b.label));
 }
 
-/* 해시태그 버블 — 크기는 빈도 비례, 누르면 그 태그가 달린 카드만 남음 */
-function tagBubbleHTML(ranked){
-  const top = aggregateTags(ranked).slice(0, 14);
-  if(!top.length) return '<div class="empty" style="padding:10px 0">이 섹션에는 아직 해시태그가 없습니다</div>';
-  const maxVal = Math.max(...top.map(e => e.count), 1);
-  const minD = 40, maxD = 152;
-  return top.map((e,i) => {
-    const d = Math.round(minD + (maxD-minD) * (e.count / maxVal));
-    const isTop = i === 0;
-    const multiAuthor = authorCount(e.items) >= 2;   /* 🔥 조건 — 여러 사람이 같은 키워드를 등록 */
+/* 클러스터 버블 — 크기=카드 수, 🔥는 카드 많은 순 상위에 크기 비례로.
+   각 버블에 "더보기" 버튼이 붙어서 클릭하면 상세 모달이 열림. */
+function tagBubbleHTML(ranked, gridSel){
+  const clusters = aggregateClusters(ranked).slice(0, 14);
+  if(!clusters.length) return '<div class="empty" style="padding:10px 0">이 섹션에는 아직 해시태그가 없습니다</div>';
+  const maxVal = Math.max(...clusters.map(c => c.count), 1);
+  const minD = 44, maxD = 156;
+  /* 🔥는 카드 많은 상위 3개까지, 크기(폰트)도 카드 수에 비례해서 다르게 */
+  return clusters.map((c, i) => {
+    const d = Math.round(minD + (maxD-minD) * (c.count / maxVal));
     const nameSize = d >= 100 ? 15 : d >= 72 ? 13 : d >= 55 ? 11.5 : 10;
-    const on = tagFilter === e.label;
-    return `<div class="bubble${isTop ? ' top' : ''}${on ? ' on' : ''}" style="width:${d}px; height:${d}px"
-      data-tagbubble="${esc(e.label)}" title="키워드 ${e.kws.size}개에 사용됨">
-      <span class="bn" style="font-size:${nameSize}px">#${esc(e.label)}</span>
-      <span class="bc" style="font-size:${nameSize-2}px">${e.count}건</span>
+    const on = tagFilter === c.label;
+    /* 🔥 크기 결정: 카드 수 비율로 3단계 */
+    const ratio = c.count / maxVal;
+    const fireSize = ratio >= 0.85 ? 16 : ratio >= 0.55 ? 13 : ratio >= 0.3 ? 11 : 0;
+    const showFire = i < 3 && fireSize > 0 && c.count >= 2;
+    return `<div class="bubble${i === 0 ? ' top' : ''}${on ? ' on' : ''}" style="width:${d}px; height:${d}px"
+      data-tagbubble="${esc(c.label)}" data-target="${gridSel}" title="${c.count}건 (매칭 태그 ${c.members.size}종)">
+      ${showFire ? `<span class="fire" style="font-size:${fireSize}px" title="카드가 많은 클러스터">🔥</span>` : ''}
+      <span class="bn" style="font-size:${nameSize}px">#${esc(c.label)}</span>
+      <span class="bc" style="font-size:${nameSize-2}px">${c.count}건</span>
+      <button class="bubbleMore" data-cluster="${esc(c.label)}" title="${esc(c.label)} 상세 보기">⋯</button>
     </div>`;
   }).join('');
 }
@@ -1081,7 +1219,7 @@ function renderKwBlock(gridSel, moreBtnSel, moreListSel, cntSel, ranked, example
       <button data-mode="kw"${mode==='kw'?' class="on"':''}>키워드</button>
       <button data-mode="tag"${mode==='tag'?' class="on"':''}>해시태그</button>
     </div>`;
-    const body = mode === 'tag' ? tagBubbleHTML(TAG_POOL[bubbleSel] || ranked) : bubbleHTML(ranked, gridSel, catCtx);
+    const body = mode === 'tag' ? tagBubbleHTML(TAG_POOL[bubbleSel] || ranked, gridSel) : bubbleHTML(ranked, gridSel, catCtx);
     $(bubbleSel).innerHTML = tabs + `<div class="bubbleRow">${body}</div>`;
   }
   const moreBtn = $(moreBtnSel), moreList = $(moreListSel);
@@ -1225,21 +1363,102 @@ document.addEventListener('click', e => {
 /* 해시태그 칩 클릭 → 같은 태그가 달린 항목만 걸러 봄. 같은 칩을 다시 누르면 해제 */
 document.addEventListener('click', e => {
   const t = e.target.closest('.tagchip'); if(!t) return;
+  if(e.target.closest('.tagedit-form')) return;   /* 편집 폼 안 클릭은 필터로 처리 안 함 */
   e.stopPropagation();
   tagFilter = (tagFilter === t.dataset.tag) ? null : t.dataset.tag;
   renderCurrentView();
 });
 
-/* 관련 트렌드 배지(정방향 → / 역방향 ↔) 클릭 → 해당 카테고리로 전환 후 그 키워드 카드로 이동+강조 */
+/* ── 카드에서 해시태그 바로 편집 ─────────────────────────────
+   ✎ 버튼 클릭 → tagrow가 편집 폼(input + 저장/취소)으로 바뀜
+   Enter 또는 저장 클릭 → Supabase trend_signals.tags 를 새 배열로 update
+   Esc 또는 취소 클릭 → 편집 폼을 원래 태그 목록으로 되돌림
+   태그는 콤마로 구분해서 입력, 양 옆 공백은 자동 제거 */
+function _tagsFromInput(v){
+  return (v||'').split(',').map(s => s.trim()).filter(Boolean);
+}
+function _restoreTagRow(id){
+  /* SB_NEWS/SB_LIFESTYLE/SB_SNS에서 이 id의 최신 tags를 찾아 다시 그림 */
+  const found = [...SB_NEWS, ...SB_LIFESTYLE, ...SB_SNS].find(x => String(x.id) === String(id));
+  if(!found) return;
+  const rows = document.querySelectorAll(`.tagrow[data-id="${CSS.escape(String(id))}"]`);
+  rows.forEach(row => {
+    row.innerHTML = (found.tags || []).map(t =>
+      `<button class="tagchip${tagFilter === t ? ' on' : ''}" data-tag="${esc(t)}">#${esc(t)}</button>`).join('')
+      + `<button class="tagedit" data-id="${esc(id)}" title="태그 편집">✎</button>`;
+  });
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('.tagedit'); if(!b) return;
+  e.stopPropagation();
+  const id = b.dataset.id;
+  const row = b.closest('.tagrow'); if(!row) return;
+  const found = [...SB_NEWS, ...SB_LIFESTYLE, ...SB_SNS].find(x => String(x.id) === String(id));
+  const current = (found?.tags || []).join(', ');
+  row.innerHTML = `<form class="tagedit-form" style="display:flex; gap:6px; width:100%">
+    <input type="text" value="${esc(current)}" placeholder="tag1, tag2, tag3" style="flex:1; border:1px solid var(--hair); border-radius:6px; padding:6px 8px; font:inherit">
+    <button type="submit" class="tagedit-save" style="border:none; background:var(--tx); color:#fff; border-radius:6px; padding:6px 10px; cursor:pointer">저장</button>
+    <button type="button" class="tagedit-cancel" style="border:1px solid var(--hair); background:#fff; border-radius:6px; padding:6px 10px; cursor:pointer">취소</button>
+  </form>`;
+  const inp = row.querySelector('input'); inp?.focus(); inp?.select();
+});
+
+document.addEventListener('click', e => {
+  if(e.target.closest('.tagedit-cancel')){
+    e.stopPropagation();
+    const row = e.target.closest('.tagrow'); if(!row) return;
+    _restoreTagRow(row.dataset.id);
+  }
+});
+
+document.addEventListener('keydown', e => {
+  if(e.key !== 'Escape') return;
+  const form = e.target.closest?.('.tagedit-form'); if(!form) return;
+  const row = form.closest('.tagrow'); if(!row) return;
+  _restoreTagRow(row.dataset.id);
+});
+
+document.addEventListener('submit', async e => {
+  const form = e.target.closest('.tagedit-form'); if(!form) return;
+  e.preventDefault();
+  const row = form.closest('.tagrow'); if(!row) return;
+  const id = row.dataset.id;
+  const newTags = _tagsFromInput(form.querySelector('input')?.value);
+  const btn = form.querySelector('.tagedit-save'); if(btn){ btn.disabled = true; btn.textContent = '저장 중…'; }
+  try{
+    const { error } = await sb.from('trend_signals').update({ tags: newTags }).eq('id', id);
+    if(error) throw error;
+    /* 로컬 캐시(SB_NEWS/LIFESTYLE/SNS)도 같이 반영해서 화면·필터·버블이 즉시 새 태그로 동작 */
+    for(const arr of [SB_NEWS, SB_LIFESTYLE, SB_SNS]){
+      const x = arr.find(y => String(y.id) === String(id));
+      if(x) x.tags = newTags;
+    }
+    renderCurrentView();
+  }catch(err){
+    alert('태그 저장 실패: ' + (err.message || err));
+    if(btn){ btn.disabled = false; btn.textContent = '저장'; }
+  }
+});
+
+/* 관련 트렌드 배지(정방향 → / 역방향 ↔) 클릭 → 해당 카테고리로 전환 후 그 키워드 카드로 이동+강조.
+   카테고리를 옮기니 태그 필터도 같이 해제해서 새 탭의 모든 카드가 먼저 보이게 함 */
 document.addEventListener('click', e => {
   const b = e.target.closest('.relbadge'); if(!b) return;
   scatF = b.dataset.c;
+  tagFilter = null;
   drawCatBar(); renderCurrentView();
   setTimeout(() => highlightCardByLabel(b.dataset.kw), 60);
 });
 
 /* 버블 요약 클릭 → 그 키워드의 카드로 스크롤 이동 + 잠깐 강조 */
 document.addEventListener('click', e => {
+  /* 더보기(⋯) 버튼은 버블 클릭과 분리해서 모달 오픈 */
+  const more = e.target.closest('.bubbleMore');
+  if(more){
+    e.stopPropagation();
+    openClusterModal(more.dataset.cluster);
+    return;
+  }
   const b = e.target.closest('.bubble'); if(!b) return;
   /* 해시태그 버블이면 그 태그로 걸러 보기 (같은 버블 다시 누르면 해제) */
   if(b.dataset.tagbubble !== undefined){
@@ -1255,6 +1474,70 @@ document.addEventListener('click', e => {
   card.style.outline = '2px solid var(--tx)';
   card.style.outlineOffset = '-2px';
   setTimeout(() => { card.style.outline = ''; card.style.outlineOffset = ''; }, 1200);
+});
+
+/* ── 클러스터 상세 모달 ─────────────────────────────────────
+   버블의 ⋯ 버튼을 누르면 열림.
+   상단: 대표 키워드 크게 / 유사 키워드 칩 / 카드 목록
+   카드 정렬: 대표+유사 태그와 매칭되는 태그 수가 많은 순, 2개 이상 매칭만 표시 */
+function openClusterModal(head){
+  const cluster = CLUSTERS[head] || [];
+  const memberSet = new Set([head, ...cluster]);
+  /* 현재 화면(현재 카테고리 + 월 필터)에 속한 카드들 대상으로 매칭 */
+  const pool = [...NEWS_SIG, ...SB_NEWS, ...SB_LIFESTYLE, ...SB_SNS].filter(s => {
+    if(s.category !== scatF && scatF !== 'lifestyle') return false;
+    if(scatF === 'lifestyle' && s.category !== 'lifestyle') return false;
+    return inMonth(s);
+  });
+  /* 각 카드마다 매칭 태그 수 계산 (2개 이상만) */
+  const scored = [];
+  for(const it of pool){
+    const tags = it.tags || [];
+    const matched = tags.filter(t => memberSet.has(t));
+    if(matched.length >= 2) scored.push({ it, matched });
+  }
+  scored.sort((a,b) => b.matched.length - a.matched.length
+    || (b.it.ym||'').localeCompare(a.it.ym||''));
+
+  const chips = [head, ...cluster].map(t =>
+    `<span class="cmChip${t === head ? ' head' : ''}">#${esc(t)}</span>`).join('');
+
+  const cardsHTML = scored.length ? scored.map(({it, matched}) => {
+    const title = it.note || it.keyword || (it.keywords && it.keywords[0]) || '';
+    const text = it.summary || '';
+    return `<div class="cmCard">
+      ${it.image_url ? `<img src="${esc(it.image_url)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="imgFail(this)">` : '<div class="imgfail" style="width:100%;aspect-ratio:1"></div>'}
+      <div class="cmCardBody">
+        <div class="cmMatchBadge">매칭 ${matched.length}개</div>
+        <div class="cmCardTitle">${esc(title)}</div>
+        ${text ? `<div class="cmCardText">${esc(text.length > 90 ? text.slice(0,90)+'…' : text)}</div>` : ''}
+        <div class="cmCardTags">${matched.map(t =>
+          `<span class="cmChipMini">#${esc(t)}</span>`).join('')}</div>
+        ${it.url ? `<a class="cmCardLink" href="${esc(it.url)}" target="_blank" rel="noopener">원문 보기 →</a>` : ''}
+      </div>
+    </div>`;
+  }).join('') : '<div class="empty" style="padding:24px 0">2개 이상 매칭되는 카드가 아직 없어요</div>';
+
+  const html = `<div class="cmOverlay">
+    <div class="cmBox">
+      <button class="cmClose" aria-label="닫기">×</button>
+      <div class="cmHead">#${esc(head)}</div>
+      <div class="cmSub">이 클러스터의 유사 키워드 · 매칭 태그 2개 이상인 카드를 겹침 많은 순으로 표시</div>
+      <div class="cmChips">${chips}</div>
+      <div class="cmGrid">${cardsHTML}</div>
+    </div>
+  </div>`;
+  const wrap = document.createElement('div');
+  wrap.innerHTML = html;
+  document.body.appendChild(wrap.firstElementChild);
+}
+document.addEventListener('click', e => {
+  if(e.target.closest('.cmClose') || e.target.classList.contains('cmOverlay')){
+    document.querySelector('.cmOverlay')?.remove();
+  }
+});
+document.addEventListener('keydown', e => {
+  if(e.key === 'Escape') document.querySelector('.cmOverlay')?.remove();
 });
 
 function renderStatic(){
