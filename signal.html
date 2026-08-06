@@ -229,6 +229,9 @@ tr.krow{cursor:pointer} tr.krow:hover{background:#faf6ec}
 .kwcard .groupitem::before{content:''; position:absolute; left:-11px; top:7px; width:7px; height:2px; background:var(--acc)}
 .kwcard .groupitem .gtxt{font-size:10.5px; color:var(--sub); line-height:1.45; margin-bottom:3px}
 .kwcard .groupitem .gmeta{font-size:9px; color:var(--sub); opacity:.8; margin-top:2px}
+.ovPeriod{display:inline-block; vertical-align:middle; margin-left:10px; font-family:'Noto Sans KR', sans-serif;
+  font-size:11px; font-weight:700; letter-spacing:.04em; color:var(--acc);
+  background:#fdf3ef; border:1px solid #f1d9cf; padding:3px 10px; border-radius:20px}
 .bubbleTabs{display:flex; gap:4px; margin:2px 0 8px}
 .bubbleTabs button{font-size:10px; font-weight:800; letter-spacing:.03em; padding:4px 11px; border-radius:20px;
   background:#f2efe9; border:1px solid #e2ddd3; color:#6b6357; cursor:pointer; font-family:inherit}
@@ -284,7 +287,7 @@ a{color:var(--acc)}
 </head>
 <body>
 <header>
-  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260806-02</span></h1>
+  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260806-04</span></h1>
   <a href="index.html" id="backLink" style="font-size:11px;letter-spacing:.12em;font-weight:700;color:var(--acc);text-decoration:none;border:1px solid var(--acc);padding:6px 12px">← DASHBOARD</a>
   <div class="mrange">
     <label>기간</label>
@@ -336,7 +339,7 @@ a{color:var(--acc)}
 
 <script src="config.js"></script>
 <script type="module">
-console.log("TREND AGENT signal.html v260806-02");
+console.log("TREND AGENT signal.html v260806-04");
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ══ 설정 — 다른 파일들과 같은 값 ══ */
@@ -595,9 +598,10 @@ function ovBlock(title, region, note){
 }
 
 function draw(){
-  $('#ovTitle').textContent = month === 'ALL'
-    ? '전체 기간 트렌드 시그널'
-    : `${month.replace('-', '년 ')}월 트렌드 시그널`;
+  /* 제목에는 달을 넣지 않는다 — 매달 바뀌면 제목이 계속 달라지므로,
+     선택한 기간은 옆에 작은 배지로만 표시 */
+  const period = month === 'ALL' ? '전체 기간' : month.replace('-', '.');
+  $('#ovTitle').innerHTML = `트렌드 시그널 <span class="ovPeriod">${esc(period)}</span>`;
 }
 
 const catOf = e => window.ECAT?.[e.entity_id] || e.category_l1 || '기타';
@@ -905,6 +909,7 @@ async function loadTrendSignals(){
           author: r.author, tags: r.tags || [], ym: ymOf(r) });
       }
     }
+    _KNOWN_CACHE = null;   /* 키워드 목록이 바뀌었으므로 캐시 초기화 */
     buildMonthOptions();
     renderStatic();
     try{ window.parent.postMessage('ta-signals-updated', '*'); }catch(e){}
@@ -1265,9 +1270,52 @@ function _reportTokenize(title){
   return tokens.map(x => x.toLowerCase());
 }
 
+/* 한국어 조사 떼어내기 — '플립플롭이나' '플립플롭은' 을 '플립플롭' 으로 맞춤
+
+   1순위: 이미 등록된 키워드/별칭 중 하나로 시작하면 그 단어로 자름
+          (가장 안전 — 실제 쓰는 말이 기준)
+   2순위: 흔한 조사 목록으로 자르되, 남는 글자가 3자 이상일 때만
+          ('사우나'의 '나', '레트로'의 '로' 처럼 어미를 잘라먹지 않도록) */
+const _KO_PARTICLES = ['이라는','라는','이나','으로','에서','에게','까지','부터','처럼','보다',
+                       '마다','조차','밖에','하고','이며','이고','과의','와의',
+                       '은','는','이','가','을','를','의','에','도','와','과','로'];
+
+/* 실제로 쓰이는 말 목록 — 카드 키워드 + 별칭 사전에서 모음 */
+function _knownTerms(){
+  const set = new Set();
+  const add = v => { const t = String(v || '').trim(); if(t.length >= 2) set.add(t.toLowerCase()); };
+  for(const s of [...SB_NEWS, ...SB_LIFESTYLE, ...SB_SNS]){
+    add((s.keywords && s.keywords[0]) || s.keyword);
+  }
+  try{ for(const k of Object.keys(ALIAS_MAP)) add(k); }catch(e){}
+  try{ for(const v of Object.values(ALIAS_MAP)) add(v); }catch(e){}
+  return set;
+}
+let _KNOWN_CACHE = null;
+
+function _stripKoParticle(w){
+  const raw = String(w || '');
+  if(!/^[가-힣]+$/.test(raw)) return raw;          /* 한글 토큰에만 적용 */
+
+  /* 1순위 — 등록된 말로 시작하면 거기까지만 */
+  if(!_KNOWN_CACHE) _KNOWN_CACHE = _knownTerms();
+  let best = '';
+  for(const t of _KNOWN_CACHE){
+    if(t.length >= 2 && t.length < raw.length && raw.startsWith(t) && t.length > best.length) best = t;
+  }
+  if(best) return best;
+
+  /* 2순위 — 흔한 조사 (남는 글자 3자 이상일 때만) */
+  for(const p of _KO_PARTICLES){
+    if(raw.endsWith(p) && raw.length - p.length >= 3) return raw.slice(0, raw.length - p.length);
+  }
+  return raw;
+}
+
 /* 두 토큰을 "유사 표기 통합" 기준으로 같다고 볼지
-   — 공백/하이픈/대소문자 무시 + keyword_aliases에 등록된 영한 표기는 대표 이름으로 통합 */
-function _reportNorm(w){
+   — 조사 제거 + 공백/하이픈/대소문자 무시 + keyword_aliases의 영한 표기 통합 */
+function _reportNorm(raw0){
+  const w = _stripKoParticle(raw0);
   const base = String(w || '').toLowerCase().replace(/[\s\-_]+/g, '');
   try{
     const canon = ALIAS_MAP[normKw(w)];
@@ -1292,10 +1340,11 @@ function detectRepeatedTitleTrends(items){
       if(REPORT_BRAND_SET.has(w) || REPORT_BRAND_SET.has(key)) continue;
       if(seenInCard.has(key)) continue;
       seenInCard.add(key);
-      if(!groups.has(key)) groups.set(key, { word: w, items: [], _normKey: key });
+      const shown = _stripKoParticle(w);   /* 화면에 보일 단어도 조사를 뗀 형태로 */
+      if(!groups.has(key)) groups.set(key, { word: shown, items: [], _normKey: key });
       const g = groups.get(key);
-      /* 표시용 단어는 가장 긴 표기를 대표로 (여러 표기 중 정보가 많은 쪽) */
-      if(w.length > g.word.length) g.word = w;
+      /* 표시용 단어는 더 짧고 깔끔한 쪽을 대표로 (조사가 덜 붙은 형태) */
+      if(shown.length < g.word.length) g.word = shown;
       g.items.push(it);
     }
   }
