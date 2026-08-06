@@ -243,7 +243,7 @@ tbody tr:hover{background:#fdfcf9}
             border:1px solid var(--hair); border-radius:20px; padding:5px 13px; font-size:11px;
             font-weight:800; letter-spacing:.03em; margin-right:14px; background:#fff">← 대시보드</a>
   <h1>TREND <em>AGENT</em></h1>
-  <span class="mini" id="verStamp" style="margin-left:8px;opacity:.55">v260806-03</span>
+  <span class="mini" id="verStamp" style="margin-left:8px;opacity:.55">v260806-04</span>
   <div class="tabs" id="tabs">
     <button data-v="intake" class="on">업로드</button>
     <button data-v="manage">등록 관리</button>
@@ -4046,7 +4046,7 @@ $('#brandAi')?.addEventListener('click', () => {
    ═══════════════════════════════════════════════════════════ */
 let MG_ROWS = [];
 let MG_SEL = new Set();
-let MG_EDIT = null;   /* 지금 수정 중인 항목 id */
+let MG_EDIT = null;   /* 지금 수정 중인 항목 id (문자열로 보관) */
 
 async function loadManage(){
   await loadBrandVocab();
@@ -4085,8 +4085,8 @@ function drawManage(){
   const rows = mgFiltered();
   const TYPE = { news:'패션', lifestyle:'라이프', sns:'SNS' };
   $('#mgList').innerHTML = rows.length ? rows.map(r => `
-    <div class="mgRow${MG_SEL.has(r.id) ? ' on' : ''}" data-row="${r.id}">
-      <input type="checkbox" data-id="${r.id}" ${MG_SEL.has(r.id) ? 'checked' : ''}>
+    <div class="mgRow${MG_SEL.has(String(r.id)) ? ' on' : ''}" data-row="${r.id}">
+      <input type="checkbox" data-id="${r.id}" ${MG_SEL.has(String(r.id)) ? 'checked' : ''}>
       ${r.image_url
         ? `<img src="${r.image_url}" loading="lazy" referrerpolicy="no-referrer">`
         : '<div style="width:46px;height:60px;border-radius:6px;background:#efeae1"></div>'}
@@ -4101,7 +4101,7 @@ function drawManage(){
         ${r.url ? `<a href="${esc(r.url)}" target="_blank" rel="noopener" class="mgLink">원문 ↗</a>` : ''}
       </div>
     </div>
-    ${MG_EDIT === r.id ? mgFormHTML(r) : ''}`).join('')
+    ${MG_EDIT === String(r.id) ? mgFormHTML(r) : ''}`).join('')
     : '<div class="mini" style="padding:20px">조건에 맞는 항목이 없습니다</div>';
   $('#mgCount').textContent = `${MG_SEL.size}개 선택 · 전체 ${rows.length}개`;
   $('#mgDelete').disabled = MG_SEL.size === 0;
@@ -4110,7 +4110,7 @@ function drawManage(){
 /* 수정 폼 — 키워드·요약·카테고리·구분·귀속월·해시태그·브랜드·링크를 바로 고침 */
 function mgFormHTML(r){
   const cats = ['라이프스타일', ...CATEGORIES];
-  return `<div class="mgForm" data-form="${r.id}">
+  return `<div class="mgForm" data-form="${String(r.id)}">
     <div class="row">
       <div style="max-width:150px"><label class="f">구분</label>
         <select data-e="source_type">
@@ -4158,7 +4158,7 @@ function mgFormHTML(r){
 /* 수정 버튼 / 저장 / 취소 */
 $('#mgList')?.addEventListener('click', e => {
   const ed = e.target.closest('[data-edit]');
-  if(ed){ e.stopPropagation(); MG_EDIT = (MG_EDIT === Number(ed.dataset.edit)) ? null : Number(ed.dataset.edit); drawManage(); return; }
+  if(ed){ e.stopPropagation(); const eid = String(ed.dataset.edit); MG_EDIT = (MG_EDIT === eid) ? null : eid; drawManage(); return; }
   const cancel = e.target.closest('[data-cancel]');
   if(cancel){ e.stopPropagation(); MG_EDIT = null; drawManage(); return; }
 });
@@ -4166,7 +4166,7 @@ $('#mgList')?.addEventListener('click', e => {
 $('#mgList')?.addEventListener('click', async e => {
   const sv = e.target.closest('[data-save]'); if(!sv) return;
   e.stopPropagation();
-  const id = Number(sv.dataset.save);
+  const id = String(sv.dataset.save);
   const form = $(`.mgForm[data-form="${id}"]`); if(!form) return;
   const val = k => { const el = form.querySelector(`[data-e="${k}"]`); return el ? el.value.trim() : ''; };
   const list = v => v ? v.split(',').map(x => x.trim()).filter(Boolean) : null;
@@ -4196,7 +4196,7 @@ $('#mgList')?.addEventListener('click', async e => {
 
 $('#mgList')?.addEventListener('change', e => {
   const c = e.target.closest('input[data-id]'); if(!c) return;
-  const id = Number(c.dataset.id);
+  const id = String(c.dataset.id);
   if(c.checked) MG_SEL.add(id); else MG_SEL.delete(id);
   drawManage();
 });
@@ -4205,7 +4205,7 @@ $('#mgList')?.addEventListener('click', e => {
   if(e.target.closest('a') || e.target.closest('.mgForm') || e.target.closest('button')
      || e.target.matches('input[type=checkbox]')) return;
   const row = e.target.closest('.mgRow'); if(!row) return;
-  const id = Number(row.dataset.row);
+  const id = String(row.dataset.row);
   if(MG_SEL.has(id)) MG_SEL.delete(id); else MG_SEL.add(id);
   drawManage();
 });
@@ -4213,13 +4213,13 @@ $('#mgType')?.addEventListener('change', drawManage);
 $('#mgMonth')?.addEventListener('change', drawManage);
 $('#mgSearch')?.addEventListener('input', drawManage);
 $('#mgReload')?.addEventListener('click', loadManage);
-$('#mgSelAll')?.addEventListener('click', () => { mgFiltered().forEach(r => MG_SEL.add(r.id)); drawManage(); });
+$('#mgSelAll')?.addEventListener('click', () => { mgFiltered().forEach(r => MG_SEL.add(String(r.id))); drawManage(); });
 $('#mgSelNone')?.addEventListener('click', () => { MG_SEL.clear(); drawManage(); });
 
 $('#mgDelete')?.addEventListener('click', async () => {
   const ids = [...MG_SEL];
   if(!ids.length) return;
-  const names = MG_ROWS.filter(r => ids.includes(r.id)).map(r => r.keyword || '(키워드 없음)');
+  const names = MG_ROWS.filter(r => ids.includes(String(r.id))).map(r => r.keyword || '(키워드 없음)');
   if(!confirm(`${ids.length}개 항목을 삭제합니다.\n\n${names.slice(0,5).join('\n')}${names.length>5 ? `\n… 외 ${names.length-5}개` : ''}\n\n되돌릴 수 없습니다. 진행할까요?`)) return;
   busy(true, '삭제 중…');
   const { error } = await sb.from('trend_signals').delete().in('id', ids);
