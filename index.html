@@ -227,7 +227,7 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
 <body>
 
 <header>
-  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260805-04</span></h1>
+  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260806-01</span></h1>
   <div class="tabs">
     <button data-v="signal" class="on">TREND SIGNAL</button>
     <button data-v="keywords">TREND KEYWORDS</button>
@@ -271,9 +271,9 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
       <input type="search" id="kwQuery" placeholder="해시태그·한국어 검색 (예: retro / 레트로)"
         style="flex:1; max-width:340px; background:#fff; border:1px solid var(--hair); border-radius:6px; padding:7px 11px; font:inherit">
       <span class="mini" id="kwQueryCount"></span>
-      <div class="kwLangTabs" style="margin-left:auto; display:flex; gap:0; border:1px solid var(--hair); border-radius:6px; overflow:hidden">
-        <button data-lang="en" class="kwLangBtn on" style="border:none; background:var(--tx); color:#fff; padding:6px 14px; font-size:11px; font-weight:700; cursor:pointer; font-family:inherit">영문</button>
-        <button data-lang="ko" class="kwLangBtn" style="border:none; background:#fff; color:var(--tx); padding:6px 14px; font-size:11px; font-weight:700; cursor:pointer; font-family:inherit">한국어</button>
+      <div class="kwLangTabs" style="margin-left:auto; display:flex; gap:0; border:1px solid var(--tx); border-radius:20px; overflow:hidden">
+        <button data-lang="en" class="kwLangBtn on" style="border:none; background:var(--tx); color:#fff; padding:7px 18px; font-size:11.5px; font-weight:800; letter-spacing:.03em; cursor:pointer; font-family:inherit">영문</button>
+        <button data-lang="ko" class="kwLangBtn" style="border:none; background:#fff; color:var(--sub); padding:7px 18px; font-size:11.5px; font-weight:800; letter-spacing:.03em; cursor:pointer; font-family:inherit">한국어</button>
       </div>
     </div>
     <div class="kwtablewrap"><table>
@@ -810,6 +810,7 @@ const KW_CATLABEL_FALLBACK = {
   shoes:'슈즈', bag:'백', acc:'액세서리', etc:'컬러', lifestyle:'라이프스타일'
 };
 
+let KO_VOL = {};   /* 한국어 검색어 → 주간 검색량 (한국어 탭에서 행마다 따로 표시) */
 let kwLang2 = 'en';   /* 검색량 조회 언어 — 'en' 영문 해시태그 자체, 'ko' 대표 클러스터의 한국어 별칭들 합산 */
 let kwQuery2 = '';   /* 트렌드 키워드 탭 검색어 */
 
@@ -886,33 +887,13 @@ async function loadAllVolumeData(){
     return;
   }
 
-  /* 한국어 탭 — 각 행의 ko(한국어 별칭 배열)들을 다 모아서 한번에 조회한 뒤, 행별로 합산 */
+  /* 한국어 탭 — 한국어 검색어 하나하나를 따로 조회해서 각각의 추이를 보여준다 (합산하지 않음) */
   const allKo = [...new Set(rows.flatMap(r => r.ko || []))];
-  if(!allKo.length){
-    for(const r of rows){ r.sparkPoints = null; r.sparkTerms = []; }
-    drawKwBody2();
-    return;
-  }
+  KO_VOL = {};
+  if(!allKo.length){ drawKwBody2(); return; }
   const { data, error } = await sb.from('search_volume').select('*').in('keyword', allKo).eq('region', 'KR').order('week');
   if(error){ console.warn('search_volume(ko) 로드 실패:', error.message); return; }
-  /* keyword → 주간 데이터 map */
-  const byKw = {};
-  for(const r of (data || [])) (byKw[r.keyword] ||= []).push(r);
-  /* 각 행마다: 이 행의 ko 별칭들 중 실제 데이터 있는 것들만 뽑아서 주 단위 합산 */
-  for(const r of rows){
-    const terms = (r.ko || []).filter(k => (byKw[k] || []).length);
-    r.sparkTerms = terms;
-    if(!terms.length){ r.sparkPoints = null; continue; }
-    const weekMap = new Map();   /* week → 합산 volume */
-    for(const t of terms){
-      for(const p of (byKw[t] || [])){
-        weekMap.set(p.week, (weekMap.get(p.week) || 0) + (p.volume || 0));
-      }
-    }
-    r.sparkPoints = [...weekMap.entries()]
-      .sort((a,b) => a[0].localeCompare(b[0]))
-      .map(([week, volume]) => ({ week, volume }));
-  }
+  for(const r of (data || [])) (KO_VOL[r.keyword] ||= []).push(r);
   drawKwBody2();
 }
 
@@ -949,8 +930,29 @@ function drawKwCatBar2(CATS){
 function drawKwHead2(){
   const isKo = kwLang2 === 'ko';
   $('#kwHead2').innerHTML = isKo
-    ? '<tr><th>해시태그</th><th>한국어 (합산 검색어)</th><th>대표 클러스터</th><th>카테고리</th><th>사용 건수</th><th>검색량 추이</th><th>변화</th></tr>'
+    ? '<tr><th>한국어 검색어</th><th>해시태그</th><th>대표 클러스터</th><th>카테고리</th><th>사용 건수</th><th>검색량 추이</th><th>변화</th></tr>'
     : '<tr><th>해시태그</th><th>한국어</th><th>대표 클러스터</th><th>카테고리</th><th>사용 건수</th><th>검색량 추이</th><th>변화</th></tr>';
+}
+
+/* 한국어 탭에서 쓸 행 목록 — 한국어 별칭 하나가 한 행이 된다.
+   같은 별칭이 여러 해시태그에 걸쳐 있으면 하나로 합치고, 관련 해시태그를 모아 보여준다. */
+function koRowsFrom(rows){
+  const map = new Map();
+  for(const r of rows){
+    for(const k of (r.ko || [])){
+      const key = k.trim();
+      if(!key) continue;
+      if(!map.has(key)) map.set(key, { label: key, tags: [], heads: new Set(), cats: new Set(), count: 0 });
+      const e = map.get(key);
+      e.tags.push(r.label);
+      if(r.head) e.heads.add(r.head);
+      for(const c of (r.cats || [])) e.cats.add(c);
+      e.count += (r.count || 0);
+    }
+  }
+  return [...map.values()]
+    .map(e => ({ ...e, heads: [...e.heads], cats: [...e.cats] }))
+    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
 }
 
 function drawKwBody2(){
@@ -958,6 +960,48 @@ function drawKwBody2(){
   const CAT_LABEL = window.KW_CATLABEL2 || {};
   const isKo = kwLang2 === 'ko';
   const q = kwQuery2.trim().toLowerCase().replace(/^#/, '');
+
+  /* ── 한국어 탭 — 한국어 검색어 하나가 한 행, 각 검색어별 검색량 ── */
+  if(isKo){
+    const koAll = koRowsFrom(window.KW_ROWS2 || []);
+    const koRows = koAll.filter(r => {
+      if(kwCatF2 !== '전체' && !r.cats.includes(kwCatF2)) return false;
+      if(!q) return true;
+      if(r.label.toLowerCase().includes(q)) return true;
+      if(r.tags.some(t => t.toLowerCase().includes(q))) return true;
+      return false;
+    });
+    $('#kwQueryCount').textContent = q
+      ? `${koRows.length}개 매치`
+      : `총 ${koAll.length}개 한국어 검색어`;
+
+    $('#kwBody2').innerHTML = koRows.length ? koRows.map(r => {
+      const pts = KO_VOL[r.label] || null;
+      const spark = pts ? sparklineSVG(pts) : '';
+      const pct = pts ? changePct(pts) : null;
+      const pctHtml = pct == null ? '<span class="mini">준비중</span>'
+        : `<span style="color:${pct>=0?'#1a7a4a':'#c8451f'};font-weight:700;font-size:11px">${pct>=0?'▲':'▼'} ${Math.abs(pct)}%</span>`;
+      const tagCell = r.tags.slice(0, 4).map(t => `<span class="pillb2">#${esc(t)}</span>`).join(' ')
+        + (r.tags.length > 4 ? ` <span class="mini">+${r.tags.length - 4}</span>` : '');
+      const headCell = r.heads.length
+        ? r.heads.slice(0, 2).map(h => `<span class="pillb2">#${esc(h)}</span>`).join(' ')
+        : '<span class="mini">-</span>';
+      const cats = r.cats.map(c => esc(CAT_LABEL[c] || c)).join(', ');
+      const cnt = r.count > 1
+        ? `<span style="color:#c8451f;font-weight:800">🔥 ${r.count}</span>` : `${r.count}`;
+      return `<tr class="${SELECTED_KW.includes(r.label) ? 'kwsel' : ''}" data-kw="${esc(r.label)}">
+        <td><b>${esc(r.label)}</b></td>
+        <td>${tagCell || '<span class="mini">-</span>'}</td>
+        <td>${headCell}</td>
+        <td><span class="mini">${cats || '-'}</span></td>
+        <td>${cnt}</td>
+        <td>${spark || '<span class="mini">준비중</span>'}</td>
+        <td>${pctHtml}</td>
+      </tr>`;
+    }).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--sub);padding:24px">해당 조건의 한국어 검색어가 없습니다</td></tr>';
+    return;
+  }
+
   const rows = (window.KW_ROWS2 || []).filter(r => {
     if(kwCatF2 !== '전체' && !r.cats.includes(kwCatF2)) return false;
     if(!q) return true;
@@ -1031,7 +1075,7 @@ document.addEventListener('click', e => {
     const on = x.dataset.lang === kwLang2;
     x.classList.toggle('on', on);
     x.style.background = on ? 'var(--tx)' : '#fff';
-    x.style.color = on ? '#fff' : 'var(--tx)';
+    x.style.color = on ? '#fff' : 'var(--sub)';
   });
   loadAllVolumeData();     /* 표 재조회 */
   drawVolumeChart();       /* 위쪽 큰 그래프도 언어 바뀐 기준으로 다시 */
