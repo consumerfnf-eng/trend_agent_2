@@ -39,6 +39,14 @@ main{max-width:1180px; margin:0 auto; padding:22px 24px 90px}
 .mgRow .mgNote{font-size:11px; color:var(--sub); opacity:.85; margin-top:4px; line-height:1.5}
 .mgRow .mgBrands{font-size:11px; color:var(--accent); margin-top:4px}
 .mgRow .mgLink{font-size:11px; color:var(--sub); white-space:nowrap; text-decoration:none}
+.mgRow .mgEdit{font-size:10.5px; font-weight:800; color:var(--accent); background:#fdf3ef;
+  border:1px solid #f1d9cf; border-radius:20px; padding:4px 11px; cursor:pointer; white-space:nowrap;
+  font-family:inherit; width:auto}
+.mgForm{border:1px solid #f1d9cf; border-left:3px solid var(--accent); border-radius:10px;
+  padding:14px 16px; margin:-3px 0 10px; background:#fffdfb}
+.mgForm .row{display:flex; gap:10px; flex-wrap:wrap; margin-bottom:8px}
+.mgForm textarea{min-height:70px}
+.mgForm .btns{display:flex; gap:6px; align-items:center; margin-top:4px}
 h2.sec{font-family:'Playfair Display',serif; font-size:24px; border-bottom:1px solid var(--ink);
   padding-bottom:7px; margin:0 0 16px}
 h2.sec span{font-family:'Noto Sans KR'; font-size:12px; color:var(--sub); font-weight:400}
@@ -235,7 +243,7 @@ tbody tr:hover{background:#fdfcf9}
             border:1px solid var(--hair); border-radius:20px; padding:5px 13px; font-size:11px;
             font-weight:800; letter-spacing:.03em; margin-right:14px; background:#fff">← 대시보드</a>
   <h1>TREND <em>AGENT</em></h1>
-  <span class="mini" id="verStamp" style="margin-left:8px;opacity:.55">v260806-02</span>
+  <span class="mini" id="verStamp" style="margin-left:8px;opacity:.55">v260806-03</span>
   <div class="tabs" id="tabs">
     <button data-v="intake" class="on">업로드</button>
     <button data-v="manage">등록 관리</button>
@@ -4038,6 +4046,7 @@ $('#brandAi')?.addEventListener('click', () => {
    ═══════════════════════════════════════════════════════════ */
 let MG_ROWS = [];
 let MG_SEL = new Set();
+let MG_EDIT = null;   /* 지금 수정 중인 항목 id */
 
 async function loadManage(){
   await loadBrandVocab();
@@ -4087,12 +4096,103 @@ function drawManage(){
         ${r.note ? `<div class="mgNote">${esc(String(r.note).slice(0, 110))}${String(r.note).length > 110 ? '…' : ''}</div>` : ''}
         ${(r.brands||[]).length ? `<div class="mgBrands">${esc(r.brands.join(' · '))}</div>` : ''}
       </div>
-      ${r.url ? `<a href="${esc(r.url)}" target="_blank" rel="noopener" class="mgLink">원문 ↗</a>` : '<span></span>'}
-    </div>`).join('')
+      <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-end">
+        <button class="mgEdit" data-edit="${r.id}">수정</button>
+        ${r.url ? `<a href="${esc(r.url)}" target="_blank" rel="noopener" class="mgLink">원문 ↗</a>` : ''}
+      </div>
+    </div>
+    ${MG_EDIT === r.id ? mgFormHTML(r) : ''}`).join('')
     : '<div class="mini" style="padding:20px">조건에 맞는 항목이 없습니다</div>';
   $('#mgCount').textContent = `${MG_SEL.size}개 선택 · 전체 ${rows.length}개`;
   $('#mgDelete').disabled = MG_SEL.size === 0;
 }
+
+/* 수정 폼 — 키워드·요약·카테고리·구분·귀속월·해시태그·브랜드·링크를 바로 고침 */
+function mgFormHTML(r){
+  const cats = ['라이프스타일', ...CATEGORIES];
+  return `<div class="mgForm" data-form="${r.id}">
+    <div class="row">
+      <div style="max-width:150px"><label class="f">구분</label>
+        <select data-e="source_type">
+          <option value="news"${r.source_type==='news'?' selected':''}>패션 트렌드</option>
+          <option value="lifestyle"${r.source_type==='lifestyle'?' selected':''}>라이프스타일</option>
+          <option value="sns"${r.source_type==='sns'?' selected':''}>SNS 트렌드</option>
+        </select></div>
+      <div style="max-width:160px"><label class="f">카테고리</label>
+        <select data-e="category"><option value="">선택</option>
+          ${cats.map(c => `<option${r.category===c?' selected':''}>${esc(c)}</option>`).join('')}</select></div>
+      <div style="max-width:120px"><label class="f">귀속 월</label>
+        <input data-e="sheet_month" value="${esc(r.sheet_month || '')}" placeholder="2026-08"></div>
+      <div style="max-width:120px"><label class="f">작성자</label>
+        <input data-e="author" value="${esc(r.author || '')}"></div>
+      <div style="max-width:150px"><label class="f">매체</label>
+        <input data-e="source" value="${esc(r.source || '')}"></div>
+      <div style="max-width:90px"><label class="f">시장</label>
+        <input data-e="region" value="${esc(r.region || '')}"></div>
+    </div>
+    <div class="row">
+      <div style="flex:1; min-width:220px"><label class="f">키워드 (카드 제목)</label>
+        <input data-e="keyword" value="${esc(r.keyword || '')}"></div>
+    </div>
+    <div><label class="f">요약</label><textarea data-e="note">${esc(r.note || '')}</textarea></div>
+    <div class="row" style="margin-top:8px">
+      <div style="flex:1; min-width:220px"><label class="f">해시태그 — 쉼표로 구분</label>
+        <input data-e="tags" value="${esc((r.tags || []).join(', '))}" placeholder="예: retro, sneakers"></div>
+      <div style="flex:1; min-width:220px"><label class="f">브랜드 — 쉼표로 구분</label>
+        <input data-e="brands" value="${esc((r.brands || []).join(', '))}" placeholder="예: 나이키, 푸마"></div>
+    </div>
+    <div class="row">
+      <div style="flex:1; min-width:260px"><label class="f">원문 URL</label>
+        <input data-e="url" value="${esc(r.url || '')}"></div>
+      <div style="flex:1; min-width:260px"><label class="f">이미지 URL</label>
+        <input data-e="image_url" value="${esc(r.image_url || '')}"></div>
+    </div>
+    <div class="btns">
+      <button class="btn sm" data-save="${r.id}">저장</button>
+      <button class="btn ghost sm" data-cancel="1">취소</button>
+      <span class="mini">저장하면 대시보드에 바로 반영됩니다</span>
+    </div>
+  </div>`;
+}
+
+/* 수정 버튼 / 저장 / 취소 */
+$('#mgList')?.addEventListener('click', e => {
+  const ed = e.target.closest('[data-edit]');
+  if(ed){ e.stopPropagation(); MG_EDIT = (MG_EDIT === Number(ed.dataset.edit)) ? null : Number(ed.dataset.edit); drawManage(); return; }
+  const cancel = e.target.closest('[data-cancel]');
+  if(cancel){ e.stopPropagation(); MG_EDIT = null; drawManage(); return; }
+});
+
+$('#mgList')?.addEventListener('click', async e => {
+  const sv = e.target.closest('[data-save]'); if(!sv) return;
+  e.stopPropagation();
+  const id = Number(sv.dataset.save);
+  const form = $(`.mgForm[data-form="${id}"]`); if(!form) return;
+  const val = k => { const el = form.querySelector(`[data-e="${k}"]`); return el ? el.value.trim() : ''; };
+  const list = v => v ? v.split(',').map(x => x.trim()).filter(Boolean) : null;
+  const patch = {
+    source_type: val('source_type') || null,
+    category:    val('category') || null,
+    sheet_month: val('sheet_month') || null,
+    author:      val('author') || null,
+    source:      val('source') || null,
+    region:      val('region') || null,
+    keyword:     val('keyword') || null,
+    note:        val('note') || null,
+    tags:        list(val('tags')),
+    brands:      list(val('brands')),
+    url:         val('url') || null,
+    image_url:   val('image_url') || null,
+  };
+  if(!patch.keyword){ toast('키워드는 비워둘 수 없습니다'); return; }
+  busy(true, '저장 중…');
+  const { error } = await sb.from('trend_signals').update(patch).eq('id', id);
+  busy(false);
+  if(error){ die(error, '수정 저장'); return; }
+  toast('저장했습니다');
+  MG_EDIT = null;
+  await loadManage();
+});
 
 $('#mgList')?.addEventListener('change', e => {
   const c = e.target.closest('input[data-id]'); if(!c) return;
@@ -4102,7 +4202,8 @@ $('#mgList')?.addEventListener('change', e => {
 });
 /* 행 아무 곳이나 눌러도 선택 토글 (원문 링크·체크박스 클릭은 제외) */
 $('#mgList')?.addEventListener('click', e => {
-  if(e.target.closest('a') || e.target.matches('input[type=checkbox]')) return;
+  if(e.target.closest('a') || e.target.closest('.mgForm') || e.target.closest('button')
+     || e.target.matches('input[type=checkbox]')) return;
   const row = e.target.closest('.mgRow'); if(!row) return;
   const id = Number(row.dataset.row);
   if(MG_SEL.has(id)) MG_SEL.delete(id); else MG_SEL.add(id);
