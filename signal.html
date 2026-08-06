@@ -107,6 +107,7 @@ tr.krow{cursor:pointer} tr.krow:hover{background:#faf6ec}
 .repKw{font-size:10.5px; font-weight:700; padding:4px 10px; border-radius:20px; cursor:pointer;
   background:#f2efe9; border:1px solid #e2ddd3; color:#6b6357; font-family:inherit}
 .repKw:hover{background:var(--acc); border-color:var(--acc); color:#fff}
+.repKw.on{background:var(--acc); border-color:var(--acc); color:#fff}
 .repBody{display:flex; gap:20px; align-items:flex-start}
 @media (max-width:720px){ .repBody{flex-direction:column} }
 .repImg{flex:0 0 300px; border-radius:8px; overflow:hidden}
@@ -235,7 +236,7 @@ tr.krow{cursor:pointer} tr.krow:hover{background:#faf6ec}
 .bubbleTabs{display:flex; gap:4px; margin:2px 0 8px}
 .bubbleTabs button{font-size:10px; font-weight:800; letter-spacing:.03em; padding:4px 11px; border-radius:20px;
   background:#f2efe9; border:1px solid #e2ddd3; color:#6b6357; cursor:pointer; font-family:inherit}
-.bubbleTabs button.on{background:var(--ink); border-color:var(--ink); color:#fff}
+.bubbleTabs button.on{background:var(--tx); border-color:var(--tx); color:#fff}
 .kwcard .kwname{font-size:15px; font-weight:800; margin-bottom:4px; line-height:1.3}
 .kwcard .kwmeta{font-size:10.5px; color:var(--acc); font-weight:700; margin-bottom:8px}
 .kwcard .kwex{font-size:11px; color:var(--sub); line-height:1.5}
@@ -287,7 +288,7 @@ a{color:var(--acc)}
 </head>
 <body>
 <header>
-  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260806-04</span></h1>
+  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260806-06</span></h1>
   <a href="index.html" id="backLink" style="font-size:11px;letter-spacing:.12em;font-weight:700;color:var(--acc);text-decoration:none;border:1px solid var(--acc);padding:6px 12px">← DASHBOARD</a>
   <div class="mrange">
     <label>기간</label>
@@ -339,7 +340,7 @@ a{color:var(--acc)}
 
 <script src="config.js"></script>
 <script type="module">
-console.log("TREND AGENT signal.html v260806-04");
+console.log("TREND AGENT signal.html v260806-06");
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ══ 설정 — 다른 파일들과 같은 값 ══ */
@@ -598,10 +599,8 @@ function ovBlock(title, region, note){
 }
 
 function draw(){
-  /* 제목에는 달을 넣지 않는다 — 매달 바뀌면 제목이 계속 달라지므로,
-     선택한 기간은 옆에 작은 배지로만 표시 */
-  const period = month === 'ALL' ? '전체 기간' : month.replace('-', '.');
-  $('#ovTitle').innerHTML = `트렌드 시그널 <span class="ovPeriod">${esc(period)}</span>`;
+  /* 제목은 기간과 무관하게 고정 — 선택한 기간은 위쪽 월 선택 상자에서 확인 */
+  $('#ovTitle').textContent = '트렌드 시그널';
 }
 
 const catOf = e => window.ECAT?.[e.entity_id] || e.category_l1 || '기타';
@@ -1367,13 +1366,17 @@ function repeatedTrendsReportHTML(items){
   const blocks = trends.map((t, i) => {
     const top = t.items[0];
     const img = top && top.image_url;
-    /* 이 유행어가 나온 카드들의 키워드 — 누르면 해당 카드로 이동 */
-    const kws = [...new Set(t.items
-      .map(it => canonKw((it.keywords && it.keywords[0]) || it.keyword || ''))
-      .filter(Boolean))];
-    const kwChips = kws.length
-      ? `<div class="repKws">${kws.map(k =>
-          `<button class="repKw" data-repkw="${esc(k)}">${esc(k)}</button>`).join('')}</div>`
+    /* 이 유행어가 나온 카드들의 해시태그 — 누르면 그 태그로 걸러 봄 */
+    const tagCount = new Map();
+    for(const it of t.items)
+      for(const tg of (it.tags || [])) tagCount.set(tg, (tagCount.get(tg) || 0) + 1);
+    const tags = [...tagCount.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .slice(0, 10)
+      .map(x => x[0]);
+    const kwChips = tags.length
+      ? `<div class="repKws">${tags.map(tg =>
+          `<button class="repKw${tagFilter === tg ? ' on' : ''}" data-reptag="${esc(tg)}">#${esc(tg)}</button>`).join('')}</div>`
       : '';
     const bullets = t.items.map(it => {
       const src = it.source || '';
@@ -1563,11 +1566,13 @@ document.addEventListener('scroll', e => {
   dots.forEach((d, i) => d.classList.toggle('on', i === idx));
 }, true);
 
-/* HOT TREND KEYWORD의 키워드 칩 클릭 → 아래 그 카드로 이동 + 강조 */
+/* HOT TREND KEYWORD의 해시태그 칩 클릭 → 그 태그가 달린 카드만 걸러 봄 */
 document.addEventListener('click', e => {
   const b = e.target.closest('.repKw'); if(!b) return;
   e.stopPropagation();
-  highlightCardByLabel(b.dataset.repkw);
+  const tg = b.dataset.reptag;
+  tagFilter = (tagFilter === tg) ? null : tg;
+  renderCurrentView();
 });
 
 /* 버블 보기 전환 — 키워드 / 해시태그 */
