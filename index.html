@@ -8,6 +8,11 @@
 <style>
 :root{--paper:#faf7f2; --ink:#1d1d1b; --sub:#8a8578; --hair:#e4ded2; --rising:#c8451f; --new:#1a7a4a; --sticky:#ffe98a}
 *{margin:0;padding:0;box-sizing:border-box}
+/* 영문 / 한국어 전환 버튼 — 선택된 쪽이 확실히 보이도록 */
+.kwLangBtn{transition:background .12s, color .12s}
+.kwLangBtn.on{background:var(--ink) !important; color:#fff !important}
+.kwLangBtn:not(.on){background:#fff !important; color:var(--sub) !important}
+.kwLangBtn:not(.on):hover{background:#f2efe9 !important; color:var(--ink) !important}
 body{background:#faf7f2; color:var(--ink); font-family:'Noto Sans KR',sans-serif}
 header{display:flex; align-items:center; gap:22px; padding:14px 26px; border-bottom:1px solid var(--ink); position:sticky; top:0; background:var(--paper); z-index:10; flex-wrap:wrap}
 header h1{font-family:'Playfair Display',serif; font-size:22px}
@@ -227,7 +232,7 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
 <body>
 
 <header>
-  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260806-01</span></h1>
+  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260806-02</span></h1>
   <div class="tabs">
     <button data-v="signal" class="on">TREND SIGNAL</button>
     <button data-v="keywords">TREND KEYWORDS</button>
@@ -271,8 +276,8 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
       <input type="search" id="kwQuery" placeholder="해시태그·한국어 검색 (예: retro / 레트로)"
         style="flex:1; max-width:340px; background:#fff; border:1px solid var(--hair); border-radius:6px; padding:7px 11px; font:inherit">
       <span class="mini" id="kwQueryCount"></span>
-      <div class="kwLangTabs" style="margin-left:auto; display:flex; gap:0; border:1px solid var(--tx); border-radius:20px; overflow:hidden">
-        <button data-lang="en" class="kwLangBtn on" style="border:none; background:var(--tx); color:#fff; padding:7px 18px; font-size:11.5px; font-weight:800; letter-spacing:.03em; cursor:pointer; font-family:inherit">영문</button>
+      <div class="kwLangTabs" style="margin-left:auto; display:flex; gap:0; border:1px solid var(--ink); border-radius:20px; overflow:hidden">
+        <button data-lang="en" class="kwLangBtn on" style="border:none; background:var(--ink); color:#fff; padding:7px 18px; font-size:11.5px; font-weight:800; letter-spacing:.03em; cursor:pointer; font-family:inherit">영문</button>
         <button data-lang="ko" class="kwLangBtn" style="border:none; background:#fff; color:var(--sub); padding:7px 18px; font-size:11.5px; font-weight:800; letter-spacing:.03em; cursor:pointer; font-family:inherit">한국어</button>
       </div>
     </div>
@@ -1074,7 +1079,7 @@ document.addEventListener('click', e => {
   document.querySelectorAll('.kwLangBtn').forEach(x => {
     const on = x.dataset.lang === kwLang2;
     x.classList.toggle('on', on);
-    x.style.background = on ? 'var(--tx)' : '#fff';
+    x.style.background = on ? 'var(--ink)' : '#fff';
     x.style.color = on ? '#fff' : 'var(--sub)';
   });
   loadAllVolumeData();     /* 표 재조회 */
