@@ -243,7 +243,7 @@ tbody tr:hover{background:#fdfcf9}
             border:1px solid var(--hair); border-radius:20px; padding:5px 13px; font-size:11px;
             font-weight:800; letter-spacing:.03em; margin-right:14px; background:#fff">← 대시보드</a>
   <h1>TREND <em>AGENT</em></h1>
-  <span class="mini" id="verStamp" style="margin-left:8px;opacity:.55">v260806-04</span>
+  <span class="mini" id="verStamp" style="margin-left:8px;opacity:.55">v260806-06</span>
   <div class="tabs" id="tabs">
     <button data-v="intake" class="on">업로드</button>
     <button data-v="manage">등록 관리</button>
@@ -1293,6 +1293,16 @@ async function intake(files){
   renderImgCards();
 }
 
+/* 사진 카드 안의 입력칸 값을 QUEUE_IMGS로 다시 읽어들임.
+   한글 입력은 마지막 글자가 조합 중이면 아직 반영되지 않았을 수 있어, 저장 직전에 한 번 더 부른다. */
+function syncImgCardInputs(){
+  const box = $('#imgCards'); if(!box) return;
+  [...box.children].forEach((c, i) => {
+    const it = QUEUE_IMGS[i]; if(!it) return;
+    c.querySelectorAll('[data-k]').forEach(el => { it.meta[el.dataset.k] = el.value; });
+  });
+}
+
 function renderImgCards(){
   const box = $('#imgCards');
   box.innerHTML = '';
@@ -1317,7 +1327,12 @@ function renderImgCards(){
     c.querySelectorAll('[data-k]').forEach(el => {
       const k = el.dataset.k;
       el.value = String(it.meta[k] ?? '');
-      el.addEventListener('input', () => { it.meta[k] = el.value; });
+      const sync = () => { it.meta[k] = el.value; };
+      el.addEventListener('input', sync);
+      el.addEventListener('change', sync);
+      /* 한글은 마지막 글자가 조합 중일 수 있어 조합이 끝나는 시점에도 다시 읽는다 */
+      el.addEventListener('compositionend', sync);
+      el.addEventListener('blur', sync);
     });
     c.querySelector('.pick').onchange = e => {
       it.sel = e.target.checked; c.classList.toggle('sel', it.sel); selStat();
@@ -1452,6 +1467,9 @@ $('#saveImgs').onclick = async () => {
   if(uploadFails.length && !confirm(`${uploadFails.length}장 이미지 업로드 실패 — ${uploadFails[0]} 등\n이미지 없이 그대로 등록할까요?`)){
     busy(false); return;
   }
+
+  /* 저장 직전 한 번 더 동기화 — 한글 마지막 글자가 조합 중인 채로 눌러도 값이 빠지지 않도록 */
+  syncImgCardInputs();
 
   busy(true, '등록 중…');
   const rows = tgt.map(it => ({
@@ -4186,9 +4204,13 @@ $('#mgList')?.addEventListener('click', async e => {
   };
   if(!patch.keyword){ toast('키워드는 비워둘 수 없습니다'); return; }
   busy(true, '저장 중…');
-  const { error } = await sb.from('trend_signals').update(patch).eq('id', id);
+  const { data: saved, error } = await sb.from('trend_signals').update(patch).eq('id', id).select('id');
   busy(false);
   if(error){ die(error, '수정 저장'); return; }
+  if(!saved || !saved.length){
+    alert('저장되지 않았습니다.\n\nSupabase에서 이 표의 수정 권한이 열려 있지 않은 것 같습니다.\nenable_edit_delete SQL을 한 번 실행해 주세요.');
+    return;
+  }
   toast('저장했습니다');
   MG_EDIT = null;
   await loadManage();
@@ -4222,10 +4244,17 @@ $('#mgDelete')?.addEventListener('click', async () => {
   const names = MG_ROWS.filter(r => ids.includes(String(r.id))).map(r => r.keyword || '(키워드 없음)');
   if(!confirm(`${ids.length}개 항목을 삭제합니다.\n\n${names.slice(0,5).join('\n')}${names.length>5 ? `\n… 외 ${names.length-5}개` : ''}\n\n되돌릴 수 없습니다. 진행할까요?`)) return;
   busy(true, '삭제 중…');
-  const { error } = await sb.from('trend_signals').delete().in('id', ids);
+  /* .select()를 붙이면 실제로 지워진 행이 돌아온다 —
+     권한이 없으면 오류 없이 0건으로 끝나므로 반드시 확인해야 한다 */
+  const { data: gone, error } = await sb.from('trend_signals').delete().in('id', ids).select('id');
   busy(false);
   if(error){ die(error, '삭제'); return; }
-  toast(`${ids.length}개 삭제했습니다`);
+  if(!gone || !gone.length){
+    alert('삭제되지 않았습니다.\n\nSupabase에서 이 표의 삭제 권한이 열려 있지 않은 것 같습니다.\nenable_edit_delete SQL을 한 번 실행해 주세요.');
+    return;
+  }
+  toast(`${gone.length}개 삭제했습니다`);
+  MG_SEL.clear();
   await loadManage();
 });
 
