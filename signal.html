@@ -88,6 +88,34 @@ tr.krow{cursor:pointer} tr.krow:hover{background:#faf6ec}
 .srcTitle{font-size:13px; margin:0 0 2px; display:flex; align-items:center; gap:8px}
 .srcCnt{font-size:10px; font-weight:700; color:var(--acc); background:#fdf3ef; padding:2px 8px; border-radius:9px}
 .bubbleWrap{margin:14px 0 18px}
+/* ── 반복 단어 자동 감지 리포트 ── */
+.repWrap{margin:14px 0 22px; padding:22px 24px; background:#faf5ec; border-radius:12px; border:1px solid var(--hair)}
+.repHead{font-family:'Cormorant Garamond', serif; font-size:22px; font-weight:600; color:var(--tx); margin-bottom:2px; display:flex; align-items:baseline; gap:10px; flex-wrap:wrap}
+.repHead .repSub{font-family:inherit; font-size:10.5px; color:var(--sub); font-weight:400; letter-spacing:.03em}
+.repBlock{background:#fff; border-radius:10px; padding:18px 22px; margin-top:14px; border:1px solid var(--hair)}
+.repBadge{display:inline-block; font-size:10px; font-weight:800; letter-spacing:.1em; padding:3px 10px; border-radius:20px;
+  background:#fdf3ef; color:var(--acc); margin-bottom:10px}
+/* 번호 + 제목 바 — 참고 레이아웃처럼 왼쪽 굵은 선과 옅은 배경 */
+.repTitleBar{display:flex; align-items:stretch; margin:10px 0 16px; border-left:4px solid var(--acc);
+  background:#fdf3ef; border-radius:0 8px 8px 0; overflow:hidden}
+.repNum{flex:0 0 52px; display:flex; align-items:center; justify-content:center;
+  font-family:'Cormorant Garamond', serif; font-size:26px; font-weight:600; color:var(--acc);
+  border-right:1px solid #f1d9cf}
+.repTitle{font-family:'Cormorant Garamond', serif; font-size:26px; font-weight:600; color:var(--tx);
+  line-height:1.2; padding:12px 18px; display:flex; align-items:center; flex:1; word-break:keep-all}
+.repBody{display:flex; gap:20px; align-items:flex-start}
+@media (max-width:720px){ .repBody{flex-direction:column} }
+.repImg{flex:0 0 300px; border-radius:8px; overflow:hidden}
+.repImg img{width:100%; aspect-ratio:4/5; object-fit:cover; display:block; background:#efeae1}
+@media (max-width:900px){ .repImg{flex:0 0 220px} }
+@media (max-width:720px){ .repImg{flex:0 0 auto; width:100%} .repImg img{aspect-ratio:16/9} }
+.repList{list-style:none; margin:0; padding:0; flex:1; display:flex; flex-direction:column; gap:11px}
+.repList li{position:relative; padding-left:22px; font-size:12.5px; line-height:1.55; color:var(--tx)}
+.repList li::before{content:'✔'; position:absolute; left:0; top:1px; color:var(--acc); font-weight:800; font-size:12px}
+.repSrc{display:inline-block; font-size:9.5px; font-weight:800; letter-spacing:.06em; color:var(--sub); text-transform:uppercase; margin-right:6px; vertical-align:baseline}
+.repText{color:var(--tx)}
+.repLink{display:inline-block; margin-left:6px; font-size:10.5px; font-weight:700; color:var(--acc); text-decoration:none}
+.repLink:hover{text-decoration:underline}
 .bubbleRow{display:flex; align-items:center; flex-wrap:wrap; gap:10px}
 .bubble.on{border-color:var(--acc); box-shadow:0 0 0 2px var(--acc) inset}
 .bubble{position:relative; border-radius:50%; background:#fff; border:1px solid var(--hair); display:flex; align-items:center;
@@ -252,7 +280,7 @@ a{color:var(--acc)}
 </head>
 <body>
 <header>
-  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260805-03</span></h1>
+  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260806-01</span></h1>
   <a href="index.html" id="backLink" style="font-size:11px;letter-spacing:.12em;font-weight:700;color:var(--acc);text-decoration:none;border:1px solid var(--acc);padding:6px 12px">← DASHBOARD</a>
   <div class="mrange">
     <label>기간</label>
@@ -304,7 +332,7 @@ a{color:var(--acc)}
 
 <script src="config.js"></script>
 <script type="module">
-console.log("TREND AGENT signal.html v260805-03");
+console.log("TREND AGENT signal.html v260806-01");
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ══ 설정 — 다른 파일들과 같은 값 ══ */
@@ -1194,7 +1222,148 @@ function bubbleHTML(ranked, gridSel, catCtx){
   }).join('');
 }
 
+/* ── D열 제목 반복 단어 자동 감지 → 상단 리포트 섹션 ─────────────
+   같은 카테고리 안 카드 제목에 3번 이상 등장하는 단어를 트렌드로 인식.
+   유사 표기 통합(공백/하이픈/대소문자/영한 정규화).
+   브랜드·불용어 자동 제외. AI 호출 없이 순수 데이터로만 작동. */
+
+const REPORT_STOPWORDS = new Set([
+  /* 매체·컬렉션 잡음 */
+  'runway','trend','trends','ss27','fw26','ss','fw','collection','season',
+  /* 흔한 조사·접미어 */
+  '스타일','트렌드','컬러','아이템','디자인','컬렉션','컬러가','룩','패션',
+  '이유','다시','이번','올해','올여름','올가을','오늘','바로','정말','가장',
+  'the','and','for','with','from','vs','x','&',
+  /* 무의미 */
+  '입은','왔다','됐다','됩니다','왔어요','한다','했다','합니다','싶어','있는',
+  '멋있다','좋아','좋다','좋아요','예뻐','예쁘다',
+]);
+
+/* 브랜드 세트는 이미 BRANDS_LC로 있으면 재활용, 없으면 미리 정의된 것에서 뽑음 */
+const REPORT_BRAND_SET = new Set([
+  'nike','adidas','puma','asics','salomon','merrell','mizuno','new-balance','on-running',
+  'converse','keen','kith','jacquemus','jil-sander','miu-miu','saint-laurent','celine',
+  'loewe','chloe','bottega-veneta','prada','collina-strada','skims','stussy','needles',
+  'fila','clot','soulgoods','naked-copenhagen','madhappy','jiyongkim','no-faith-studios',
+  'snow-peak','gentle-monster','bad-bunny','kendall-jenner','jennie','dua-lipa','trimming-bird',
+  '나이키','아디다스','푸마','생','로랑','샤넬','디올','프라다','제니','두아리파','켄달제너',
+]);
+
+/* 제목 문자열을 토큰 배열로 — 대괄호 안 제거 + 한글 2자↑ 또는 영문 3자↑ */
+function _reportTokenize(title){
+  let t = String(title || '');
+  t = t.replace(/\[[^\]]*\]/g, ' ');   /* [27SS Runway Trend] 같은 대괄호 제거 */
+  const tokens = t.match(/[가-힣]{2,}|[A-Za-z][A-Za-z0-9-]{2,}/g) || [];
+  return tokens.map(x => x.toLowerCase());
+}
+
+/* 두 토큰을 "유사 표기 통합" 기준으로 같다고 볼지
+   — 공백/하이픈/대소문자 무시 + keyword_aliases에 등록된 영한 표기는 대표 이름으로 통합 */
+function _reportNorm(w){
+  const base = String(w || '').toLowerCase().replace(/[\s\-_]+/g, '');
+  try{
+    const canon = ALIAS_MAP[normKw(w)];
+    if(canon) return String(canon).toLowerCase().replace(/[\s\-_]+/g, '');
+  }catch(e){}
+  return base;
+}
+
+/* items: 이 카테고리의 카드 배열. 각 원문마다 { note(제목), summary, ym, url, source, image_url } 있는 형태.
+   반환: [{ word, count, items[] }] — count>=3인 것만, 카운트 많은 순 */
+function detectRepeatedTitleTrends(items){
+  const groups = new Map();   /* normKey → { word, items:[], titles:[] } */
+  for(const it of items){
+    const raw = it.note || it.keyword || (it.keywords && it.keywords[0]) || '';
+    const tokens = _reportTokenize(raw);
+    /* 카드당 같은 단어를 중복 카운트 안 하도록 Set */
+    const seenInCard = new Set();
+    for(const w of tokens){
+      const key = _reportNorm(w);
+      if(!key || key.length < 2) continue;
+      if(REPORT_STOPWORDS.has(w) || REPORT_STOPWORDS.has(key)) continue;
+      if(REPORT_BRAND_SET.has(w) || REPORT_BRAND_SET.has(key)) continue;
+      if(seenInCard.has(key)) continue;
+      seenInCard.add(key);
+      if(!groups.has(key)) groups.set(key, { word: w, items: [], _normKey: key });
+      const g = groups.get(key);
+      /* 표시용 단어는 가장 긴 표기를 대표로 (여러 표기 중 정보가 많은 쪽) */
+      if(w.length > g.word.length) g.word = w;
+      g.items.push(it);
+    }
+  }
+  const out = [...groups.values()]
+    .filter(g => g.items.length >= 3)
+    .map(g => ({
+      word: g.word,
+      count: g.items.length,
+      /* 최신순 정렬 — 대표 이미지는 최신 카드에서 뽑을 것 */
+      items: g.items.slice().sort((a, b) => (b.ym || '0').localeCompare(a.ym || '0'))
+    }))
+    .sort((a, b) => b.count - a.count || a.word.localeCompare(b.word));
+  return out;
+}
+
+/* 리포트 섹션 HTML — 카테고리 위 상단에 반복 단어별로 카드형 리포트 */
+function repeatedTrendsReportHTML(items){
+  const trends = detectRepeatedTitleTrends(items);
+  if(!trends.length) return '';
+  const blocks = trends.map((t, i) => {
+    const top = t.items[0];
+    const img = top && top.image_url;
+    const bullets = t.items.map(it => {
+      const src = it.source || '';
+      const sum = it.summary || it.note || '';
+      const line = sum.length > 160 ? sum.slice(0, 160) + '…' : sum;
+      const link = it.url
+        ? `<a class="repLink" href="${esc(it.url)}" target="_blank" rel="noopener">원문 →</a>`
+        : '';
+      return `<li>
+        <span class="repSrc">${esc(src) || '출처 미상'}</span>
+        <span class="repText">${esc(line)}</span>
+        ${link}
+      </li>`;
+    }).join('');
+    return `<div class="repBlock">
+      <div class="repBadge">유행 중 · ${t.count}건 반복</div>
+      <div class="repTitleBar"><span class="repNum">${i + 1}</span><span class="repTitle">${esc(t.word)}</span></div>
+      <div class="repBody">
+        ${img
+          ? `<div class="repImg"><img src="${esc(img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="imgFail(this)"></div>`
+          : ''}
+        <ul class="repList">${bullets}</ul>
+      </div>
+    </div>`;
+  }).join('');
+  return `<div class="repWrap">
+    <div class="repHead">이 카테고리에서 반복되는 트렌드
+      <span class="repSub">제목에 3번 이상 반복된 단어 기준 · 자동 감지</span>
+    </div>
+    ${blocks}
+  </div>`;
+}
+
+/* 리포트를 카드 그리드 "위"에 가로로 놓기 위한 전용 상자.
+   그리드 안에 넣으면 카드 한 칸처럼 좁아지므로 형제 요소로 만든다. */
+function reportBoxFor(gridSel){
+  const grid = $(gridSel);
+  if(!grid || !grid.parentElement) return null;
+  let box = grid.parentElement.querySelector(`[data-report-for="${gridSel}"]`);
+  if(!box){
+    box = document.createElement('div');
+    box.setAttribute('data-report-for', gridSel);
+    grid.parentElement.insertBefore(box, grid);
+  }
+  return box;
+}
+
 function renderKwBlock(gridSel, moreBtnSel, moreListSel, cntSel, ranked, exampleFn, showScore, emptyMsg, bigN=8, metaOverride, bubbleSel, catCtx){
+  /* 반복 단어 리포트 — 키워드 탭에서만 표시. 해시태그 탭에서는 카드만 보여준다 */
+  const bubbleMode = bubbleSel ? (BUBBLE_MODE[bubbleSel] || 'kw') : 'kw';
+  const box = reportBoxFor(gridSel);
+  if(box){
+    const allItems = ranked.flatMap(e => e.items || []);
+    box.innerHTML = bubbleMode === 'kw' ? (repeatedTrendsReportHTML(allItems) || '') : '';
+  }
   $(gridSel).innerHTML = ranked.length ? flatCardsHTML(ranked) : `<div class="empty">${emptyMsg}</div>`;
   const totalCards = ranked.reduce((n,e) => n + (e.items || []).length, 0);
   $(cntSel).textContent = totalCards ? `${totalCards}건 · 최신 순` : '';
