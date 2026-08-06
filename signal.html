@@ -103,6 +103,10 @@ tr.krow{cursor:pointer} tr.krow:hover{background:#faf6ec}
   border-right:1px solid #f1d9cf}
 .repTitle{font-family:'Cormorant Garamond', serif; font-size:26px; font-weight:600; color:var(--tx);
   line-height:1.2; padding:12px 18px; display:flex; align-items:center; flex:1; word-break:keep-all}
+.repKws{display:flex; flex-wrap:wrap; gap:5px; margin:-6px 0 14px}
+.repKw{font-size:10.5px; font-weight:700; padding:4px 10px; border-radius:20px; cursor:pointer;
+  background:#f2efe9; border:1px solid #e2ddd3; color:#6b6357; font-family:inherit}
+.repKw:hover{background:var(--acc); border-color:var(--acc); color:#fff}
 .repBody{display:flex; gap:20px; align-items:flex-start}
 @media (max-width:720px){ .repBody{flex-direction:column} }
 .repImg{flex:0 0 300px; border-radius:8px; overflow:hidden}
@@ -280,7 +284,7 @@ a{color:var(--acc)}
 </head>
 <body>
 <header>
-  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260806-01</span></h1>
+  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260806-02</span></h1>
   <a href="index.html" id="backLink" style="font-size:11px;letter-spacing:.12em;font-weight:700;color:var(--acc);text-decoration:none;border:1px solid var(--acc);padding:6px 12px">← DASHBOARD</a>
   <div class="mrange">
     <label>기간</label>
@@ -332,7 +336,7 @@ a{color:var(--acc)}
 
 <script src="config.js"></script>
 <script type="module">
-console.log("TREND AGENT signal.html v260806-01");
+console.log("TREND AGENT signal.html v260806-02");
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ══ 설정 — 다른 파일들과 같은 값 ══ */
@@ -1237,6 +1241,8 @@ const REPORT_STOPWORDS = new Set([
   /* 무의미 */
   '입은','왔다','됐다','됩니다','왔어요','한다','했다','합니다','싶어','있는',
   '멋있다','좋아','좋다','좋아요','예뻐','예쁘다',
+  /* 접미어 단독 등장은 의미 없음 (앞말과 붙여서 세도록 처리함) */
+  '코어','맥싱','무드','웨어',
 ]);
 
 /* 브랜드 세트는 이미 BRANDS_LC로 있으면 재활용, 없으면 미리 정의된 것에서 뽑음 */
@@ -1253,6 +1259,8 @@ const REPORT_BRAND_SET = new Set([
 function _reportTokenize(title){
   let t = String(title || '');
   t = t.replace(/\[[^\]]*\]/g, ' ');   /* [27SS Runway Trend] 같은 대괄호 제거 */
+  /* 'OO 코어'처럼 띄어 쓴 접미어는 한 단어로 붙임 — 슬래커 코어 → 슬래커코어 */
+  t = t.replace(/([가-힣A-Za-z0-9]+)\s+(코어|코렉스|맥싱|룩|무드|웨어)\b/g, '$1$2');
   const tokens = t.match(/[가-힣]{2,}|[A-Za-z][A-Za-z0-9-]{2,}/g) || [];
   return tokens.map(x => x.toLowerCase());
 }
@@ -1310,6 +1318,14 @@ function repeatedTrendsReportHTML(items){
   const blocks = trends.map((t, i) => {
     const top = t.items[0];
     const img = top && top.image_url;
+    /* 이 유행어가 나온 카드들의 키워드 — 누르면 해당 카드로 이동 */
+    const kws = [...new Set(t.items
+      .map(it => canonKw((it.keywords && it.keywords[0]) || it.keyword || ''))
+      .filter(Boolean))];
+    const kwChips = kws.length
+      ? `<div class="repKws">${kws.map(k =>
+          `<button class="repKw" data-repkw="${esc(k)}">${esc(k)}</button>`).join('')}</div>`
+      : '';
     const bullets = t.items.map(it => {
       const src = it.source || '';
       const sum = it.summary || it.note || '';
@@ -1326,6 +1342,7 @@ function repeatedTrendsReportHTML(items){
     return `<div class="repBlock">
       <div class="repBadge">유행 중 · ${t.count}건 반복</div>
       <div class="repTitleBar"><span class="repNum">${i + 1}</span><span class="repTitle">${esc(t.word)}</span></div>
+      ${kwChips}
       <div class="repBody">
         ${img
           ? `<div class="repImg"><img src="${esc(img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="imgFail(this)"></div>`
@@ -1335,7 +1352,7 @@ function repeatedTrendsReportHTML(items){
     </div>`;
   }).join('');
   return `<div class="repWrap">
-    <div class="repHead">이 카테고리에서 반복되는 트렌드
+    <div class="repHead">HOT TREND KEYWORD
       <span class="repSub">제목에 3번 이상 반복된 단어 기준 · 자동 감지</span>
     </div>
     ${blocks}
@@ -1373,7 +1390,9 @@ function renderKwBlock(gridSel, moreBtnSel, moreListSel, cntSel, ranked, example
       <button data-mode="kw"${mode==='kw'?' class="on"':''}>키워드</button>
       <button data-mode="tag"${mode==='tag'?' class="on"':''}>해시태그</button>
     </div>`;
-    const body = mode === 'tag' ? tagBubbleHTML(TAG_POOL[bubbleSel] || ranked, gridSel) : bubbleHTML(ranked, gridSel, catCtx);
+    /* 키워드 탭에서는 버블 대신 위쪽 HOT TREND KEYWORD 리포트가 그 역할을 하므로 버블은 그리지 않는다.
+       해시태그 탭에서는 기존대로 태그 버블을 모두 표시한다. */
+    const body = mode === 'tag' ? tagBubbleHTML(TAG_POOL[bubbleSel] || ranked, gridSel) : '';
     $(bubbleSel).innerHTML = tabs + `<div class="bubbleRow">${body}</div>`;
   }
   const moreBtn = $(moreBtnSel), moreList = $(moreListSel);
@@ -1494,6 +1513,13 @@ document.addEventListener('scroll', e => {
   const dots = box.parentElement.querySelectorAll('.kwdot');
   dots.forEach((d, i) => d.classList.toggle('on', i === idx));
 }, true);
+
+/* HOT TREND KEYWORD의 키워드 칩 클릭 → 아래 그 카드로 이동 + 강조 */
+document.addEventListener('click', e => {
+  const b = e.target.closest('.repKw'); if(!b) return;
+  e.stopPropagation();
+  highlightCardByLabel(b.dataset.repkw);
+});
 
 /* 버블 보기 전환 — 키워드 / 해시태그 */
 document.addEventListener('click', e => {
