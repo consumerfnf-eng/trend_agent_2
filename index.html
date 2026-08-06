@@ -232,7 +232,7 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
 <body>
 
 <header>
-  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260806-02</span></h1>
+  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260806-04</span></h1>
   <div class="tabs">
     <button data-v="signal" class="on">TREND SIGNAL</button>
     <button data-v="keywords">TREND KEYWORDS</button>
@@ -1156,19 +1156,14 @@ async function drawVolumeChart(){
   const queryTermsByKw = {};   /* 선택 태그 → 실제 조회할 검색어 배열 */
   const allQueryTerms = new Set();
   for(const kw of SELECTED_KW){
-    if(isKo){
-      const r = rowsIndex[kw];
-      const terms = (r && r.ko && r.ko.length) ? r.ko : [];
-      queryTermsByKw[kw] = terms;
-      terms.forEach(t => allQueryTerms.add(t));
-    } else {
-      queryTermsByKw[kw] = [kw];
-      allQueryTerms.add(kw);
-    }
+    /* 한국어 탭에서는 표의 각 행이 이미 한국어 검색어 자체이므로 그대로 조회한다
+       (예전에는 해시태그 행에서 별칭 배열을 꺼내 썼는데, 행 구조가 바뀌었다) */
+    queryTermsByKw[kw] = [kw];
+    allQueryTerms.add(kw);
   }
 
   if(!allQueryTerms.size){
-    $('#navEmpty').textContent = '한국어 별칭이 있는 키워드를 선택해야 조회할 수 있어요';
+    $('#navEmpty').textContent = '아래 표에서 키워드를 클릭하면 (최대 5개) 검색량 추이가 여기 그래프로 표시됩니다';
     $('#navEmpty').style.display = 'block';
     $('#navChart').style.display = 'none';
     $('#navLegend').innerHTML = '';
@@ -1211,10 +1206,29 @@ async function drawVolumeChart(){
     svg += `<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="#e4ded2" stroke-width="1"/>`;
     svg += `<text x="${padL-6}" y="${y+3}" font-size="8" fill="#8a8578" text-anchor="end">${g}</text>`;
   }
-  // x축 라벨 (처음/마지막 주만 — 좁으면 다 넣으면 겹침)
-  svg += `<text x="${xAt(0)}" y="${H-8}" font-size="8" fill="#8a8578" text-anchor="middle">${esc(weeks[0])}</text>`;
-  if(weeks.length > 1)
-    svg += `<text x="${xAt(weeks.length-1)}" y="${H-8}" font-size="8" fill="#8a8578" text-anchor="middle">${esc(weeks[weeks.length-1])}</text>`;
+  /* x축 — 달이 바뀌는 지점마다 세로 안내선과 월 표시.
+     라벨이 너무 촘촘하면 겹치므로, 폭에 맞춰 한 달씩 건너뛰며 표시한다 */
+  const monthStarts = [];
+  let prevMonth = '';
+  weeks.forEach((w, i) => {
+    const m = String(w).slice(0, 7);
+    if(m !== prevMonth){ monthStarts.push({ i, m }); prevMonth = m; }
+  });
+  const minGap = 46;                                  /* 라벨 사이 최소 간격(px) */
+  const step = Math.max(1, Math.ceil(monthStarts.length / Math.max(1, Math.floor(plotW / minGap))));
+  monthStarts.forEach((ms, n) => {
+    const x = xAt(ms.i);
+    svg += `<line x1="${x}" y1="${padT}" x2="${x}" y2="${padT + plotH}" stroke="#efe9dd" stroke-width="1"/>`;
+    if(n % step !== 0) return;
+    const label = `${ms.m.slice(2, 4)}.${ms.m.slice(5, 7)}`;   /* 26.03 형태 */
+    svg += `<text x="${x}" y="${H-8}" font-size="8" fill="#8a8578" text-anchor="middle">${esc(label)}</text>`;
+  });
+  /* 마지막 주 날짜는 오른쪽 끝에 따로 표시 */
+  if(weeks.length > 1){
+    const lastX = xAt(weeks.length - 1);
+    const lastLabel = String(weeks[weeks.length - 1]).slice(2).replace(/-/g, '.');
+    svg += `<text x="${lastX}" y="${H-8}" font-size="8" fill="#8a8578" text-anchor="end">${esc(lastLabel)}</text>`;
+  }
 
   SELECTED_KW.forEach((kw, ki) => {
     const color = NAV_COLORS[ki % NAV_COLORS.length];
