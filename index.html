@@ -10,6 +10,10 @@
 *{margin:0;padding:0;box-sizing:border-box}
 /* 영문 / 한국어 전환 버튼 — 선택된 쪽이 확실히 보이도록 */
 .kwLangBtn{transition:background .12s, color .12s}
+.koDel, .tagDel{font-size:10px; font-weight:700; color:var(--rising); background:#fff; border:1px solid var(--hair);
+  border-radius:20px; padding:4px 10px; cursor:pointer; width:auto; font-family:inherit}
+.koDel:hover, .tagDel:hover{background:var(--rising); border-color:var(--rising); color:#fff}
+.koHead{font-size:11px; padding:4px 6px; width:auto; min-width:130px}
 .kwLangBtn.on{background:var(--ink) !important; color:#fff !important}
 .kwLangBtn:not(.on){background:#fff !important; color:var(--sub) !important}
 .kwLangBtn:not(.on):hover{background:#f2efe9 !important; color:var(--ink) !important}
@@ -37,7 +41,7 @@ header h1{font-family:'Playfair Display',serif; font-size:22px}
 /* 표가 좁아지면 칸 안 글자가 세로로 눌리므로, 최소 너비를 주고 가로 스크롤로 처리 */
 .kwtablewrap{background:#fff; border:1px solid var(--hair); border-radius:10px; overflow-x:auto; margin-top:12px}
 .kwtablewrap table{width:100%; min-width:960px; border-collapse:collapse; table-layout:fixed}
-/* 새 컬럼 — 1 해시태그 / 2 한국어 / 3 대표 클러스터 / 4 카테고리 / 5 사용 건수 / 6 검색량 / 7 변화 */
+/* 새 컬럼 — 1 해시태그 / 2 한국어 / 3 대표 클러스터 / 4 카테고리 / 5 트렌드 지수 / 6 검색량 / 7 변화 */
 .kwtablewrap th:nth-child(1), .kwtablewrap td:nth-child(1){width:180px}
 .kwtablewrap th:nth-child(2), .kwtablewrap td:nth-child(2){width:200px}
 .kwtablewrap th:nth-child(3), .kwtablewrap td:nth-child(3){width:130px}
@@ -232,11 +236,12 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
 <body>
 
 <header>
-  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260806-04</span></h1>
+  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260806-08</span></h1>
   <div class="tabs">
     <button data-v="signal" class="on">TREND SIGNAL</button>
     <button data-v="keywords">TREND KEYWORDS</button>
     <button data-v="brand">KEY BRAND</button>
+    <button data-v="report">시즌 리포트</button>
     <a href="admin.html">+ 수집</a>
   </div>
   <span class="note" id="noteTxt">FEED 키워드의 검색량 — 네이버 · 구글 · 썸트렌드</span>
@@ -282,7 +287,7 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
       </div>
     </div>
     <div class="kwtablewrap"><table>
-      <thead id="kwHead2"><tr><th>해시태그</th><th>한국어</th><th>대표 클러스터</th><th>카테고리</th><th>사용 건수</th><th>검색량 추이</th><th>변화</th></tr></thead>
+      <thead id="kwHead2"><tr><th>해시태그</th><th>한국어</th><th>대표 클러스터</th><th>카테고리</th><th>트렌드 지수</th><th>검색량 추이</th><th>변화</th></tr></thead>
       <tbody id="kwBody2"></tbody>
     </table></div>
   </div>
@@ -292,6 +297,30 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
 <div id="brandView" class="view"><div id="brandMain">
   <h2>Key Brands <span style="font-size:12px;color:var(--sub);font-family:'Noto Sans KR'">— 수집 자료에서 언급된 브랜드 · 클릭하면 검증 노트와 관련 사진</span></h2>
   <div class="bgrid" id="bgrid"></div>
+</div></div>
+
+<div id="reportView" class="view"><div>
+  <h2>시즌 리포트 <span style="font-size:12px;color:var(--sub);font-family:'Noto Sans KR'">— 시즌별 리포트 자료 · PDF 파일이나 사이트 주소를 모아둡니다</span></h2>
+  <div id="rpSeasonBar" style="display:flex; gap:6px; flex-wrap:wrap; margin:14px 0 10px"></div>
+  <div id="rpGrid" class="bgrid"></div>
+
+  <details id="rpAdd" style="margin-top:22px; border:1px solid var(--hair); border-radius:10px; padding:12px 16px; background:#fff">
+    <summary style="cursor:pointer; font-weight:800; font-size:13px">+ 리포트 추가</summary>
+    <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; margin-top:12px">
+      <div><label class="mini">시즌</label>
+        <input id="rpSeason" placeholder="27SS" style="width:100px"></div>
+      <div style="flex:1; min-width:220px"><label class="mini">제목</label>
+        <input id="rpTitle" placeholder="예: 27SS 슈즈 트렌드 리포트"></div>
+      <div style="flex:1; min-width:260px"><label class="mini">주소 — PDF 링크 또는 사이트 URL</label>
+        <input id="rpUrl" placeholder="https://..."></div>
+      <div style="max-width:120px"><label class="mini">구분</label>
+        <select id="rpKind"><option value="pdf">PDF</option><option value="link">사이트</option></select></div>
+      <div style="flex:1; min-width:200px"><label class="mini">설명 (선택)</label>
+        <input id="rpNote" placeholder="한 줄 메모"></div>
+      <button class="btn sm" id="rpAddBtn">추가</button>
+    </div>
+    <div class="mini" style="margin-top:8px">PDF는 Supabase Storage나 사내 드라이브에 올린 뒤 그 주소를 넣으세요</div>
+  </details>
 </div></div>
 
 <aside id="dpanel">
@@ -815,6 +844,10 @@ const KW_CATLABEL_FALLBACK = {
   shoes:'슈즈', bag:'백', acc:'액세서리', etc:'컬러', lifestyle:'라이프스타일'
 };
 
+/* 대표 클러스터로 보여주지 않을 태그 — 아이템·카테고리 성격이라 트렌드 신호가 아님.
+   tag_clusters.is_hidden 값으로 관리하며, 아래는 그 값이 없을 때의 기본값 */
+let HIDDEN_HEADS = new Set();
+let ALL_CLUSTERS = [];   /* 대표 클러스터 목록 — 편집 UI의 선택지 */
 let KO_VOL = {};   /* 한국어 검색어 → 주간 검색량 (한국어 탭에서 행마다 따로 표시) */
 let kwLang2 = 'en';   /* 검색량 조회 언어 — 'en' 영문 해시태그 자체, 'ko' 대표 클러스터의 한국어 별칭들 합산 */
 let kwQuery2 = '';   /* 트렌드 키워드 탭 검색어 */
@@ -823,16 +856,20 @@ async function buildKwTable2(){
   try{
     const [sig, tc] = await Promise.all([
       sb.from('trend_signals').select('*').order('created_at', { ascending:false }),
-      sb.from('tag_clusters').select('head, members, ko_aliases')
+      sb.from('tag_clusters').select('head, members, ko_aliases, is_hidden')
     ]);
     if(sig.error){ console.warn('trend_signals 로드 실패:', sig.error.message); return; }
 
     /* 클러스터 사전: 유사 태그 → 대표, 대표 → 한국어 별칭 배열 */
     const TAG_TO_HEAD = {}, HEAD_TO_KO = {};
+    HIDDEN_HEADS = new Set();
+    ALL_CLUSTERS = [];
     for(const r of (tc.data || [])){
       HEAD_TO_KO[r.head] = r.ko_aliases || [];
       TAG_TO_HEAD[r.head] = r.head;
       for(const m of (r.members || [])){ if(!(m in TAG_TO_HEAD)) TAG_TO_HEAD[m] = r.head; }
+      if(r.is_hidden) HIDDEN_HEADS.add(r.head);   /* 아이템·카테고리 성격이라 대표에서 제외 */
+      ALL_CLUSTERS.push({ head: r.head, ko: r.ko_aliases || [], hidden: !!r.is_hidden });
     }
 
     const CAT_LABEL = { ...KW_CATLABEL_FALLBACK };
@@ -846,8 +883,9 @@ async function buildKwTable2(){
       catsSet.add(cat);
       for(const t of tags){
         if(!map.has(t)){
-          const head = TAG_TO_HEAD[t] || null;
-          const ko = head ? (HEAD_TO_KO[head] || []) : [];
+          const rawHead = TAG_TO_HEAD[t] || null;
+          const head = (rawHead && !HIDDEN_HEADS.has(rawHead)) ? rawHead : null;
+          const ko = rawHead ? (HEAD_TO_KO[rawHead] || []) : [];
           map.set(t, { label: t, ko, head, cats: [], count: 0 });
         }
         const e = map.get(t);
@@ -856,7 +894,9 @@ async function buildKwTable2(){
       }
     }
 
-    const rows = [...map.values()].sort((a, b) => a.label.localeCompare(b.label, 'en'));
+    /* 트렌드 지수(사용 건수) 높은 순 → 같으면 이름순 */
+    const rows = [...map.values()]
+      .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, 'en'));
 
     window.KW_ROWS2 = rows;
     window.KW_CATLABEL2 = CAT_LABEL;
@@ -935,8 +975,8 @@ function drawKwCatBar2(CATS){
 function drawKwHead2(){
   const isKo = kwLang2 === 'ko';
   $('#kwHead2').innerHTML = isKo
-    ? '<tr><th>한국어 검색어</th><th>해시태그</th><th>대표 클러스터</th><th>카테고리</th><th>사용 건수</th><th>검색량 추이</th><th>변화</th></tr>'
-    : '<tr><th>해시태그</th><th>한국어</th><th>대표 클러스터</th><th>카테고리</th><th>사용 건수</th><th>검색량 추이</th><th>변화</th></tr>';
+    ? '<tr><th>한국어 검색어</th><th>카테고리</th><th>트렌드 지수</th><th>검색량 추이</th><th>변화</th><th>관리</th></tr>'
+    : '<tr><th>해시태그</th><th>한국어</th><th>대표 클러스터</th><th>카테고리</th><th>트렌드 지수</th><th>검색량 추이</th><th>변화</th><th>관리</th></tr>';
 }
 
 /* 한국어 탭에서 쓸 행 목록 — 한국어 별칭 하나가 한 행이 된다.
@@ -960,11 +1000,133 @@ function koRowsFrom(rows){
     .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
 }
 
+/* 한국어 검색어 추가 줄 — 표 위에 붙인다 (한국어 탭에서만) */
+function drawKoAddBar(){
+  let bar = $('#koAddBar');
+  const table = $('#kwBody2')?.closest('table');
+  if(!table) return;
+  if(!bar){
+    bar = document.createElement('div');
+    bar.id = 'koAddBar';
+    bar.style.cssText = 'display:flex; gap:8px; align-items:flex-end; margin:10px 0 8px; flex-wrap:wrap';
+    table.parentElement.insertBefore(bar, table);
+  }
+  const opts = ALL_CLUSTERS.filter(c => !c.hidden)
+    .map(c => `<option value="${esc(c.head)}">#${esc(c.head)}</option>`).join('');
+  bar.innerHTML = kwLang2 === 'ko'
+    ? `<div><label class="mini">새 한국어 검색어</label>
+        <input id="koNewTerm" placeholder="예: 뮬" style="min-width:180px"></div>
+      <div><label class="mini">어느 대표 클러스터에</label>
+        <select id="koNewHead" style="min-width:170px">${opts}</select></div>
+      <button class="btn sm" id="koAddBtn">추가</button>
+      <span class="mini" id="koAddMsg"></span>`
+    : `<div><label class="mini">새 해시태그</label>
+        <input id="tagNewTerm" placeholder="예: quiet-luxury" style="min-width:180px"></div>
+      <div><label class="mini">어느 대표 클러스터에</label>
+        <select id="tagNewHead" style="min-width:170px">${opts}</select></div>
+      <button class="btn sm" id="tagAddBtn">추가</button>
+      <span class="mini" id="koAddMsg"></span>`;
+}
+
+/* 클러스터의 한국어 별칭 목록을 통째로 저장 */
+async function saveKoAliases(head, list){
+  const { data, error } = await sb.from('tag_clusters')
+    .update({ ko_aliases: list }).eq('head', head).select('head');
+  if(error){ alert('저장 실패: ' + error.message); return false; }
+  if(!data || !data.length){
+    alert('저장되지 않았습니다.\n\ntag_clusters 표의 수정 권한이 없을 수 있습니다.\nenable_edit_delete SQL을 실행해 주세요.');
+    return false;
+  }
+  return true;
+}
+
+/* 추가 / 삭제 / 대표 변경 */
+document.addEventListener('click', async e => {
+  const add = e.target.closest('#koAddBtn');
+  if(add){
+    const term = $('#koNewTerm').value.trim();
+    const head = $('#koNewHead').value;
+    if(!term || !head) return;
+    const c = ALL_CLUSTERS.find(x => x.head === head); if(!c) return;
+    if(c.ko.includes(term)){ $('#koAddMsg').textContent = '이미 있는 검색어입니다'; return; }
+    if(await saveKoAliases(head, [...c.ko, term])) await buildKwTable2();
+    return;
+  }
+  /* 해시태그 추가 — 대표 클러스터의 유사 태그 목록에 등록 */
+  const tagAdd = e.target.closest('#tagAddBtn');
+  if(tagAdd){
+    const tag = $('#tagNewTerm').value.trim().toLowerCase().replace(/^#/, '');
+    const head = $('#tagNewHead').value;
+    if(!tag || !head) return;
+    const { data: cur, error: e1 } = await sb.from('tag_clusters').select('members').eq('head', head).maybeSingle();
+    if(e1) return alert('불러오기 실패: ' + e1.message);
+    const members = (cur?.members || []);
+    if(members.includes(tag) || tag === head){ $('#koAddMsg').textContent = '이미 있는 해시태그입니다'; return; }
+    const { data, error } = await sb.from('tag_clusters')
+      .update({ members: [...members, tag] }).eq('head', head).select('head');
+    if(error) return alert('추가 실패: ' + error.message);
+    if(!data || !data.length) return alert('추가되지 않았습니다 — tag_clusters 권한을 확인해 주세요');
+    $('#tagNewTerm').value = '';
+    $('#koAddMsg').textContent = `#${tag} 추가됨 — 항목에 이 태그를 달면 목록에 나타납니다`;
+    await buildKwTable2();
+    return;
+  }
+
+  /* 해시태그 삭제 — 모든 항목에서 그 태그를 빼고 사전에서도 제거 */
+  const tagDel = e.target.closest('.tagDel');
+  if(tagDel){
+    const tag = tagDel.dataset.tag;
+    if(!confirm(`해시태그 '#${tag}'를 지웁니다.\n\n이 태그가 달린 모든 항목에서 빠지고 사전에서도 제거됩니다.\n되돌릴 수 없습니다. 진행할까요?`)) return;
+    /* 항목에서 제거 */
+    const { data: rows2, error: e2 } = await sb.from('trend_signals').select('id, tags').contains('tags', [tag]);
+    if(e2) return alert('불러오기 실패: ' + e2.message);
+    for(const r of (rows2 || [])){
+      await sb.from('trend_signals').update({ tags: (r.tags || []).filter(t => t !== tag) }).eq('id', r.id);
+    }
+    /* 사전에서 제거 */
+    const { data: cls } = await sb.from('tag_clusters').select('head, members').contains('members', [tag]);
+    for(const c of (cls || [])){
+      await sb.from('tag_clusters').update({ members: (c.members || []).filter(m => m !== tag) }).eq('head', c.head);
+    }
+    await buildKwTable2();
+    return;
+  }
+
+  const del = e.target.closest('.koDel');
+  if(del){
+    const term = del.dataset.term;
+    if(!confirm(`'${term}'을(를) 목록에서 지웁니다.\n\n이 검색어가 들어 있던 대표 클러스터에서 빠집니다. 진행할까요?`)) return;
+    for(const c of ALL_CLUSTERS.filter(x => x.ko.includes(term))){
+      await saveKoAliases(c.head, c.ko.filter(k => k !== term));
+    }
+    await buildKwTable2();
+    return;
+  }
+});
+
+/* 대표 클러스터 변경 */
+document.addEventListener('change', async e => {
+  const sel = e.target.closest('.koHead'); if(!sel) return;
+  const term = sel.dataset.term, from = sel.dataset.cur, to = sel.value;
+  if(from === to) return;
+  if(from){
+    const c = ALL_CLUSTERS.find(x => x.head === from);
+    if(c) await saveKoAliases(from, c.ko.filter(k => k !== term));
+  }
+  if(to){
+    const c = ALL_CLUSTERS.find(x => x.head === to);
+    if(c && !c.ko.includes(term)) await saveKoAliases(to, [...c.ko, term]);
+  }
+  await buildKwTable2();
+});
+
 function drawKwBody2(){
   drawKwHead2();
   const CAT_LABEL = window.KW_CATLABEL2 || {};
   const isKo = kwLang2 === 'ko';
   const q = kwQuery2.trim().toLowerCase().replace(/^#/, '');
+
+  drawKoAddBar();
 
   /* ── 한국어 탭 — 한국어 검색어 하나가 한 행, 각 검색어별 검색량 ── */
   if(isKo){
@@ -979,6 +1141,7 @@ function drawKwBody2(){
     $('#kwQueryCount').textContent = q
       ? `${koRows.length}개 매치`
       : `총 ${koAll.length}개 한국어 검색어`;
+    drawKoAddBar();
 
     $('#kwBody2').innerHTML = koRows.length ? koRows.map(r => {
       const pts = KO_VOL[r.label] || null;
@@ -986,24 +1149,18 @@ function drawKwBody2(){
       const pct = pts ? changePct(pts) : null;
       const pctHtml = pct == null ? '<span class="mini">준비중</span>'
         : `<span style="color:${pct>=0?'#1a7a4a':'#c8451f'};font-weight:700;font-size:11px">${pct>=0?'▲':'▼'} ${Math.abs(pct)}%</span>`;
-      const tagCell = r.tags.slice(0, 4).map(t => `<span class="pillb2">#${esc(t)}</span>`).join(' ')
-        + (r.tags.length > 4 ? ` <span class="mini">+${r.tags.length - 4}</span>` : '');
-      const headCell = r.heads.length
-        ? r.heads.slice(0, 2).map(h => `<span class="pillb2">#${esc(h)}</span>`).join(' ')
-        : '<span class="mini">-</span>';
       const cats = r.cats.map(c => esc(CAT_LABEL[c] || c)).join(', ');
       const cnt = r.count > 1
         ? `<span style="color:#c8451f;font-weight:800">🔥 ${r.count}</span>` : `${r.count}`;
       return `<tr class="${SELECTED_KW.includes(r.label) ? 'kwsel' : ''}" data-kw="${esc(r.label)}">
         <td><b>${esc(r.label)}</b></td>
-        <td>${tagCell || '<span class="mini">-</span>'}</td>
-        <td>${headCell}</td>
         <td><span class="mini">${cats || '-'}</span></td>
         <td>${cnt}</td>
         <td>${spark || '<span class="mini">준비중</span>'}</td>
         <td>${pctHtml}</td>
+        <td><button class="koDel" data-term="${esc(r.label)}" title="이 검색어를 목록에서 지웁니다">삭제</button></td>
       </tr>`;
-    }).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--sub);padding:24px">해당 조건의 한국어 검색어가 없습니다</td></tr>';
+    }).join('') : '<tr><td colspan="6" style="text-align:center;color:var(--sub);padding:24px">해당 조건의 한국어 검색어가 없습니다</td></tr>';
     return;
   }
 
@@ -1066,8 +1223,9 @@ function drawKwBody2(){
       <td>${cnt}</td>
       <td>${spark || '<span class="mini">준비중</span>'}</td>
       <td>${pctHtml}</td>
+      <td><button class="tagDel" data-tag="${esc(r.label)}" title="이 해시태그를 모든 항목에서 지웁니다">삭제</button></td>
     </tr>`;
-  }).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--sub);padding:24px">해당 조건의 해시태그가 없습니다</td></tr>';
+  }).join('') : '<tr><td colspan="8" style="text-align:center;color:var(--sub);padding:24px">해당 조건의 해시태그가 없습니다</td></tr>';
 }
 
 /* 언어 탭 클릭 → 스타일 반영 + 표+큰그래프 재조회 */
@@ -1251,18 +1409,87 @@ window.addEventListener('message', e => { if(e.data === 'ta-signals-updated') bu
 buildKwTable2();
 buildBrandView();
 
+/* ═══ 시즌 리포트 ═══ */
+let RP_ROWS = [], RP_SEASON = 'ALL';
+
+async function buildReportView(){
+  const grid = $('#rpGrid'); if(!grid) return;
+  try{
+    const { data, error } = await sb.from('season_reports').select('*').order('created_at', { ascending:false });
+    if(error){
+      grid.innerHTML = '<div style="color:var(--sub);padding:20px">season_reports 표가 아직 없습니다 — season_reports SQL을 실행해 주세요</div>';
+      return;
+    }
+    RP_ROWS = data || [];
+    drawReport();
+  }catch(e){ console.warn('시즌 리포트 로드 실패:', e); }
+}
+
+function drawReport(){
+  const seasons = [...new Set(RP_ROWS.map(r => r.season).filter(Boolean))].sort().reverse();
+  $('#rpSeasonBar').innerHTML = ['ALL', ...seasons].map(sn =>
+    `<button class="catbtn${RP_SEASON === sn ? ' on' : ''}" data-season="${esc(sn)}">${sn === 'ALL' ? '전체' : esc(sn)}</button>`).join('');
+
+  const rows = RP_ROWS.filter(r => RP_SEASON === 'ALL' || r.season === RP_SEASON);
+  $('#rpGrid').innerHTML = rows.length ? rows.map(r => `
+    <div class="bcard">
+      <div class="k">${esc(r.season || '시즌 미지정')} · ${r.kind === 'pdf' ? 'PDF' : '사이트'}</div>
+      <h3>${esc(r.title || '(제목 없음)')}</h3>
+      ${r.note ? `<div class="mini" style="margin-top:6px">${esc(r.note)}</div>` : ''}
+      <div class="blinks">
+        <a class="blink" href="${esc(r.url)}" target="_blank" rel="noopener">${r.kind === 'pdf' ? 'PDF 열기 ↗' : '사이트 열기 ↗'}</a>
+        <button class="blink ghost" data-rpdel="${esc(String(r.id))}">삭제</button>
+      </div>
+    </div>`).join('')
+    : '<div style="color:var(--sub);padding:20px">등록된 리포트가 없습니다 — 아래 "+ 리포트 추가"로 넣어보세요</div>';
+}
+
+document.addEventListener('click', async e => {
+  const sb2 = e.target.closest('[data-season]');
+  if(sb2){ RP_SEASON = sb2.dataset.season; drawReport(); return; }
+
+  const add = e.target.closest('#rpAddBtn');
+  if(add){
+    const row = {
+      season: $('#rpSeason').value.trim().toUpperCase() || null,
+      title:  $('#rpTitle').value.trim(),
+      url:    $('#rpUrl').value.trim(),
+      kind:   $('#rpKind').value,
+      note:   $('#rpNote').value.trim() || null,
+    };
+    if(!row.title || !row.url) return alert('제목과 주소는 반드시 입력해 주세요');
+    const { data, error } = await sb.from('season_reports').insert(row).select('id');
+    if(error) return alert('추가 실패: ' + error.message);
+    if(!data || !data.length) return alert('추가되지 않았습니다 — season_reports 표의 권한을 확인해 주세요');
+    ['rpSeason','rpTitle','rpUrl','rpNote'].forEach(id => { $('#' + id).value = ''; });
+    await buildReportView();
+    return;
+  }
+
+  const del = e.target.closest('[data-rpdel]');
+  if(del){
+    if(!confirm('이 리포트를 목록에서 지웁니다. 진행할까요?')) return;
+    const { data, error } = await sb.from('season_reports').delete().eq('id', del.dataset.rpdel).select('id');
+    if(error) return alert('삭제 실패: ' + error.message);
+    if(!data || !data.length) return alert('삭제되지 않았습니다 — 권한을 확인해 주세요');
+    await buildReportView();
+  }
+});
+
 /* ═══ 탭 ═══ */
 const TABNOTE = { signal:'FEED 키워드의 검색량 — 네이버 · 구글 · 썸트렌드',
   keywords: '트렌드 키워드 검색량 추이 — 네이버 데이터랩 · 구글 트렌드',
-  brand: '카드 클릭 = 검증 노트 · 대표사진'
+  brand: '카드 클릭 = 검증 노트 · 대표사진',
+  report: '시즌별 리포트 자료 — PDF · 사이트 링크'
 };
 document.querySelector('.tabs').addEventListener('click', e => {
   const b = e.target.closest('button'); if(!b) return;
   document.querySelectorAll('.tabs button').forEach(x => x.classList.toggle('on', x === b));
-  ['signal','keywords','brand'].forEach(v => $('#' + v + 'View').classList.toggle('on', b.dataset.v === v));
+  ['signal','keywords','brand','report'].forEach(v => $('#' + v + 'View').classList.toggle('on', b.dataset.v === v));
   if(b.dataset.v === 'signal'){ const f = $('#signalFrame'); if(!f.src) f.src = f.dataset.src; }
   if(b.dataset.v === 'keywords'){ buildKwTable2(); }
   if(b.dataset.v === 'brand'){ buildBrandView(); }
+  if(b.dataset.v === 'report'){ buildReportView(); }
   $('#noteTxt').textContent = TABNOTE[b.dataset.v];
 });
 
