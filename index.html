@@ -255,7 +255,7 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
 <body>
 
 <header>
-  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260807-09</span></h1>
+  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260807-11</span></h1>
   <div class="tabs">
     <button data-v="signal" class="on">TREND SIGNAL</button>
     <button data-v="keywords">TREND KEYWORDS</button>
@@ -1525,12 +1525,15 @@ buildBrandView();
 /* ═══ 시즌 종합 리포트 ═══
    선택한 시즌의 수집 월 범위를 기준으로 카테고리 흐름·검색량·브랜드·키워드를 한 장에 모은다 */
 let SEASONS = [], DIGEST_SEASON = null;
+let MOOD_NOTE = {};   /* 무드 → 한 줄 설명 */
 
 async function buildDigest(){
   const bar = $('#digestBar'); if(!bar) return;
   try{
     const { data: ss } = await sb.from('seasons').select('*').order('sort_order');
     SEASONS = ss || [];
+    const { data: mv } = await sb.from('mood_vocabulary').select('mood, note');
+    MOOD_NOTE = Object.fromEntries((mv || []).map(m => [m.mood, m.note || '']));
     if(!SEASONS.length){
       bar.innerHTML = '<span class="mini">seasons 표가 아직 없습니다 — seasons SQL을 실행해 주세요</span>';
       return;
@@ -1538,7 +1541,7 @@ async function buildDigest(){
     if(!DIGEST_SEASON) DIGEST_SEASON = SEASONS[0].season;
     bar.innerHTML = `<span class="mini" style="font-weight:800">종합 리포트</span>`
       + SEASONS.map(s2 => `<button class="catbtn${DIGEST_SEASON === s2.season ? ' on' : ''}"
-          data-digest="${esc(s2.season)}">${esc(s2.label || s2.season)}</button>`).join('')
+          data-digest="${esc(s2.season)}" title="${esc(s2.label || '')}">${esc(s2.season)}</button>`).join('')
       + `<button class="btn ghost sm" id="digestPrint">인쇄 · PDF 저장</button>`;
     await drawDigest();
   }catch(e){ console.warn('종합 리포트 실패:', e); }
@@ -1574,93 +1577,63 @@ async function drawDigest(){
     ${esc(sn.month_from)} ~ ${esc(sn.month_to)} · 마켓 리포트 자료 ${items.length}건 ·
     출처 ${repTitles.length}곳 (${esc(repTitles.join(', ') || '-')})</div>`;
 
-  /* ── 1. 트렌드 흐름 — 해시태그가 달마다 어떻게 옮겨가는지 ──
-     키워드는 기사 제목이라 거의 한 번씩만 나오므로 흐름이 안 잡힌다.
-     여러 달에 걸쳐 반복되는 해시태그로 흐름을 본다. */
-  const tagByMonth = new Map();          /* 태그 → 월 → 건수 */
-  const tagCats = new Map();             /* 태그 → 카테고리들 */
+  /* ── 1. 무드별 방향 ──
+     리포트가 잡은 방향성(moods)으로 묶어서 보여준다.
+     한 항목이 여러 무드에 걸치면 양쪽에 모두 나타난다. */
+  const moodMap = new Map();
   for(const r of items){
-    const m = r.sheet_month; if(!m) continue;
-    for(const t of (r.tags || [])){
-      if(!tagByMonth.has(t)) tagByMonth.set(t, new Map());
-      const mm = tagByMonth.get(t);
-      mm.set(m, (mm.get(m) || 0) + 1);
-      if(!tagCats.has(t)) tagCats.set(t, new Set());
-      if(r.category) tagCats.get(t).add(r.category);
+    for(const md of (r.moods || [])){
+      if(!moodMap.has(md)) moodMap.set(md, { mood: md, items: [], tags: new Map(), brands: new Map(), months: new Set() });
+      const e = moodMap.get(md);
+      e.items.push(r);
+      for(const t of (r.tags || [])) e.tags.set(t, (e.tags.get(t) || 0) + 1);
+      for(const b of (r.brands || [])) e.brands.set(b, (e.brands.get(b) || 0) + 1);
+      if(r.sheet_month) e.months.add(r.sheet_month);
     }
   }
+  const moodRows = [...moodMap.values()].sort((a,b) => b.items.length - a.items.length);
+  const moodTotal = moodRows.reduce((a,b) => a + b.items.length, 0) || 1;
+  const noMood = items.filter(r => !r.moods || !r.moods.length);
 
-  const monthCols = months;              /* 이 시즌에 자료가 있는 월 */
-  const first = monthCols[0], last = monthCols[monthCols.length - 1];
+  const moodBlocks = moodRows.length ? moodRows.map((e, i) => {
+    const pct = Math.round(e.items.length / moodTotal * 100);
+    const topTags = [...e.tags.entries()].sort((a,b) => b[1] - a[1]).slice(0, 6);
+    const topBrands = [...e.brands.entries()].sort((a,b) => b[1] - a[1]).slice(0, 8);
+    const note = (MOOD_NOTE[e.mood] || '');
+    return `<section style="margin-bottom:22px; break-inside:avoid">
+      <div style="display:flex; align-items:baseline; gap:10px; flex-wrap:wrap">
+        <span class="mini" style="color:var(--rising); font-style:italic">
+          ${String(i + 1).padStart(2, '0')} / Direction</span>
+        <h3 style="font-family:'Playfair Display',serif; font-size:26px; letter-spacing:-.01em">${esc(e.mood)}</h3>
+        <span class="mini">${e.items.length}개 테마 · 전체의 ${pct}%</span>
+      </div>
+      ${note ? `<div class="mini" style="margin:2px 0 8px">${esc(note)}</div>` : ''}
+      <div style="height:3px; background:var(--rising); width:${Math.max(8, pct)}%; margin-bottom:10px"></div>
 
-  /* 표에 올릴 태그 — 전체 건수 많은 순 20개 */
-  const tagRows = [...tagByMonth.entries()]
-    .map(([tag, mm]) => {
-      const total = [...mm.values()].reduce((a, b) => a + b, 0);
-      return { tag, mm, total, span: mm.size };
-    })
-    .sort((a, b) => b.span - a.span || b.total - a.total)
-    .slice(0, 20);
+      <div style="display:flex; gap:20px; flex-wrap:wrap">
+        <div style="flex:2; min-width:260px">
+          <div class="mini" style="font-weight:800; margin-bottom:4px">테마</div>
+          <table class="lystTable">${e.items.map(r =>
+            `<tr><td style="font-weight:700; font-size:11.5px">${esc(r.keyword)}</td>
+                 <td class="mini">${esc(String(r.note || '').slice(0, 60))}${String(r.note||'').length > 60 ? '…' : ''}</td></tr>`).join('')}</table>
+        </div>
+        <div style="flex:1; min-width:180px">
+          <div class="mini" style="font-weight:800; margin-bottom:4px">자주 붙은 태그</div>
+          <div style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom:10px">
+            ${topTags.map(([t, n]) => `<span class="pillb2">#${esc(t)} ${n}</span>`).join('') || '<span class="mini">-</span>'}
+          </div>
+          <div class="mini" style="font-weight:800; margin-bottom:4px">브랜드</div>
+          <div class="mini">${topBrands.map(([b, n]) => `${esc(b)}${n > 1 ? ` (${n})` : ''}`).join(' · ') || '-'}</div>
+        </div>
+      </div>
+    </section>`;
+  }).join('') : '<div class="mini">무드가 붙은 자료가 아직 없습니다 — moods SQL을 실행해 주세요</div>';
 
-  const maxCell = Math.max(1, ...tagRows.flatMap(r => [...r.mm.values()]));
-  const shade = n => {
-    if(!n) return '';
-    const lv = n / maxCell;
-    const bg = lv > .66 ? '#c8451f' : lv > .33 ? '#e08b6f' : '#f3d4c8';
-    const fg = lv > .66 ? '#fff' : '#5a4a42';
-    return `background:${bg}; color:${fg}`;
-  };
+  const moodMissing = noMood.length
+    ? `<div class="mini" style="margin-top:8px">무드가 안 붙은 항목 ${noMood.length}건: ${
+        noMood.slice(0, 6).map(r => esc(r.keyword)).join(', ')}${noMood.length > 6 ? ' 외' : ''}</div>` : '';
 
-  const flowTable = tagRows.length ? `
-    <table class="lystTable" style="table-layout:fixed">
-      <tr><td style="width:150px" class="mini">해시태그</td>
-        ${monthCols.map(m => `<td class="mini" style="text-align:center">${m.slice(2).replace('-', '.')}</td>`).join('')}
-        <td style="width:90px" class="mini">카테고리</td></tr>
-      ${tagRows.map(r => `<tr>
-        <td style="font-weight:700; font-size:11.5px">#${esc(r.tag)}</td>
-        ${monthCols.map(m => {
-          const n = r.mm.get(m) || 0;
-          return `<td style="text-align:center; font-size:11px; font-weight:700; ${shade(n)}">${n || '·'}</td>`;
-        }).join('')}
-        <td class="mini">${[...(tagCats.get(r.tag) || [])].slice(0,2).map(c => esc(CAT_LABEL[c] || c)).join(', ')}</td>
-      </tr>`).join('')}
-    </table>
-    <div class="mini" style="margin-top:6px">칸이 진할수록 그 달에 많이 나온 태그입니다 · 가로줄이 이어지면 계속되는 흐름</div>`
-    : '<div class="mini">해시태그가 달린 자료가 아직 없습니다</div>';
-
-  /* ── 새로 뜬 것 / 계속되는 것 / 사라진 것 ── */
-  const half = Math.ceil(monthCols.length / 2);
-  const early = new Set(monthCols.slice(0, half));
-  const late  = new Set(monthCols.slice(half));
-  const sumIn = (mm, set) => [...mm.entries()].reduce((a, [m, n]) => a + (set.has(m) ? n : 0), 0);
-
-  const rising = [], staying = [], fading = [];
-  for(const [tag, mm] of tagByMonth){
-    const e = sumIn(mm, early), l = sumIn(mm, late);
-    const cats = [...(tagCats.get(tag) || [])].slice(0,2).map(c => CAT_LABEL[c] || c).join(', ');
-    if(!e && l >= 2) rising.push({ tag, e, l, cats });
-    else if(e >= 2 && !l) fading.push({ tag, e, l, cats });
-    else if(e >= 1 && l >= 1 && (e + l) >= 4) staying.push({ tag, e, l, cats });
-  }
-  rising.sort((a,b) => b.l - a.l);
-  staying.sort((a,b) => (b.e + b.l) - (a.e + a.l));
-  fading.sort((a,b) => b.e - a.e);
-
-  const col = (title, sub, arr, cls) => `<div style="flex:1; min-width:200px">
-    <div style="font-weight:800; font-size:12.5px; margin-bottom:2px">${title}</div>
-    <div class="mini" style="margin-bottom:6px">${sub}</div>
-    ${arr.length ? `<table class="lystTable">${arr.slice(0, 8).map(x =>
-      `<tr><td style="font-weight:700">#${esc(x.tag)}</td>
-           <td style="width:74px" class="mini ${cls}">${x.e} → ${x.l}</td></tr>`).join('')}</table>`
-      : '<div class="mini">해당 없음</div>'}</div>`;
-
-  const shiftBlock = `<div style="display:flex; gap:20px; flex-wrap:wrap">
-    ${col('새로 뜬 흐름', `${last.slice(2)} 쪽에서 등장`, rising, 'lystUp')}
-    ${col('계속되는 흐름', '기간 내내 이어짐', staying, '')}
-    ${col('사라진 흐름', `${first.slice(2)} 쪽에만 있었음`, fading, 'lystDown')}
-  </div>`;
-
-  const catBlocks = flowTable + `<div style="margin-top:16px">${shiftBlock}</div>`;
+  const catBlocks = moodBlocks + moodMissing;
 
   /* ── 2. 검색량 급상승 ── */
   const byKw = {};
@@ -1800,9 +1773,9 @@ async function drawDigest(){
       padding-bottom:5px; margin-bottom:10px">${n}. ${title}</h3>${inner}</section>`;
 
   box.innerHTML = `<div id="digestBody" style="border:1px solid var(--hair); border-radius:12px; padding:20px 24px; background:#fff">
-    <h2 style="font-family:'Playfair Display',serif; font-size:22px">${esc(sn.label || sn.season)} 트렌드 종합 리포트</h2>
+    <h2 style="font-family:'Playfair Display',serif; font-size:22px">${esc(sn.season)} 트렌드 종합 리포트</h2>
     ${head}
-    ${sec(1, '트렌드 흐름 — 어떤 흐름이 오고 갔나', catBlocks)}
+    ${sec(1, '무드별 방향', catBlocks)}
     ${sec(2, '검색량 움직임', volBlock)}
     ${sec(3, `브랜드 교차 ${latestQ ? `(Lyst ${qLabel(latestQ)})` : ''}`, brandBlock)}
     ${sec(4, '리포트 간 겹치는 내용', kwBlock)}
