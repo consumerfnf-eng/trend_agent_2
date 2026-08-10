@@ -243,7 +243,7 @@ tbody tr:hover{background:#fdfcf9}
             border:1px solid var(--hair); border-radius:20px; padding:5px 13px; font-size:11px;
             font-weight:800; letter-spacing:.03em; margin-right:14px; background:#fff">← 대시보드</a>
   <h1>TREND <em>AGENT</em></h1>
-  <span class="mini" id="verStamp" style="margin-left:8px;opacity:.55">v260806-06</span>
+  <span class="mini" id="verStamp" style="margin-left:8px;opacity:.55">v260807-01</span>
   <div class="tabs" id="tabs">
     <button data-v="intake" class="on">업로드</button>
     <button data-v="manage">등록 관리</button>
@@ -326,6 +326,7 @@ tbody tr:hover{background:#fdfcf9}
       <span class="sp"></span>
       <span class="link-n" id="linkStat"></span>
       <button class="btn ghost sm" id="aiAll" disabled>AI로 채우기</button>
+      <button class="btn ghost sm" id="saveAsOnePost" disabled title="선택한 사진들을 한 게시물로 묶어 1건만 등록합니다">한 게시물로 등록</button>
       <button class="btn sm" id="saveImgs" disabled>CSV로 내보내기 (0/0)</button>
     </div>
     <div class="cards" id="imgCards"></div>
@@ -1363,6 +1364,11 @@ function selStat(){
   const n = picked().length, m = QUEUE_IMGS.length;
   $('#selCount').textContent = `${n}장 선택`;
   $('#saveImgs').textContent = `선택 등록 (${n}/${m})`;
+  const one = $('#saveAsOnePost');
+  if(one){
+    one.disabled = n < 2;
+    one.textContent = n >= 2 ? `한 게시물로 등록 (${n}장)` : '한 게시물로 등록';
+  }
   $('#saveImgs').disabled = !n || !IS_ADMIN;
   $('#aiAll').disabled    = !n || !GEMKEY;
 }
@@ -1440,6 +1446,62 @@ $('#aiAll').onclick = async () => {
   }
   busy(false); renderImgCards();
   toast(bad ? `${n}장 채움 · ${bad}장 실패 — 콘솔을 확인하세요` : `${n}장 채웠습니다. 확인하고 고쳐주세요`);
+};
+
+/* ── 선택한 사진들을 "한 게시물"로 묶어 1건만 등록 ──
+   첫 번째 사진의 입력값(키워드·요약·카테고리 등)을 대표로 쓰고,
+   사진은 image_url(대표) + extra_images(나머지)에 담는다. */
+$('#saveAsOnePost').onclick = async () => {
+  syncImgCardInputs();
+  const tgt = picked();
+  if(tgt.length < 2) return toast('사진을 2장 이상 선택하세요');
+
+  const head = tgt[0];
+  if(!head.meta.keyword) return toast('첫 번째 사진에 키워드를 입력해주세요 (그 값이 게시물 제목이 됩니다)');
+  if(!confirm(`${tgt.length}장을 한 게시물로 등록합니다.\n\n제목: ${head.meta.keyword}\n\n첫 번째 사진의 입력값이 대표로 쓰이고, 나머지 사진은 같은 카드 안에서 넘겨보게 됩니다.`)) return;
+
+  /* 사진 전부 업로드 */
+  const urls = [];
+  for(let i = 0; i < tgt.length; i++){
+    const it = tgt[i];
+    if(it.meta.image_url){ urls.push(it.meta.image_url); continue; }
+    busy(true, `이미지 업로드 중… ${i+1}/${tgt.length}`);
+    try{
+      const path = `${$('#sigType').value}/${ymNow()}/${it.hash}.jpg`;
+      const { error: upErr } = await sb.storage.from('trend-images')
+        .upload(path, it.thumb.blob, { contentType: 'image/jpeg', upsert: true });
+      if(upErr) throw upErr;
+      urls.push(sb.storage.from('trend-images').getPublicUrl(path).data.publicUrl);
+    }catch(e){ console.error(e); }
+  }
+  if(!urls.length){ busy(false); return toast('이미지 업로드에 모두 실패했습니다'); }
+
+  busy(true, '등록 중…');
+  const row = {
+    source_type: $('#sigType').value,
+    category:    head.meta.category || null,
+    keyword:     head.meta.keyword,
+    url:         head.meta.source_url || null,
+    image_url:   urls[0],
+    extra_images: urls.slice(1),
+    note:        head.meta.note || null,
+    source:      $('#source').value || null,
+    region:      $('#region').value || null,
+    author:      $('#author').value || null,
+    sheet_month: $('#ym').value || null,
+    brands:      SESS_BRANDS.length ? [...SESS_BRANDS] : null,
+  };
+  const { data, error } = await sb.from('trend_signals').insert(row).select('id');
+  busy(false);
+  if(error){ die(error, '한 게시물 등록'); return; }
+  if(!data || !data.length){
+    alert('등록되지 않았습니다.\n\nextra_images 칸이 아직 없거나 권한 문제일 수 있습니다.\nmulti_photo SQL을 한 번 실행해 주세요.');
+    return;
+  }
+  toast(`${urls.length}장을 한 게시물로 등록했습니다`);
+  /* 등록한 사진들은 목록에서 제거 */
+  QUEUE_IMGS = QUEUE_IMGS.filter(x => !tgt.includes(x));
+  renderImgCards();
 };
 
 /* ── 이미지 저장 — Supabase trend_signals 테이블에 바로 등록 ── */
@@ -4110,7 +4172,7 @@ function drawManage(){
         : '<div style="width:46px;height:60px;border-radius:6px;background:#efeae1"></div>'}
       <div style="min-width:0">
         <div class="mgTitle">${esc(r.keyword || '(키워드 없음)')}</div>
-        <div class="mgMeta">${esc(TYPE[r.source_type] || r.source_type || '-')} · ${esc(r.category || '-')} · ${esc(r.sheet_month || '-')} · ${esc(r.source || '-')} · ${esc(r.author || '-')}</div>
+        <div class="mgMeta">${esc(TYPE[r.source_type] || r.source_type || '-')} · ${esc(r.category || '-')} · ${esc(r.sheet_month || '-')} · ${esc(r.source || '-')} · ${esc(r.author || '-')}${(r.moods||[]).length ? ' · ' + esc(r.moods.join('/')) : ''}</div>
         ${r.note ? `<div class="mgNote">${esc(String(r.note).slice(0, 110))}${String(r.note).length > 110 ? '…' : ''}</div>` : ''}
         ${(r.brands||[]).length ? `<div class="mgBrands">${esc(r.brands.join(' · '))}</div>` : ''}
       </div>
@@ -4158,6 +4220,8 @@ function mgFormHTML(r){
         <input data-e="tags" value="${esc((r.tags || []).join(', '))}" placeholder="예: retro, sneakers"></div>
       <div style="flex:1; min-width:220px"><label class="f">브랜드 — 쉼표로 구분</label>
         <input data-e="brands" value="${esc((r.brands || []).join(', '))}" placeholder="예: 나이키, 푸마"></div>
+      <div style="flex:1; min-width:220px"><label class="f">무드 — 쉼표로 구분</label>
+        <input data-e="moods" value="${esc((r.moods || []).join(', '))}" placeholder="예: 페미닌, 아웃도어"></div>
     </div>
     <div class="row">
       <div style="flex:1; min-width:260px"><label class="f">원문 URL</label>
@@ -4199,6 +4263,7 @@ $('#mgList')?.addEventListener('click', async e => {
     note:        val('note') || null,
     tags:        list(val('tags')),
     brands:      list(val('brands')),
+    moods:       list(val('moods')),
     url:         val('url') || null,
     image_url:   val('image_url') || null,
   };
