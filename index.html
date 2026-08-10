@@ -194,6 +194,14 @@ header h1{font-family:'Playfair Display',serif; font-size:22px}
 #brandMain{padding:26px 30px}
 #brandMain h2{font-family:'Playfair Display',serif; font-size:28px; border-bottom:1px solid var(--ink); padding-bottom:8px; margin-bottom:18px}
 .bgrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:16px}
+.bcard.lyst{border-color:var(--rising); box-shadow:0 0 0 1px var(--rising) inset}
+.bcard.lyst3{border-color:var(--rising); box-shadow:0 0 0 2px var(--rising) inset; background:#fffaf8}
+.lystBadge{display:inline-block; font-size:10px; font-weight:800; letter-spacing:.03em; color:#fff;
+  background:var(--rising); padding:3px 9px; border-radius:20px; margin-bottom:6px}
+.lystUp{color:#1a7a4a; font-weight:800}
+.lystDown{color:var(--rising); font-weight:800}
+.lystTable{width:100%; border-collapse:collapse; font-size:12px}
+.lystTable td{padding:4px 8px; border-bottom:1px solid var(--hair)}
 .bkws{display:flex; flex-wrap:wrap; gap:4px; margin-top:8px}
 .bkw{font-size:10px; font-weight:700; padding:3px 8px; border-radius:20px; background:#f2efe9;
   border:1px solid #e2ddd3; color:#6b6357}
@@ -236,7 +244,7 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
 <body>
 
 <header>
-  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260806-09</span></h1>
+  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260807-01</span></h1>
   <div class="tabs">
     <button data-v="signal" class="on">TREND SIGNAL</button>
     <button data-v="keywords">TREND KEYWORDS</button>
@@ -295,7 +303,19 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
 
 
 <div id="brandView" class="view"><div id="brandMain">
-  <h2>Key Brands <span style="font-size:12px;color:var(--sub);font-family:'Noto Sans KR'">— 수집 자료에서 언급된 브랜드 · 클릭하면 검증 노트와 관련 사진</span></h2>
+  <h2>Key Brands <span style="font-size:12px;color:var(--sub);font-family:'Noto Sans KR'">— 수집 자료에서 언급된 브랜드 + Lyst Index 순위</span></h2>
+
+  <details id="lystBox" style="margin:14px 0 6px; border:1px solid var(--hair); border-radius:10px; padding:12px 16px; background:#fff">
+    <summary style="cursor:pointer; font-weight:800; font-size:13px">Lyst Index 순위 불러오기</summary>
+    <div style="display:flex; gap:8px; align-items:flex-end; flex-wrap:wrap; margin-top:12px">
+      <div style="flex:1; min-width:320px"><label class="mini">Lyst Index 주소</label>
+        <input id="lystUrl" placeholder="https://www.lyst.com/the-lyst-index/Q2-26/"></div>
+      <button class="btn sm" id="lystLoad">불러오기</button>
+    </div>
+    <div class="mini" id="lystMsg" style="margin-top:8px"></div>
+    <div id="lystPreview" style="margin-top:10px"></div>
+  </details>
+
   <div class="bgrid" id="bgrid"></div>
 </div></div>
 
@@ -790,6 +810,14 @@ async function buildBrandView(){
       }
     }
 
+    /* Lyst 순위가 있는데 우리 자료엔 안 나온 브랜드도 카드로 띄운다 (언급 0건) */
+    for(const v of (voc.data || [])){
+      if(v.lyst_rank && !map.has(v.brand)){
+        map.set(v.brand, { brand: v.brand, count: 0, kws:new Set(), months:new Set(),
+          tags:new Set(), cats:new Set(), items:[] });
+      }
+    }
+
     BRAND_ROWS = [...map.values()].map(e => ({
       ...e,
       kws:[...e.kws], months:[...e.months].sort(), tags:[...e.tags], cats:[...e.cats],
@@ -829,7 +857,20 @@ function drawBrandCards(){
     const tags = e.tags.slice(0, 4).map(t => `<span class="btag">#${esc(t)}</span>`).join('');
     const thumb = e.items[0]?.image_url
       ? `<img class="peek" src="${esc(e.items[0].image_url)}" alt="" loading="lazy">` : '';
-    return `<div class="bcard">
+    /* Lyst 순위 배지 — 순위가 없으면 배지 자체를 붙이지 않는다 */
+    const rank = v.lyst_rank || null;
+    const chg = String(v.lyst_change || '').trim();
+    const chgHtml = !chg || chg === '-' ? ''
+      : /^\+/.test(chg) ? ` <span class="lystUp">▲${chg.replace('+','')}</span>`
+      : /^-\d/.test(chg) ? ` <span class="lystDown">▼${chg.replace('-','')}</span>`
+      : ` <span class="mini">${esc(chg)}</span>`;
+    const lystBadge = rank
+      ? `<div><span class="lystBadge">LYST ${esc(v.lyst_quarter || '')} · ${rank}위</span>${chgHtml}</div>`
+      : '';
+    const cls = rank ? (rank <= 3 ? ' lyst lyst3' : ' lyst') : '';
+
+    return `<div class="bcard${cls}">
+      ${lystBadge}
       <div class="k">${v.is_key ? '★ 관심 브랜드 · ' : ''}언급 ${e.count}건${months ? ' · ' + esc(months) : ''}</div>
       <h3>${esc(e.brand)}</h3>
       ${thumb}
@@ -1415,6 +1456,78 @@ window.addEventListener('message', e => { if(e.data === 'ta-signals-updated') bu
 /* 페이지가 열리면 iframe 상태와 무관하게 바로 표를 만든다 */
 buildKwTable2();
 buildBrandView();
+
+/* ═══ Lyst Index 순위 불러오기 ═══ */
+let LYST_PREVIEW = null;
+
+document.addEventListener('click', async e => {
+  /* 불러오기 — Edge Function이 페이지를 대신 읽어온다 */
+  if(e.target.closest('#lystLoad')){
+    const url = $('#lystUrl').value.trim();
+    const msg = $('#lystMsg');
+    if(!url) return;
+    msg.textContent = '불러오는 중…';
+    $('#lystPreview').innerHTML = '';
+    try{
+      const r = await fetch(`${SUPABASE_URL}/functions/v1/lyst-import?url=${encodeURIComponent(url)}`);
+      const j = await r.json();
+      if(!j.ok){ msg.textContent = '실패: ' + (j.error || '알 수 없는 오류'); return; }
+      LYST_PREVIEW = j;
+      msg.textContent = `${j.quarter || '분기 미확인'} · ${j.count}개 브랜드${j.note ? ' — ' + j.note : ''}`;
+      $('#lystPreview').innerHTML = `
+        <table class="lystTable">${j.brands.map(b =>
+          `<tr><td style="width:40px"><b>${b.rank}</b></td><td>${esc(b.brand)}</td>
+               <td style="width:70px" class="mini">${esc(b.change || '')}</td></tr>`).join('')}</table>
+        <div style="margin-top:10px; display:flex; gap:8px; align-items:center">
+          <button class="btn sm" id="lystSave">이대로 저장</button>
+          <span class="mini">확인 후 저장하세요 — 사전에 없는 브랜드는 새로 만들어집니다</span>
+        </div>`;
+    }catch(err){
+      msg.textContent = '실패: ' + String(err).slice(0, 120)
+        + ' (lyst-import 함수를 배포했는지 확인해 주세요)';
+    }
+    return;
+  }
+
+  /* 저장 — 기존 브랜드는 별칭으로 찾아 순위만 붙이고, 없으면 새로 만든다 */
+  if(e.target.closest('#lystSave')){
+    if(!LYST_PREVIEW) return;
+    const msg = $('#lystMsg');
+    msg.textContent = '저장 중…';
+    const norm = v => String(v || '').toLowerCase().replace(/[\s\-_.'&]/g, '');
+    const { data: voc } = await sb.from('brand_vocabulary').select('brand, aliases');
+    const find = name => (voc || []).find(v =>
+      norm(v.brand) === norm(name) || (v.aliases || []).some(a => norm(a) === norm(name)));
+
+    let updated = 0, created = 0;
+    /* 이전 분기 순위는 지우고 새로 채운다 */
+    await sb.from('brand_vocabulary')
+      .update({ lyst_rank: null, lyst_change: null }).not('lyst_rank', 'is', null);
+
+    for(const b of LYST_PREVIEW.brands){
+      const patch = {
+        lyst_rank: b.rank,
+        lyst_quarter: LYST_PREVIEW.quarter || null,
+        lyst_change: b.change || null,
+        lyst_updated: new Date().toISOString(),
+      };
+      const hit = find(b.brand);
+      if(hit){
+        const { data } = await sb.from('brand_vocabulary').update(patch).eq('brand', hit.brand).select('brand');
+        if(data && data.length) updated++;
+      } else {
+        const { data } = await sb.from('brand_vocabulary')
+          .insert({ brand: b.brand, aliases: [b.brand.toLowerCase()], ...patch }).select('brand');
+        if(data && data.length) created++;
+      }
+    }
+    msg.textContent = `저장 완료 — 기존 ${updated}개 갱신, 새 브랜드 ${created}개 추가`;
+    $('#lystPreview').innerHTML = '';
+    LYST_PREVIEW = null;
+    await buildBrandView();
+    return;
+  }
+});
 
 /* ═══ 시즌 리포트 ═══ */
 let RP_ROWS = [], RP_SEASON = 'ALL';
