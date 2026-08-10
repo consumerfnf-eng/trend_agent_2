@@ -244,7 +244,7 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
 <body>
 
 <header>
-  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260807-01</span></h1>
+  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260807-02</span></h1>
   <div class="tabs">
     <button data-v="signal" class="on">TREND SIGNAL</button>
     <button data-v="keywords">TREND KEYWORDS</button>
@@ -305,8 +305,13 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
 <div id="brandView" class="view"><div id="brandMain">
   <h2>Key Brands <span style="font-size:12px;color:var(--sub);font-family:'Noto Sans KR'">— 수집 자료에서 언급된 브랜드 + Lyst Index 순위</span></h2>
 
-  <details id="lystBox" style="margin:14px 0 6px; border:1px solid var(--hair); border-radius:10px; padding:12px 16px; background:#fff">
-    <summary style="cursor:pointer; font-weight:800; font-size:13px">Lyst Index 순위 불러오기</summary>
+  <div class="bgrid" id="bgrid"></div>
+</div></div>
+
+<div id="reportView" class="view"><div>
+  <h2>시즌 리포트 <span style="font-size:12px;color:var(--sub);font-family:'Noto Sans KR'">— 시즌별 리포트 자료 · PDF 파일이나 사이트 주소를 모아둡니다</span></h2>
+  <details id="lystBox" style="margin:14px 0 10px; border:1px solid var(--hair); border-radius:10px; padding:12px 16px; background:#fff">
+    <summary style="cursor:pointer; font-weight:800; font-size:13px">Lyst Index 불러오기 — 분기별로 쌓입니다</summary>
     <div style="display:flex; gap:8px; align-items:flex-end; flex-wrap:wrap; margin-top:12px">
       <div style="flex:1; min-width:320px"><label class="mini">Lyst Index 주소</label>
         <input id="lystUrl" placeholder="https://www.lyst.com/the-lyst-index/Q2-26/"></div>
@@ -314,13 +319,11 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
     </div>
     <div class="mini" id="lystMsg" style="margin-top:8px"></div>
     <div id="lystPreview" style="margin-top:10px"></div>
+    <div class="mini" style="margin-top:8px">지난 분기 주소를 넣으면 과거 기록도 함께 쌓을 수 있습니다</div>
   </details>
 
-  <div class="bgrid" id="bgrid"></div>
-</div></div>
+  <div id="lystSaved" style="margin-bottom:18px"></div>
 
-<div id="reportView" class="view"><div>
-  <h2>시즌 리포트 <span style="font-size:12px;color:var(--sub);font-family:'Noto Sans KR'">— 시즌별 리포트 자료 · PDF 파일이나 사이트 주소를 모아둡니다</span></h2>
   <div id="rpSeasonBar" style="display:flex; gap:6px; flex-wrap:wrap; margin:14px 0 10px"></div>
   <div id="rpGrid" class="bgrid"></div>
 
@@ -781,15 +784,25 @@ document.addEventListener('click', e => {
    기사에서 언급된 브랜드를 모아 언급 건수·등장 월·관련 키워드를 보여주고,
    인스타그램과 공식 홈페이지로 연결한다. */
 let BRAND_ROWS = [];
+let BRAND_LYST = {};   /* 브랜드 → 분기별 Lyst 순위 */
+let LYST_LATEST = null;
 
 async function buildBrandView(){
   const bg = $('#bgrid');
   if(!bg) return;
   try{
-    const [sig, voc] = await Promise.all([
+    const [sig, voc, lyst] = await Promise.all([
       sb.from('trend_signals').select('keyword,category,brands,tags,sheet_month,url,image_url,note'),
-      sb.from('brand_vocabulary').select('*')
+      sb.from('brand_vocabulary').select('*'),
+      sb.from('lyst_index').select('*')
     ]);
+    /* 브랜드별 분기 순위 모으기 — 최신 분기가 앞에 오도록 */
+    BRAND_LYST = {};
+    for(const r of (lyst.data || [])){
+      (BRAND_LYST[r.brand] ||= []).push(r);
+    }
+    for(const k of Object.keys(BRAND_LYST)) BRAND_LYST[k].sort((a,b) => b.quarter.localeCompare(a.quarter));
+    LYST_LATEST = [...new Set((lyst.data || []).map(r => r.quarter))].sort().reverse()[0] || null;
     if(sig.error){ console.warn('trend_signals 로드 실패:', sig.error.message); return; }
 
     const vocMap = {};
@@ -811,9 +824,9 @@ async function buildBrandView(){
     }
 
     /* Lyst 순위가 있는데 우리 자료엔 안 나온 브랜드도 카드로 띄운다 (언급 0건) */
-    for(const v of (voc.data || [])){
-      if(v.lyst_rank && !map.has(v.brand)){
-        map.set(v.brand, { brand: v.brand, count: 0, kws:new Set(), months:new Set(),
+    for(const b of Object.keys(BRAND_LYST)){
+      if(!map.has(b)){
+        map.set(b, { brand: b, count: 0, kws:new Set(), months:new Set(),
           tags:new Set(), cats:new Set(), items:[] });
       }
     }
@@ -857,17 +870,21 @@ function drawBrandCards(){
     const tags = e.tags.slice(0, 4).map(t => `<span class="btag">#${esc(t)}</span>`).join('');
     const thumb = e.items[0]?.image_url
       ? `<img class="peek" src="${esc(e.items[0].image_url)}" alt="" loading="lazy">` : '';
-    /* Lyst 순위 배지 — 순위가 없으면 배지 자체를 붙이지 않는다 */
-    const rank = v.lyst_rank || null;
-    const chg = String(v.lyst_change || '').trim();
-    const chgHtml = !chg || chg === '-' ? ''
-      : /^\+/.test(chg) ? ` <span class="lystUp">▲${chg.replace('+','')}</span>`
-      : /^-\d/.test(chg) ? ` <span class="lystDown">▼${chg.replace('-','')}</span>`
-      : ` <span class="mini">${esc(chg)}</span>`;
-    const lystBadge = rank
-      ? `<div><span class="lystBadge">LYST ${esc(v.lyst_quarter || '')} · ${rank}위</span>${chgHtml}</div>`
+    /* Lyst 순위 배지 — 분기별로 모두 표시 (최신 분기가 앞) */
+    const ranks = BRAND_LYST[e.brand] || [];
+    const lystBadge = ranks.length
+      ? `<div style="display:flex; flex-wrap:wrap; gap:4px; align-items:center; margin-bottom:6px">${
+          ranks.map(r => {
+            const c = String(r.change || '').trim();
+            const chg = !c || c === '-' ? ''
+              : /^\+/.test(c) ? `<span class="lystUp" style="font-size:10px">▲${c.replace('+','')}</span>`
+              : /^-\d/.test(c) ? `<span class="lystDown" style="font-size:10px">▼${c.replace('-','')}</span>`
+              : '';
+            return `<span class="lystBadge">LYST ${esc(qLabel(r.quarter))} · ${r.rank}위</span>${chg}`;
+          }).join('')}</div>`
       : '';
-    const cls = rank ? (rank <= 3 ? ' lyst lyst3' : ' lyst') : '';
+    const latest = ranks.find(r => r.quarter === LYST_LATEST);
+    const cls = latest ? (latest.rank <= 3 ? ' lyst lyst3' : ' lyst') : (ranks.length ? ' lyst' : '');
 
     return `<div class="bcard${cls}">
       ${lystBadge}
@@ -1489,48 +1506,105 @@ document.addEventListener('click', async e => {
     return;
   }
 
-  /* 저장 — 기존 브랜드는 별칭으로 찾아 순위만 붙이고, 없으면 새로 만든다 */
+  /* 저장 — 분기별 표(lyst_index)에 쌓고, 없는 브랜드는 사전에 만들어 둔다 */
   if(e.target.closest('#lystSave')){
     if(!LYST_PREVIEW) return;
     const msg = $('#lystMsg');
+    const quarter = LYST_PREVIEW.quarter;
+    if(!quarter){ msg.textContent = '분기를 알 수 없습니다 — 주소에 Q2-26 형태가 들어 있어야 합니다'; return; }
     msg.textContent = '저장 중…';
+
     const norm = v => String(v || '').toLowerCase().replace(/[\s\-_.'&]/g, '');
     const { data: voc } = await sb.from('brand_vocabulary').select('brand, aliases');
     const find = name => (voc || []).find(v =>
       norm(v.brand) === norm(name) || (v.aliases || []).some(a => norm(a) === norm(name)));
 
-    let updated = 0, created = 0;
-    /* 이전 분기 순위는 지우고 새로 채운다 */
-    await sb.from('brand_vocabulary')
-      .update({ lyst_rank: null, lyst_change: null }).not('lyst_rank', 'is', null);
-
+    const rows = [];
+    let created = 0;
     for(const b of LYST_PREVIEW.brands){
-      const patch = {
-        lyst_rank: b.rank,
-        lyst_quarter: LYST_PREVIEW.quarter || null,
-        lyst_change: b.change || null,
-        lyst_updated: new Date().toISOString(),
-      };
       const hit = find(b.brand);
+      let canon = b.brand;
       if(hit){
-        const { data } = await sb.from('brand_vocabulary').update(patch).eq('brand', hit.brand).select('brand');
-        if(data && data.length) updated++;
+        canon = hit.brand;                     /* 사전에 있으면 한국어 대표 이름으로 */
       } else {
         const { data } = await sb.from('brand_vocabulary')
-          .insert({ brand: b.brand, aliases: [b.brand.toLowerCase()], ...patch }).select('brand');
+          .insert({ brand: b.brand, aliases: [b.brand.toLowerCase()] }).select('brand');
         if(data && data.length) created++;
       }
+      rows.push({
+        quarter, rank: b.rank, brand: canon, raw_brand: b.brand,
+        change: b.change || null, source_url: LYST_PREVIEW.source || null,
+      });
     }
-    msg.textContent = `저장 완료 — 기존 ${updated}개 갱신, 새 브랜드 ${created}개 추가`;
+
+    const { data: saved, error } = await sb.from('lyst_index')
+      .upsert(rows, { onConflict: 'quarter,brand' }).select('id');
+    if(error){ msg.textContent = '저장 실패: ' + error.message; return; }
+    if(!saved || !saved.length){
+      msg.textContent = '저장되지 않았습니다 — lyst_index 표를 만들었는지 확인해 주세요';
+      return;
+    }
+
+    /* 시즌 리포트 목록에도 한 줄 남겨서 자료로 찾아볼 수 있게 */
+    await sb.from('season_reports').insert({
+      season: quarter, kind: 'link', title: `Lyst Index ${quarter}`,
+      url: LYST_PREVIEW.source, note: `핫 브랜드 20개 — 1위 ${LYST_PREVIEW.brands[0]?.brand || ''}`,
+    });
+
+    msg.textContent = `${quarter} 저장 완료 — ${rows.length}개 순위 기록, 새 브랜드 ${created}개 추가`;
     $('#lystPreview').innerHTML = '';
     LYST_PREVIEW = null;
-    await buildBrandView();
+    await buildReportView();
     return;
   }
 });
 
 /* ═══ 시즌 리포트 ═══ */
 let RP_ROWS = [], RP_SEASON = 'ALL';
+let LYST_ROWS = [];
+
+/* 분기 표기 바꾸기 — Q2-26 → 26 Q2 */
+function qLabel(q){
+  const m = String(q || '').match(/^Q([1-4])-(\d{2})$/i);
+  return m ? `${m[2]} Q${m[1]}` : String(q || '');
+}
+
+/* 저장된 Lyst 순위를 분기별로 보여준다 */
+function drawLystSaved(){
+  const box = $('#lystSaved'); if(!box) return;
+  if(!LYST_ROWS.length){ box.innerHTML = ''; return; }
+  const byQ = new Map();
+  for(const r of LYST_ROWS){
+    if(!byQ.has(r.quarter)) byQ.set(r.quarter, []);
+    byQ.get(r.quarter).push(r);
+  }
+  const quarters = [...byQ.keys()].sort().reverse();
+  box.innerHTML = quarters.map((q, i) => {
+    const list = byQ.get(q).sort((a,b) => a.rank - b.rank);
+    return `<details ${i === 0 ? 'open' : ''} style="border:1px solid var(--hair); border-radius:10px;
+        padding:12px 16px; background:#fff; margin-bottom:8px">
+      <summary style="cursor:pointer; font-weight:800; font-size:13px">
+        LYST ${esc(qLabel(q))} <span class="mini" style="font-weight:400">— 핫 브랜드 ${list.length}개</span>
+      </summary>
+      <table class="lystTable" style="margin-top:10px">
+        ${list.map(r => {
+          const c = String(r.change || '').trim();
+          const chg = !c || c === '-' ? ''
+            : /^\+/.test(c) ? `<span class="lystUp">▲${c.replace('+','')}</span>`
+            : /^-\d/.test(c) ? `<span class="lystDown">▼${c.replace('-','')}</span>`
+            : `<span class="mini">${esc(c)}</span>`;
+          return `<tr><td style="width:40px"><b>${r.rank}</b></td>
+            <td>${esc(r.brand)}${r.raw_brand && r.raw_brand !== r.brand
+              ? ` <span class="mini">(${esc(r.raw_brand)})</span>` : ''}</td>
+            <td style="width:70px">${chg}</td></tr>`;
+        }).join('')}
+      </table>
+      <div class="mini" style="margin-top:8px">
+        <button class="blink ghost" data-lystdel="${esc(q)}">이 분기 기록 삭제</button>
+      </div>
+    </details>`;
+  }).join('');
+}
 
 async function buildReportView(){
   const grid = $('#rpGrid'); if(!grid) return;
@@ -1541,6 +1615,9 @@ async function buildReportView(){
       return;
     }
     RP_ROWS = data || [];
+    const { data: li } = await sb.from('lyst_index').select('*').order('rank');
+    LYST_ROWS = li || [];
+    drawLystSaved();
     drawReport();
   }catch(e){ console.warn('시즌 리포트 로드 실패:', e); }
 }
@@ -1583,6 +1660,17 @@ document.addEventListener('click', async e => {
     if(!data || !data.length) return alert('추가되지 않았습니다 — season_reports 표의 권한을 확인해 주세요');
     ['rpSeason','rpTitle','rpUrl','rpNote'].forEach(id => { $('#' + id).value = ''; });
     await buildReportView();
+    return;
+  }
+
+  const ld = e.target.closest('[data-lystdel]');
+  if(ld){
+    const q = ld.dataset.lystdel;
+    if(!confirm(`LYST ${qLabel(q)} 순위 기록을 지웁니다. 진행할까요?`)) return;
+    const { error } = await sb.from('lyst_index').delete().eq('quarter', q);
+    if(error) return alert('삭제 실패: ' + error.message);
+    await buildReportView();
+    await buildBrandView();
     return;
   }
 
