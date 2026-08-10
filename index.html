@@ -196,10 +196,21 @@ header h1{font-family:'Playfair Display',serif; font-size:22px}
 .bgrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:16px}
 .bcard.lyst{border-color:var(--rising); box-shadow:0 0 0 1px var(--rising) inset}
 .bcard.lyst3{border-color:var(--rising); box-shadow:0 0 0 2px var(--rising) inset; background:#fffaf8}
+.lystBadge.hot{background:#1d1d1b}
 .lystBadge{display:inline-block; font-size:10px; font-weight:800; letter-spacing:.03em; color:#fff;
   background:var(--rising); padding:3px 9px; border-radius:20px; margin-bottom:6px}
 .lystUp{color:#1a7a4a; font-weight:800}
 .lystDown{color:var(--rising); font-weight:800}
+/* 인쇄 — 종합 리포트만 남기고 나머지는 숨긴다 (브라우저 인쇄 → PDF로 저장) */
+@media print{
+  header, .tabs, #digestBar, #lystBox, #lystSaved, #rpSeasonBar, #rpGrid, #rpAdd,
+  footer, #dpanel, #dpDim, #load, #noteTxt{ display:none !important }
+  body{ background:#fff }
+  main{ max-width:none; padding:0 }
+  #digestBody{ border:0 !important; padding:0 !important }
+  section{ break-inside:avoid }
+  a{ color:#000; text-decoration:none }
+}
 .lystTable{width:100%; border-collapse:collapse; font-size:12px}
 .lystTable td{padding:4px 8px; border-bottom:1px solid var(--hair)}
 .bkws{display:flex; flex-wrap:wrap; gap:4px; margin-top:8px}
@@ -244,7 +255,7 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
 <body>
 
 <header>
-  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260807-02</span></h1>
+  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260807-05</span></h1>
   <div class="tabs">
     <button data-v="signal" class="on">TREND SIGNAL</button>
     <button data-v="keywords">TREND KEYWORDS</button>
@@ -310,6 +321,9 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
 
 <div id="reportView" class="view"><div>
   <h2>시즌 리포트 <span style="font-size:12px;color:var(--sub);font-family:'Noto Sans KR'">— 시즌별 리포트 자료 · PDF 파일이나 사이트 주소를 모아둡니다</span></h2>
+  <div id="digestBar" style="display:flex; gap:8px; align-items:flex-end; flex-wrap:wrap; margin:14px 0 8px"></div>
+  <div id="digest" style="margin-bottom:20px"></div>
+
   <details id="lystBox" style="margin:14px 0 10px; border:1px solid var(--hair); border-radius:10px; padding:12px 16px; background:#fff">
     <summary style="cursor:pointer; font-weight:800; font-size:13px">Lyst Index 불러오기 — 분기별로 쌓입니다</summary>
     <div style="display:flex; gap:8px; align-items:flex-end; flex-wrap:wrap; margin-top:12px">
@@ -785,16 +799,18 @@ document.addEventListener('click', e => {
    인스타그램과 공식 홈페이지로 연결한다. */
 let BRAND_ROWS = [];
 let BRAND_LYST = {};   /* 브랜드 → 분기별 Lyst 순위 */
+let BRAND_EXTRA = {};  /* 브랜드 → 인기 상품·급상승 정보 */
 let LYST_LATEST = null;
 
 async function buildBrandView(){
   const bg = $('#bgrid');
   if(!bg) return;
   try{
-    const [sig, voc, lyst] = await Promise.all([
+    const [sig, voc, lyst, lextra] = await Promise.all([
       sb.from('trend_signals').select('keyword,category,brands,tags,sheet_month,url,image_url,note'),
       sb.from('brand_vocabulary').select('*'),
-      sb.from('lyst_index').select('*')
+      sb.from('lyst_index').select('*'),
+      sb.from('lyst_extra').select('*')
     ]);
     /* 브랜드별 분기 순위 모으기 — 최신 분기가 앞에 오도록 */
     BRAND_LYST = {};
@@ -803,6 +819,20 @@ async function buildBrandView(){
     }
     for(const k of Object.keys(BRAND_LYST)) BRAND_LYST[k].sort((a,b) => b.quarter.localeCompare(a.quarter));
     LYST_LATEST = [...new Set((lyst.data || []).map(r => r.quarter))].sort().reverse()[0] || null;
+
+    /* 브랜드별 인기 상품·급상승 정보 */
+    BRAND_EXTRA = {};
+    for(const r of (lextra.data || [])){
+      if(!r.brand) continue;
+      (BRAND_EXTRA[r.brand] ||= []).push(r);
+    }
+    /* 급상승 브랜드는 순위가 없어도 카드로 띄운다 */
+    for(const b of Object.keys(BRAND_EXTRA)){
+      if(!map.has(b) && BRAND_EXTRA[b].some(x => x.kind === 'mover')){
+        map.set(b, { brand: b, count: 0, kws:new Set(), months:new Set(),
+          tags:new Set(), cats:new Set(), items:[] });
+      }
+    }
     if(sig.error){ console.warn('trend_signals 로드 실패:', sig.error.message); return; }
 
     const vocMap = {};
@@ -883,13 +913,31 @@ function drawBrandCards(){
             return `<span class="lystBadge">LYST ${esc(qLabel(r.quarter))} · ${r.rank}위</span>${chg}`;
           }).join('')}</div>`
       : '';
+    /* 급상승 브랜드 — LYST 26 Q2 HOT 🔥 배지 */
+    const ex = BRAND_EXTRA[e.brand] || [];
+    const movers = ex.filter(x => x.kind === 'mover').sort((a,b) => b.quarter.localeCompare(a.quarter));
+    const prods  = ex.filter(x => x.kind === 'product').sort((a,b) => b.quarter.localeCompare(a.quarter));
+    const hotBadge = movers.length
+      ? `<div style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom:6px">${
+          movers.map(m => `<span class="lystBadge hot">LYST ${esc(qLabel(m.quarter))} HOT 🔥</span>`).join('')}</div>`
+      : '';
+    /* 브랜드 아래 한 줄 설명 */
+    const exLines = [
+      ...movers.map(m => `LYST ${qLabel(m.quarter)} +${m.value}%`),
+      ...prods.map(pd => `LYST ${qLabel(pd.quarter)} 인기 상품 ${pd.rank}위 — ${pd.label || ''}`),
+    ];
+    const exHtml = exLines.length
+      ? `<div class="mini" style="margin-top:6px; color:var(--rising)">${exLines.map(esc).join('<br>')}</div>` : '';
+
     const latest = ranks.find(r => r.quarter === LYST_LATEST);
-    const cls = latest ? (latest.rank <= 3 ? ' lyst lyst3' : ' lyst') : (ranks.length ? ' lyst' : '');
+    const cls = latest ? (latest.rank <= 3 ? ' lyst lyst3' : ' lyst')
+      : (ranks.length || movers.length ? ' lyst' : '');
 
     return `<div class="bcard${cls}">
-      ${lystBadge}
+      ${lystBadge}${hotBadge}
       <div class="k">${v.is_key ? '★ 관심 브랜드 · ' : ''}언급 ${e.count}건${months ? ' · ' + esc(months) : ''}</div>
       <h3>${esc(e.brand)}</h3>
+      ${exHtml}
       ${thumb}
       <div class="bkws">${kws}${more}</div>
       ${tags ? `<div class="btags">${tags}</div>` : ''}
@@ -1474,6 +1522,182 @@ window.addEventListener('message', e => { if(e.data === 'ta-signals-updated') bu
 buildKwTable2();
 buildBrandView();
 
+/* ═══ 시즌 종합 리포트 ═══
+   선택한 시즌의 수집 월 범위를 기준으로 카테고리 흐름·검색량·브랜드·키워드를 한 장에 모은다 */
+let SEASONS = [], DIGEST_SEASON = null;
+
+async function buildDigest(){
+  const bar = $('#digestBar'); if(!bar) return;
+  try{
+    const { data: ss } = await sb.from('seasons').select('*').order('sort_order');
+    SEASONS = ss || [];
+    if(!SEASONS.length){
+      bar.innerHTML = '<span class="mini">seasons 표가 아직 없습니다 — seasons SQL을 실행해 주세요</span>';
+      return;
+    }
+    if(!DIGEST_SEASON) DIGEST_SEASON = SEASONS[0].season;
+    bar.innerHTML = `<span class="mini" style="font-weight:800">종합 리포트</span>`
+      + SEASONS.map(s2 => `<button class="catbtn${DIGEST_SEASON === s2.season ? ' on' : ''}"
+          data-digest="${esc(s2.season)}">${esc(s2.label || s2.season)}</button>`).join('')
+      + `<button class="btn ghost sm" id="digestPrint">인쇄 · PDF 저장</button>`;
+    await drawDigest();
+  }catch(e){ console.warn('종합 리포트 실패:', e); }
+}
+
+async function drawDigest(){
+  const box = $('#digest'); if(!box) return;
+  const sn = SEASONS.find(x => x.season === DIGEST_SEASON);
+  if(!sn){ box.innerHTML = ''; return; }
+  box.innerHTML = '<div class="mini">불러오는 중…</div>';
+
+  const [sig, vol, lyst, lex, rep] = await Promise.all([
+    sb.from('trend_signals').select('*'),
+    sb.from('search_volume').select('keyword, week, volume').eq('source', 'naver').order('week'),
+    sb.from('lyst_index').select('*'),
+    sb.from('lyst_extra').select('*'),
+    sb.from('season_reports').select('*'),
+  ]);
+
+  const inRange = r => r.sheet_month && r.sheet_month >= sn.month_from && r.sheet_month <= sn.month_to;
+  const items = (sig.data || []).filter(inRange);
+  const CAT_LABEL = window.KW_CATLABEL2 || {};
+
+  /* ── 한눈에 ── */
+  const authors = [...new Set(items.map(r => r.author).filter(Boolean))];
+  const months = [...new Set(items.map(r => r.sheet_month))].sort();
+  const head = `<div class="mini" style="margin-bottom:10px">
+    ${esc(sn.month_from)} ~ ${esc(sn.month_to)} · 자료 ${items.length}건 ·
+    수집 월 ${months.length}개 · 참여자 ${authors.length}명 (${esc(authors.join(', ') || '-')})</div>`;
+
+  /* ── 1. 카테고리별 흐름 ── */
+  const byCat = new Map();
+  for(const r of items){
+    const c = r.category || '기타';
+    if(!byCat.has(c)) byCat.set(c, new Map());
+    const m = byCat.get(c);
+    const k = r.keyword || '(없음)';
+    if(!m.has(k)) m.set(k, { keyword: k, count: 0, authors: new Set(), img: r.image_url, months: new Set() });
+    const e = m.get(k);
+    e.count++; if(r.author) e.authors.add(r.author);
+    if(r.sheet_month) e.months.add(r.sheet_month);
+    if(!e.img && r.image_url) e.img = r.image_url;
+  }
+  const catBlocks = [...byCat.entries()]
+    .sort((a,b) => b[1].size - a[1].size)
+    .map(([cat, m]) => {
+      const tops = [...m.values()]
+        .sort((a,b) => b.authors.size - a.authors.size || b.count - a.count)
+        .slice(0, 5);
+      return `<div style="margin-bottom:14px">
+        <div style="font-weight:800; font-size:13px; margin-bottom:6px">${esc(CAT_LABEL[cat] || cat)}
+          <span class="mini" style="font-weight:400">· 키워드 ${m.size}개</span></div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap">
+          ${tops.map(t => `<div style="width:150px">
+            ${t.img ? `<img src="${esc(t.img)}" referrerpolicy="no-referrer"
+                style="width:100%; aspect-ratio:3/4; object-fit:cover; border-radius:8px; background:#efeae1">` : ''}
+            <div style="font-size:11.5px; font-weight:700; margin-top:4px; line-height:1.35">
+              ${t.authors.size >= 2 ? '🔥 ' : ''}${esc(t.keyword)}</div>
+            <div class="mini">${[...t.months].sort().join(', ')}</div>
+          </div>`).join('')}
+        </div></div>`;
+    }).join('');
+
+  /* ── 2. 검색량 급상승 ── */
+  const byKw = {};
+  for(const v of (vol.data || [])) (byKw[v.keyword] ||= []).push(v);
+  const moves = Object.entries(byKw).map(([k, arr]) => {
+    if(arr.length < 4) return null;
+    const half = Math.floor(arr.length / 2);
+    const avg = a => a.reduce((s2, x) => s2 + (x.volume || 0), 0) / Math.max(a.length, 1);
+    const before = avg(arr.slice(0, half)), after = avg(arr.slice(half));
+    if(!before) return null;
+    return { keyword: k, pct: Math.round((after - before) / before * 100) };
+  }).filter(Boolean);
+  const ups = moves.filter(m => m.pct > 0).sort((a,b) => b.pct - a.pct).slice(0, 8);
+  const downs = moves.filter(m => m.pct < 0).sort((a,b) => a.pct - b.pct).slice(0, 5);
+  const volBlock = `<div style="display:flex; gap:24px; flex-wrap:wrap">
+    <div><div class="mini" style="font-weight:800; margin-bottom:4px">오르는 검색어</div>
+      <table class="lystTable">${ups.map(m =>
+        `<tr><td>${esc(m.keyword)}</td><td style="width:70px" class="lystUp">▲${m.pct}%</td></tr>`).join('')
+        || '<tr><td class="mini">데이터가 더 쌓여야 합니다</td></tr>'}</table></div>
+    <div><div class="mini" style="font-weight:800; margin-bottom:4px">내리는 검색어</div>
+      <table class="lystTable">${downs.map(m =>
+        `<tr><td>${esc(m.keyword)}</td><td style="width:70px" class="lystDown">▼${Math.abs(m.pct)}%</td></tr>`).join('')
+        || '<tr><td class="mini">-</td></tr>'}</table></div></div>`;
+
+  /* ── 3. 브랜드 교차 ── */
+  const ourBrands = new Map();
+  for(const r of items) for(const b of (r.brands || [])) ourBrands.set(b, (ourBrands.get(b) || 0) + 1);
+  const latestQ = [...new Set((lyst.data || []).map(r => r.quarter))].sort().reverse()[0];
+  const lystNow = (lyst.data || []).filter(r => r.quarter === latestQ);
+  const both = lystNow.filter(r => ourBrands.has(r.brand))
+    .sort((a,b) => a.rank - b.rank);
+  const onlyLyst = lystNow.filter(r => !ourBrands.has(r.brand)).sort((a,b) => a.rank - b.rank);
+  const onlyOurs = [...ourBrands.entries()]
+    .filter(([b]) => !lystNow.some(r => r.brand === b))
+    .sort((a,b) => b[1] - a[1]).slice(0, 10);
+  const brandBlock = `<div style="display:flex; gap:24px; flex-wrap:wrap">
+    <div><div class="mini" style="font-weight:800; margin-bottom:4px">둘 다 (우리도 봤고 Lyst도 순위권)</div>
+      <table class="lystTable">${both.map(r =>
+        `<tr><td style="width:40px"><b>${r.rank}</b></td><td>${esc(r.brand)}</td>
+             <td style="width:60px" class="mini">${ourBrands.get(r.brand)}건</td></tr>`).join('')
+        || '<tr><td class="mini">-</td></tr>'}</table></div>
+    <div><div class="mini" style="font-weight:800; margin-bottom:4px">Lyst만 — 우리 레이더 밖</div>
+      <table class="lystTable">${onlyLyst.slice(0, 10).map(r =>
+        `<tr><td style="width:40px"><b>${r.rank}</b></td><td>${esc(r.brand)}</td></tr>`).join('')
+        || '<tr><td class="mini">-</td></tr>'}</table></div>
+    <div><div class="mini" style="font-weight:800; margin-bottom:4px">우리만 — 국내에서 포착</div>
+      <table class="lystTable">${onlyOurs.map(([b, n]) =>
+        `<tr><td>${esc(b)}</td><td style="width:60px" class="mini">${n}건</td></tr>`).join('')
+        || '<tr><td class="mini">-</td></tr>'}</table></div></div>`;
+
+  /* ── 4. 핵심 키워드 (여러 사람이 겹쳐서 잡은 것) ── */
+  const kwMap = new Map();
+  for(const r of items){
+    const k = r.keyword || '(없음)';
+    if(!kwMap.has(k)) kwMap.set(k, { keyword: k, count: 0, authors: new Set(), cats: new Set() });
+    const e = kwMap.get(k);
+    e.count++; if(r.author) e.authors.add(r.author);
+    if(r.category) e.cats.add(r.category);
+  }
+  const hot = [...kwMap.values()].filter(e => e.authors.size >= 2)
+    .sort((a,b) => b.authors.size - a.authors.size || b.count - a.count);
+  const kwBlock = `<table class="lystTable">${hot.map(e =>
+      `<tr><td>🔥 ${esc(e.keyword)}</td>
+           <td style="width:120px" class="mini">${[...e.cats].map(c => esc(CAT_LABEL[c] || c)).join(', ')}</td>
+           <td style="width:90px" class="mini">${e.authors.size}명 · ${e.count}건</td></tr>`).join('')
+      || '<tr><td class="mini">여러 사람이 겹쳐 잡은 키워드가 아직 없습니다</td></tr>'}</table>`;
+
+  /* ── 5. 참고 자료 ── */
+  const reps = (rep.data || []).filter(r => !r.season || r.season === sn.season
+    || (r.season >= sn.month_from && r.season <= sn.month_to) || /^Q/i.test(r.season));
+  const repBlock = `<table class="lystTable">${reps.map(r =>
+      `<tr><td class="mini">${esc(r.season || '-')}</td>
+           <td><a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.title)}</a></td>
+           <td style="width:60px" class="mini">${r.kind === 'pdf' ? 'PDF' : '사이트'}</td></tr>`).join('')
+      || '<tr><td class="mini">등록된 자료가 없습니다</td></tr>'}</table>`;
+
+  const sec = (n, title, inner) => `<section style="margin-top:20px">
+    <h3 style="font-family:'Playfair Display',serif; font-size:17px; border-bottom:1px solid var(--hair);
+      padding-bottom:5px; margin-bottom:10px">${n}. ${title}</h3>${inner}</section>`;
+
+  box.innerHTML = `<div id="digestBody" style="border:1px solid var(--hair); border-radius:12px; padding:20px 24px; background:#fff">
+    <h2 style="font-family:'Playfair Display',serif; font-size:22px">${esc(sn.label || sn.season)} 트렌드 종합 리포트</h2>
+    ${head}
+    ${sec(1, '카테고리별 흐름', catBlocks || '<div class="mini">자료가 없습니다</div>')}
+    ${sec(2, '검색량 움직임', volBlock)}
+    ${sec(3, `브랜드 교차 ${latestQ ? `(Lyst ${qLabel(latestQ)})` : ''}`, brandBlock)}
+    ${sec(4, '핵심 키워드 — 여러 사람이 겹쳐 잡은 것', kwBlock)}
+    ${sec(5, '참고 자료', repBlock)}
+  </div>`;
+}
+
+document.addEventListener('click', e => {
+  const d = e.target.closest('[data-digest]');
+  if(d){ DIGEST_SEASON = d.dataset.digest; buildDigest(); return; }
+  if(e.target.closest('#digestPrint')){ window.print(); return; }
+});
+
 /* ═══ Lyst Index 순위 불러오기 ═══ */
 let LYST_PREVIEW = null;
 
@@ -1491,11 +1715,22 @@ document.addEventListener('click', async e => {
       if(!j.ok){ msg.textContent = '실패: ' + (j.error || '알 수 없는 오류'); return; }
       LYST_PREVIEW = j;
       msg.textContent = `${j.quarter || '분기 미확인'} · ${j.count}개 브랜드${j.note ? ' — ' + j.note : ''}`;
+      const sec = (title, rows) => rows.length
+        ? `<div style="margin-top:14px"><div class="mini" style="font-weight:800; margin-bottom:4px">${title}</div>
+           <table class="lystTable">${rows.join('')}</table></div>` : '';
       $('#lystPreview').innerHTML = `
+        <div class="mini" style="font-weight:800; margin-bottom:4px">핫 브랜드 ${j.brands.length}</div>
         <table class="lystTable">${j.brands.map(b =>
           `<tr><td style="width:40px"><b>${b.rank}</b></td><td>${esc(b.brand)}</td>
                <td style="width:70px" class="mini">${esc(b.change || '')}</td></tr>`).join('')}</table>
-        <div style="margin-top:10px; display:flex; gap:8px; align-items:center">
+        ${sec(`인기 상품 ${(j.products||[]).length}`, (j.products||[]).map(x =>
+          `<tr><td style="width:40px"><b>${x.rank}</b></td><td>${esc(x.brand)}</td>
+               <td class="mini">${esc(x.product)}</td></tr>`))}
+        ${sec(`급상승 브랜드 ${(j.movers||[]).length}`, (j.movers||[]).map(x =>
+          `<tr><td>${esc(x.brand)}</td><td style="width:80px" class="lystUp">+${x.pct}%</td></tr>`))}
+        ${sec(`핵심 수치 ${(j.stats||[]).length}`, (j.stats||[]).map(x =>
+          `<tr><td style="width:60px"><b>${x.value}%</b></td><td class="mini">${esc(x.text)}</td></tr>`))}
+        <div style="margin-top:12px; display:flex; gap:8px; align-items:center">
           <button class="btn sm" id="lystSave">이대로 저장</button>
           <span class="mini">확인 후 저장하세요 — 사전에 없는 브랜드는 새로 만들어집니다</span>
         </div>`;
@@ -1545,13 +1780,45 @@ document.addEventListener('click', async e => {
       return;
     }
 
+    /* 인기 상품 · 급상승 브랜드 · 핵심 수치도 함께 저장 */
+    const extras = [];
+    for(const x of (LYST_PREVIEW.products || [])){
+      const hit = find(x.brand);
+      if(!hit){
+        await sb.from('brand_vocabulary')
+          .insert({ brand: x.brand, aliases: [x.brand.toLowerCase()] });
+      }
+      extras.push({ quarter, kind: 'product', rank: x.rank,
+        brand: hit ? hit.brand : x.brand, raw_brand: x.brand,
+        label: x.product, source_url: LYST_PREVIEW.source });
+    }
+    for(const x of (LYST_PREVIEW.movers || [])){
+      const hit = find(x.brand);
+      if(!hit){
+        await sb.from('brand_vocabulary')
+          .insert({ brand: x.brand, aliases: [x.brand.toLowerCase()] });
+      }
+      extras.push({ quarter, kind: 'mover',
+        brand: hit ? hit.brand : x.brand, raw_brand: x.brand,
+        value: x.pct, source_url: LYST_PREVIEW.source });
+    }
+    for(const x of (LYST_PREVIEW.stats || [])){
+      extras.push({ quarter, kind: 'stat', label: x.text, value: x.value,
+        source_url: LYST_PREVIEW.source });
+    }
+    if(extras.length){
+      const { error: exErr } = await sb.from('lyst_extra')
+        .upsert(extras, { onConflict: 'quarter,kind,brand,label' });
+      if(exErr) console.warn('부가 정보 저장 실패:', exErr.message);
+    }
+
     /* 시즌 리포트 목록에도 한 줄 남겨서 자료로 찾아볼 수 있게 */
     await sb.from('season_reports').insert({
       season: quarter, kind: 'link', title: `Lyst Index ${quarter}`,
       url: LYST_PREVIEW.source, note: `핫 브랜드 20개 — 1위 ${LYST_PREVIEW.brands[0]?.brand || ''}`,
     });
 
-    msg.textContent = `${quarter} 저장 완료 — ${rows.length}개 순위 기록, 새 브랜드 ${created}개 추가`;
+    msg.textContent = `${quarter} 저장 완료 — 순위 ${rows.length}개 · 부가 정보 ${extras.length}개 · 새 브랜드 ${created}개`;
     $('#lystPreview').innerHTML = '';
     LYST_PREVIEW = null;
     await buildReportView();
@@ -1562,11 +1829,33 @@ document.addEventListener('click', async e => {
 /* ═══ 시즌 리포트 ═══ */
 let RP_ROWS = [], RP_SEASON = 'ALL';
 let LYST_ROWS = [];
+let LYST_EXTRA = [];
 
 /* 분기 표기 바꾸기 — Q2-26 → 26 Q2 */
 function qLabel(q){
   const m = String(q || '').match(/^Q([1-4])-(\d{2})$/i);
   return m ? `${m[2]} Q${m[1]}` : String(q || '');
+}
+
+/* 그 분기의 인기 상품·급상승 브랜드·핵심 수치 */
+function lystExtraHTML(q){
+  const of = k => LYST_EXTRA.filter(x => x.quarter === q && x.kind === k);
+  const prods = of('product').sort((a,b) => (a.rank||0) - (b.rank||0));
+  const movers = of('mover').sort((a,b) => (b.value||0) - (a.value||0));
+  const stats = of('stat').sort((a,b) => (b.value||0) - (a.value||0));
+  const block = (title, inner) => inner
+    ? `<div style="margin-top:14px"><div class="mini" style="font-weight:800; margin-bottom:4px">${title}</div>${inner}</div>` : '';
+
+  return block(`인기 상품 ${prods.length}`, prods.length
+      ? `<table class="lystTable">${prods.map(x =>
+          `<tr><td style="width:40px"><b>${x.rank}</b></td><td>${esc(x.brand)}</td>
+               <td class="mini">${esc(x.label || '')}</td></tr>`).join('')}</table>` : '')
+    + block(`급상승 브랜드 ${movers.length}`, movers.length
+      ? `<table class="lystTable">${movers.map(x =>
+          `<tr><td>${esc(x.brand)}</td><td style="width:80px" class="lystUp">+${x.value}%</td></tr>`).join('')}</table>` : '')
+    + block(`핵심 수치 ${stats.length}`, stats.length
+      ? `<table class="lystTable">${stats.map(x =>
+          `<tr><td style="width:60px"><b>${x.value}%</b></td><td class="mini">${esc(x.label || '')}</td></tr>`).join('')}</table>` : '');
 }
 
 /* 저장된 Lyst 순위를 분기별로 보여준다 */
@@ -1599,7 +1888,8 @@ function drawLystSaved(){
             <td style="width:70px">${chg}</td></tr>`;
         }).join('')}
       </table>
-      <div class="mini" style="margin-top:8px">
+      ${lystExtraHTML(q)}
+      <div class="mini" style="margin-top:10px">
         <button class="blink ghost" data-lystdel="${esc(q)}">이 분기 기록 삭제</button>
       </div>
     </details>`;
@@ -1617,8 +1907,11 @@ async function buildReportView(){
     RP_ROWS = data || [];
     const { data: li } = await sb.from('lyst_index').select('*').order('rank');
     LYST_ROWS = li || [];
+    const { data: lx } = await sb.from('lyst_extra').select('*');
+    LYST_EXTRA = lx || [];
     drawLystSaved();
     drawReport();
+    buildDigest();
   }catch(e){ console.warn('시즌 리포트 로드 실패:', e); }
 }
 
@@ -1669,6 +1962,7 @@ document.addEventListener('click', async e => {
     if(!confirm(`LYST ${qLabel(q)} 순위 기록을 지웁니다. 진행할까요?`)) return;
     const { error } = await sb.from('lyst_index').delete().eq('quarter', q);
     if(error) return alert('삭제 실패: ' + error.message);
+    await sb.from('lyst_extra').delete().eq('quarter', q);
     await buildReportView();
     await buildBrandView();
     return;
@@ -1697,16 +1991,16 @@ async function uploadReportFile(file){
   msg.textContent = '올리는 중…';
   const season = ($('#rpSeason').value.trim().toUpperCase() || 'etc');
   const safe = file.name.replace(/[^\w.\-가-힣]/g, '_');
-  const path = `${season}/${Date.now()}_${safe}`;
-  const { error } = await sb.storage.from('reports')
+  /* 이미 쓰고 있는 trend-images 버킷 안 reports 폴더에 넣는다 — 새 버킷을 만들 필요가 없음 */
+  const path = `reports/${season}/${Date.now()}_${safe}`;
+  const BUCKET = 'trend-images';
+  const { error } = await sb.storage.from(BUCKET)
     .upload(path, file, { contentType: 'application/pdf', upsert: true });
   if(error){
-    msg.textContent = error.message.includes('Bucket not found')
-      ? 'reports 버킷이 아직 없습니다 — Supabase → Storage → New bucket 에서 reports(Public)를 만들어 주세요'
-      : '업로드 실패: ' + error.message;
+    msg.textContent = '업로드 실패: ' + error.message;
     return;
   }
-  const url = sb.storage.from('reports').getPublicUrl(path).data.publicUrl;
+  const url = sb.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
   $('#rpUrl').value = url;
   $('#rpKind').value = 'pdf';
   if(!$('#rpTitle').value.trim()) $('#rpTitle').value = file.name.replace(/\.pdf$/i, '');
