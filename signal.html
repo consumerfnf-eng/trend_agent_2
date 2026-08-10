@@ -288,7 +288,7 @@ a{color:var(--acc)}
 </head>
 <body>
 <header>
-  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260806-06</span></h1>
+  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260807-01</span></h1>
   <a href="index.html" id="backLink" style="font-size:11px;letter-spacing:.12em;font-weight:700;color:var(--acc);text-decoration:none;border:1px solid var(--acc);padding:6px 12px">← DASHBOARD</a>
   <div class="mrange">
     <label>기간</label>
@@ -340,7 +340,7 @@ a{color:var(--acc)}
 
 <script src="config.js"></script>
 <script type="module">
-console.log("TREND AGENT signal.html v260806-06");
+console.log("TREND AGENT signal.html v260807-01");
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ══ 설정 — 다른 파일들과 같은 값 ══ */
@@ -1247,6 +1247,14 @@ const REPORT_STOPWORDS = new Set([
   '멋있다','좋아','좋다','좋아요','예뻐','예쁘다',
   /* 접미어 단독 등장은 의미 없음 (앞말과 붙여서 세도록 처리함) */
   '코어','맥싱','무드','웨어',
+  /* 대분류·품목 이름은 제외 — '플립플롭'처럼 특정 제품명은 남기고
+     'shoes' 'sneakers'처럼 카테고리 전체를 가리키는 말만 뺀다 */
+  'shoes','shoe','sneakers','sneaker','footwear','boots','boot','sandals','sandal',
+  'bag','bags','apparel','clothing','clothes','wear','item','items','product','products',
+  'style','styles','look','looks','brand','brands','update','updates','new','news','best',
+  'top','guide','edit','pick','picks','key','report','index','2025','2026','2027',
+  '슈즈','신발','스니커즈','스니커','운동화','부츠','샌들','가방','의류','옷',
+  '아이템','제품','스타일링','브랜드','리포트','업데이트','신상','추천','정리','소개',
 ]);
 
 /* 브랜드 세트는 이미 BRANDS_LC로 있으면 재활용, 없으면 미리 정의된 것에서 뽑음 */
