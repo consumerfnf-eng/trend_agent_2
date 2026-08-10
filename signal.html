@@ -89,30 +89,18 @@ tr.krow{cursor:pointer} tr.krow:hover{background:#faf6ec}
 .srcCnt{font-size:10px; font-weight:700; color:var(--acc); background:#fdf3ef; padding:2px 8px; border-radius:9px}
 .bubbleWrap{margin:14px 0 18px}
 /* ── 반복 단어 자동 감지 리포트 ── */
-.repWrap{margin:14px 0 22px; padding:22px 24px; background:#faf5ec; border-radius:12px; border:1px solid var(--hair)}
+.repWrap{grid-column:1 / -1; margin:14px 0 22px; padding:22px 24px; background:#faf5ec; border-radius:12px; border:1px solid var(--hair)}
 .repHead{font-family:'Cormorant Garamond', serif; font-size:22px; font-weight:600; color:var(--tx); margin-bottom:2px; display:flex; align-items:baseline; gap:10px; flex-wrap:wrap}
 .repHead .repSub{font-family:inherit; font-size:10.5px; color:var(--sub); font-weight:400; letter-spacing:.03em}
 .repBlock{background:#fff; border-radius:10px; padding:18px 22px; margin-top:14px; border:1px solid var(--hair)}
 .repBadge{display:inline-block; font-size:10px; font-weight:800; letter-spacing:.1em; padding:3px 10px; border-radius:20px;
   background:#fdf3ef; color:var(--acc); margin-bottom:10px}
-/* 번호 + 제목 바 — 참고 레이아웃처럼 왼쪽 굵은 선과 옅은 배경 */
-.repTitleBar{display:flex; align-items:stretch; margin:10px 0 16px; border-left:4px solid var(--acc);
-  background:#fdf3ef; border-radius:0 8px 8px 0; overflow:hidden}
-.repNum{flex:0 0 52px; display:flex; align-items:center; justify-content:center;
-  font-family:'Cormorant Garamond', serif; font-size:26px; font-weight:600; color:var(--acc);
-  border-right:1px solid #f1d9cf}
-.repTitle{font-family:'Cormorant Garamond', serif; font-size:26px; font-weight:600; color:var(--tx);
-  line-height:1.2; padding:12px 18px; display:flex; align-items:center; flex:1; word-break:keep-all}
-.repKws{display:flex; flex-wrap:wrap; gap:5px; margin:-6px 0 14px}
-.repKw{font-size:10.5px; font-weight:700; padding:4px 10px; border-radius:20px; cursor:pointer;
-  background:#f2efe9; border:1px solid #e2ddd3; color:#6b6357; font-family:inherit}
-.repKw:hover{background:var(--acc); border-color:var(--acc); color:#fff}
-.repKw.on{background:var(--acc); border-color:var(--acc); color:#fff}
+.repTitle{font-family:'Cormorant Garamond', serif; font-size:30px; font-weight:600; color:var(--tx); line-height:1.15; margin-bottom:14px;
+  padding-left:14px; border-left:5px solid var(--acc)}
 .repBody{display:flex; gap:20px; align-items:flex-start}
 @media (max-width:720px){ .repBody{flex-direction:column} }
-.repImg{flex:0 0 300px; border-radius:8px; overflow:hidden}
-.repImg img{width:100%; aspect-ratio:4/5; object-fit:cover; display:block; background:#efeae1}
-@media (max-width:900px){ .repImg{flex:0 0 220px} }
+.repImg{flex:0 0 220px; border-radius:8px; overflow:hidden}
+.repImg img{width:100%; aspect-ratio:1; object-fit:cover; display:block}
 @media (max-width:720px){ .repImg{flex:0 0 auto; width:100%} .repImg img{aspect-ratio:16/9} }
 .repList{list-style:none; margin:0; padding:0; flex:1; display:flex; flex-direction:column; gap:11px}
 .repList li{position:relative; padding-left:22px; font-size:12.5px; line-height:1.55; color:var(--tx)}
@@ -230,13 +218,10 @@ tr.krow{cursor:pointer} tr.krow:hover{background:#faf6ec}
 .kwcard .groupitem::before{content:''; position:absolute; left:-11px; top:7px; width:7px; height:2px; background:var(--acc)}
 .kwcard .groupitem .gtxt{font-size:10.5px; color:var(--sub); line-height:1.45; margin-bottom:3px}
 .kwcard .groupitem .gmeta{font-size:9px; color:var(--sub); opacity:.8; margin-top:2px}
-.ovPeriod{display:inline-block; vertical-align:middle; margin-left:10px; font-family:'Noto Sans KR', sans-serif;
-  font-size:11px; font-weight:700; letter-spacing:.04em; color:var(--acc);
-  background:#fdf3ef; border:1px solid #f1d9cf; padding:3px 10px; border-radius:20px}
 .bubbleTabs{display:flex; gap:4px; margin:2px 0 8px}
 .bubbleTabs button{font-size:10px; font-weight:800; letter-spacing:.03em; padding:4px 11px; border-radius:20px;
   background:#f2efe9; border:1px solid #e2ddd3; color:#6b6357; cursor:pointer; font-family:inherit}
-.bubbleTabs button.on{background:var(--tx); border-color:var(--tx); color:#fff}
+.bubbleTabs button.on{background:var(--ink); border-color:var(--ink); color:#fff}
 .kwcard .kwname{font-size:15px; font-weight:800; margin-bottom:4px; line-height:1.3}
 .kwcard .kwmeta{font-size:10.5px; color:var(--acc); font-weight:700; margin-bottom:8px}
 .kwcard .kwex{font-size:11px; color:var(--sub); line-height:1.5}
@@ -288,7 +273,7 @@ a{color:var(--acc)}
 </head>
 <body>
 <header>
-  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260806-06</span></h1>
+  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260805-03</span></h1>
   <a href="index.html" id="backLink" style="font-size:11px;letter-spacing:.12em;font-weight:700;color:var(--acc);text-decoration:none;border:1px solid var(--acc);padding:6px 12px">← DASHBOARD</a>
   <div class="mrange">
     <label>기간</label>
@@ -340,7 +325,7 @@ a{color:var(--acc)}
 
 <script src="config.js"></script>
 <script type="module">
-console.log("TREND AGENT signal.html v260806-06");
+console.log("TREND AGENT signal.html v260805-03");
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ══ 설정 — 다른 파일들과 같은 값 ══ */
@@ -599,8 +584,9 @@ function ovBlock(title, region, note){
 }
 
 function draw(){
-  /* 제목은 기간과 무관하게 고정 — 선택한 기간은 위쪽 월 선택 상자에서 확인 */
-  $('#ovTitle').textContent = '트렌드 시그널';
+  $('#ovTitle').textContent = month === 'ALL'
+    ? '전체 기간 트렌드 시그널'
+    : `${month.replace('-', '년 ')}월 트렌드 시그널`;
 }
 
 const catOf = e => window.ECAT?.[e.entity_id] || e.category_l1 || '기타';
@@ -908,7 +894,6 @@ async function loadTrendSignals(){
           author: r.author, tags: r.tags || [], ym: ymOf(r) });
       }
     }
-    _KNOWN_CACHE = null;   /* 키워드 목록이 바뀌었으므로 캐시 초기화 */
     buildMonthOptions();
     renderStatic();
     try{ window.parent.postMessage('ta-signals-updated', '*'); }catch(e){}
@@ -1245,8 +1230,26 @@ const REPORT_STOPWORDS = new Set([
   /* 무의미 */
   '입은','왔다','됐다','됩니다','왔어요','한다','했다','합니다','싶어','있는',
   '멋있다','좋아','좋다','좋아요','예뻐','예쁘다',
-  /* 접미어 단독 등장은 의미 없음 (앞말과 붙여서 세도록 처리함) */
-  '코어','맥싱','무드','웨어',
+  /* 아이템 카테고리 총칭(영어) — 특징적 태그만 남기고 이것들은 리포트에서 제외 */
+  'shoes','shoe','sneaker','sneakers','loafer','loafers','mule','mules','boot','boots',
+  'jacket','jackets','coat','coats','blazer','blazers','outer','outerwear',
+  'pants','pant','jean','jeans','denim','shorts','trouser','trousers',
+  'top','tops','shirt','shirts','tee','tees','tshirt','t-shirt','sweater','sweaters','knit','knits',
+  'dress','dresses','skirt','skirts',
+  'bag','bags','handbag','tote','totes','clutch',
+  'accessory','accessories','eyewear','sunglasses','sunglass','hat','hats','cap','caps','belt','belts',
+  'color','colour','material',
+  /* 아이템 카테고리 총칭(한글) */
+  '슈즈','신발','운동화','스니커즈','스니커','로퍼','뮬','부츠','부츠부츠',
+  '재킷','자켓','코트','아우터','블레이저','점퍼','블루종',
+  '팬츠','바지','청바지','반바지','쇼츠',
+  '상의','티셔츠','티','니트','스웨터','셔츠','가디건',
+  '드레스','원피스','스커트','치마',
+  '가방','백','토트','토트백','클러치','파우치',
+  '액세서리','악세서리','선글라스','안경','모자','벨트','넥타이',
+  /* 뉴스·리포트 잡음 (영어) */
+  'new','news','top','best','pick','picks','must','have','styling','style','styles',
+  'insight','insights','report','reports','look','looks','edit','edits',
 ]);
 
 /* 브랜드 세트는 이미 BRANDS_LC로 있으면 재활용, 없으면 미리 정의된 것에서 뽑음 */
@@ -1263,64 +1266,13 @@ const REPORT_BRAND_SET = new Set([
 function _reportTokenize(title){
   let t = String(title || '');
   t = t.replace(/\[[^\]]*\]/g, ' ');   /* [27SS Runway Trend] 같은 대괄호 제거 */
-  /* 'OO 코어'처럼 띄어 쓴 접미어는 한 단어로 붙임 — 슬래커 코어 → 슬래커코어 */
-  t = t.replace(/([가-힣A-Za-z0-9]+)\s+(코어|코렉스|맥싱|룩|무드|웨어)\b/g, '$1$2');
   const tokens = t.match(/[가-힣]{2,}|[A-Za-z][A-Za-z0-9-]{2,}/g) || [];
   return tokens.map(x => x.toLowerCase());
 }
 
-/* 한국어 조사 떼어내기 — '플립플롭이나' '플립플롭은' 을 '플립플롭' 으로 맞춤
-
-   1순위: 이미 등록된 키워드/별칭 중 하나로 시작하면 그 단어로 자름
-          (가장 안전 — 실제 쓰는 말이 기준)
-   2순위: 흔한 조사 목록으로 자르되, 남는 글자가 3자 이상일 때만
-          ('사우나'의 '나', '레트로'의 '로' 처럼 어미를 잘라먹지 않도록) */
-const _KO_PARTICLES = ['이라는','라는','이나','으로','에서','에게','까지','부터','처럼','보다',
-                       '마다','조차','밖에','하고','이며','이고','과의','와의',
-                       '은','는','이','가','을','를','의','에','도','와','과','로'];
-
-/* 실제로 쓰이는 말 목록 — 카드 키워드 + 별칭 사전에서 모음 */
-function _knownTerms(){
-  const set = new Set();
-  const add = v => { const t = String(v || '').trim(); if(t.length >= 2) set.add(t.toLowerCase()); };
-  for(const s of [...SB_NEWS, ...SB_LIFESTYLE, ...SB_SNS]){
-    add((s.keywords && s.keywords[0]) || s.keyword);
-  }
-  try{ for(const k of Object.keys(ALIAS_MAP)) add(k); }catch(e){}
-  try{ for(const v of Object.values(ALIAS_MAP)) add(v); }catch(e){}
-  return set;
-}
-let _KNOWN_CACHE = null;
-
-function _stripKoParticle(w){
-  const raw = String(w || '');
-  if(!/^[가-힣]+$/.test(raw)) return raw;          /* 한글 토큰에만 적용 */
-
-  /* 1순위 — 등록된 말로 시작하면 거기까지만 */
-  if(!_KNOWN_CACHE) _KNOWN_CACHE = _knownTerms();
-  let best = '';
-  for(const t of _KNOWN_CACHE){
-    if(t.length >= 2 && t.length < raw.length && raw.startsWith(t) && t.length > best.length) best = t;
-  }
-  if(best) return best;
-
-  /* 2순위 — 흔한 조사 (남는 글자 3자 이상일 때만) */
-  for(const p of _KO_PARTICLES){
-    if(raw.endsWith(p) && raw.length - p.length >= 3) return raw.slice(0, raw.length - p.length);
-  }
-  return raw;
-}
-
-/* 두 토큰을 "유사 표기 통합" 기준으로 같다고 볼지
-   — 조사 제거 + 공백/하이픈/대소문자 무시 + keyword_aliases의 영한 표기 통합 */
-function _reportNorm(raw0){
-  const w = _stripKoParticle(raw0);
-  const base = String(w || '').toLowerCase().replace(/[\s\-_]+/g, '');
-  try{
-    const canon = ALIAS_MAP[normKw(w)];
-    if(canon) return String(canon).toLowerCase().replace(/[\s\-_]+/g, '');
-  }catch(e){}
-  return base;
+/* 두 토큰을 "유사 표기 통합" 기준으로 같다고 볼지 — 공백/하이픈/대소문자 무시 */
+function _reportNorm(w){
+  return String(w || '').toLowerCase().replace(/[\s\-_]+/g, '');
 }
 
 /* items: 이 카테고리의 카드 배열. 각 원문마다 { note(제목), summary, ym, url, source, image_url } 있는 형태.
@@ -1339,11 +1291,10 @@ function detectRepeatedTitleTrends(items){
       if(REPORT_BRAND_SET.has(w) || REPORT_BRAND_SET.has(key)) continue;
       if(seenInCard.has(key)) continue;
       seenInCard.add(key);
-      const shown = _stripKoParticle(w);   /* 화면에 보일 단어도 조사를 뗀 형태로 */
-      if(!groups.has(key)) groups.set(key, { word: shown, items: [], _normKey: key });
+      if(!groups.has(key)) groups.set(key, { word: w, items: [], _normKey: key });
       const g = groups.get(key);
-      /* 표시용 단어는 더 짧고 깔끔한 쪽을 대표로 (조사가 덜 붙은 형태) */
-      if(shown.length < g.word.length) g.word = shown;
+      /* 표시용 단어는 가장 긴 표기를 대표로 (여러 표기 중 정보가 많은 쪽) */
+      if(w.length > g.word.length) g.word = w;
       g.items.push(it);
     }
   }
@@ -1363,21 +1314,9 @@ function detectRepeatedTitleTrends(items){
 function repeatedTrendsReportHTML(items){
   const trends = detectRepeatedTitleTrends(items);
   if(!trends.length) return '';
-  const blocks = trends.map((t, i) => {
+  const blocks = trends.map(t => {
     const top = t.items[0];
     const img = top && top.image_url;
-    /* 이 유행어가 나온 카드들의 해시태그 — 누르면 그 태그로 걸러 봄 */
-    const tagCount = new Map();
-    for(const it of t.items)
-      for(const tg of (it.tags || [])) tagCount.set(tg, (tagCount.get(tg) || 0) + 1);
-    const tags = [...tagCount.entries()]
-      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-      .slice(0, 10)
-      .map(x => x[0]);
-    const kwChips = tags.length
-      ? `<div class="repKws">${tags.map(tg =>
-          `<button class="repKw${tagFilter === tg ? ' on' : ''}" data-reptag="${esc(tg)}">#${esc(tg)}</button>`).join('')}</div>`
-      : '';
     const bullets = t.items.map(it => {
       const src = it.source || '';
       const sum = it.summary || it.note || '';
@@ -1393,8 +1332,7 @@ function repeatedTrendsReportHTML(items){
     }).join('');
     return `<div class="repBlock">
       <div class="repBadge">유행 중 · ${t.count}건 반복</div>
-      <div class="repTitleBar"><span class="repNum">${i + 1}</span><span class="repTitle">${esc(t.word)}</span></div>
-      ${kwChips}
+      <div class="repTitle">${esc(t.word)}</div>
       <div class="repBody">
         ${img
           ? `<div class="repImg"><img src="${esc(img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="imgFail(this)"></div>`
@@ -1404,36 +1342,19 @@ function repeatedTrendsReportHTML(items){
     </div>`;
   }).join('');
   return `<div class="repWrap">
-    <div class="repHead">HOT TREND KEYWORD
+    <div class="repHead">이 카테고리에서 반복되는 트렌드
       <span class="repSub">제목에 3번 이상 반복된 단어 기준 · 자동 감지</span>
     </div>
     ${blocks}
   </div>`;
 }
 
-/* 리포트를 카드 그리드 "위"에 가로로 놓기 위한 전용 상자.
-   그리드 안에 넣으면 카드 한 칸처럼 좁아지므로 형제 요소로 만든다. */
-function reportBoxFor(gridSel){
-  const grid = $(gridSel);
-  if(!grid || !grid.parentElement) return null;
-  let box = grid.parentElement.querySelector(`[data-report-for="${gridSel}"]`);
-  if(!box){
-    box = document.createElement('div');
-    box.setAttribute('data-report-for', gridSel);
-    grid.parentElement.insertBefore(box, grid);
-  }
-  return box;
-}
-
 function renderKwBlock(gridSel, moreBtnSel, moreListSel, cntSel, ranked, exampleFn, showScore, emptyMsg, bigN=8, metaOverride, bubbleSel, catCtx){
-  /* 반복 단어 리포트 — 키워드 탭에서만 표시. 해시태그 탭에서는 카드만 보여준다 */
-  const bubbleMode = bubbleSel ? (BUBBLE_MODE[bubbleSel] || 'kw') : 'kw';
-  const box = reportBoxFor(gridSel);
-  if(box){
-    const allItems = ranked.flatMap(e => e.items || []);
-    box.innerHTML = bubbleMode === 'kw' ? (repeatedTrendsReportHTML(allItems) || '') : '';
-  }
-  $(gridSel).innerHTML = ranked.length ? flatCardsHTML(ranked) : `<div class="empty">${emptyMsg}</div>`;
+  /* 현재 버블 모드가 "키워드"일 때만 반복 단어 리포트 표시 (해시태그 탭은 카드만) */
+  const currentMode = bubbleSel ? (BUBBLE_MODE[bubbleSel] || 'kw') : 'kw';
+  const allItems = ranked.flatMap(e => e.items || []);
+  const reportHTML = currentMode === 'kw' ? repeatedTrendsReportHTML(allItems) : '';
+  $(gridSel).innerHTML = (reportHTML || '') + (ranked.length ? flatCardsHTML(ranked) : `<div class="empty">${emptyMsg}</div>`);
   const totalCards = ranked.reduce((n,e) => n + (e.items || []).length, 0);
   $(cntSel).textContent = totalCards ? `${totalCards}건 · 최신 순` : '';
   if(bubbleSel){
@@ -1442,9 +1363,7 @@ function renderKwBlock(gridSel, moreBtnSel, moreListSel, cntSel, ranked, example
       <button data-mode="kw"${mode==='kw'?' class="on"':''}>키워드</button>
       <button data-mode="tag"${mode==='tag'?' class="on"':''}>해시태그</button>
     </div>`;
-    /* 키워드 탭에서는 버블 대신 위쪽 HOT TREND KEYWORD 리포트가 그 역할을 하므로 버블은 그리지 않는다.
-       해시태그 탭에서는 기존대로 태그 버블을 모두 표시한다. */
-    const body = mode === 'tag' ? tagBubbleHTML(TAG_POOL[bubbleSel] || ranked, gridSel) : '';
+    const body = mode === 'tag' ? tagBubbleHTML(TAG_POOL[bubbleSel] || ranked, gridSel) : bubbleHTML(ranked, gridSel, catCtx);
     $(bubbleSel).innerHTML = tabs + `<div class="bubbleRow">${body}</div>`;
   }
   const moreBtn = $(moreBtnSel), moreList = $(moreListSel);
@@ -1565,15 +1484,6 @@ document.addEventListener('scroll', e => {
   const dots = box.parentElement.querySelectorAll('.kwdot');
   dots.forEach((d, i) => d.classList.toggle('on', i === idx));
 }, true);
-
-/* HOT TREND KEYWORD의 해시태그 칩 클릭 → 그 태그가 달린 카드만 걸러 봄 */
-document.addEventListener('click', e => {
-  const b = e.target.closest('.repKw'); if(!b) return;
-  e.stopPropagation();
-  const tg = b.dataset.reptag;
-  tagFilter = (tagFilter === tg) ? null : tg;
-  renderCurrentView();
-});
 
 /* 버블 보기 전환 — 키워드 / 해시태그 */
 document.addEventListener('click', e => {
