@@ -236,7 +236,7 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
 <body>
 
 <header>
-  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260806-08</span></h1>
+  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260806-09</span></h1>
   <div class="tabs">
     <button data-v="signal" class="on">TREND SIGNAL</button>
     <button data-v="keywords">TREND KEYWORDS</button>
@@ -312,14 +312,21 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
       <div style="flex:1; min-width:220px"><label class="mini">제목</label>
         <input id="rpTitle" placeholder="예: 27SS 슈즈 트렌드 리포트"></div>
       <div style="flex:1; min-width:260px"><label class="mini">주소 — PDF 링크 또는 사이트 URL</label>
-        <input id="rpUrl" placeholder="https://..."></div>
+        <input id="rpUrl" placeholder="https://... (아래에 파일을 놓으면 자동으로 채워집니다)"></div>
       <div style="max-width:120px"><label class="mini">구분</label>
         <select id="rpKind"><option value="pdf">PDF</option><option value="link">사이트</option></select></div>
       <div style="flex:1; min-width:200px"><label class="mini">설명 (선택)</label>
         <input id="rpNote" placeholder="한 줄 메모"></div>
       <button class="btn sm" id="rpAddBtn">추가</button>
     </div>
-    <div class="mini" style="margin-top:8px">PDF는 Supabase Storage나 사내 드라이브에 올린 뒤 그 주소를 넣으세요</div>
+    <div id="rpDrop" style="margin-top:12px; border:1px dashed var(--hair); border-radius:10px;
+      padding:20px; text-align:center; cursor:pointer; background:#fdfcfa">
+      <div style="font-weight:800; font-size:13px">PDF를 끌어다 놓거나 클릭해서 고르세요</div>
+      <div class="mini" style="margin-top:4px">파일당 50MB까지 · 올리면 주소 칸이 자동으로 채워집니다</div>
+      <div class="mini" id="rpDropMsg" style="margin-top:6px; color:var(--rising)"></div>
+      <input type="file" id="rpFile" accept="application/pdf" style="display:none">
+    </div>
+    <div class="mini" style="margin-top:8px">사내 드라이브 링크를 쓰려면 위 주소 칸에 직접 붙여넣어도 됩니다</div>
   </details>
 </div></div>
 
@@ -1474,6 +1481,54 @@ document.addEventListener('click', async e => {
     if(!data || !data.length) return alert('삭제되지 않았습니다 — 권한을 확인해 주세요');
     await buildReportView();
   }
+});
+
+/* 시즌 리포트 — PDF 파일을 Supabase Storage(reports 버킷)에 올리고 주소를 채운다 */
+async function uploadReportFile(file){
+  const msg = $('#rpDropMsg');
+  if(!file) return;
+  if(file.type !== 'application/pdf' && !/\.pdf$/i.test(file.name)){
+    msg.textContent = 'PDF 파일만 올릴 수 있습니다'; return;
+  }
+  if(file.size > 50 * 1024 * 1024){
+    msg.textContent = '파일이 50MB를 넘습니다 — 사내 드라이브 링크를 쓰세요'; return;
+  }
+  msg.textContent = '올리는 중…';
+  const season = ($('#rpSeason').value.trim().toUpperCase() || 'etc');
+  const safe = file.name.replace(/[^\w.\-가-힣]/g, '_');
+  const path = `${season}/${Date.now()}_${safe}`;
+  const { error } = await sb.storage.from('reports')
+    .upload(path, file, { contentType: 'application/pdf', upsert: true });
+  if(error){
+    msg.textContent = error.message.includes('Bucket not found')
+      ? 'reports 버킷이 아직 없습니다 — Supabase → Storage → New bucket 에서 reports(Public)를 만들어 주세요'
+      : '업로드 실패: ' + error.message;
+    return;
+  }
+  const url = sb.storage.from('reports').getPublicUrl(path).data.publicUrl;
+  $('#rpUrl').value = url;
+  $('#rpKind').value = 'pdf';
+  if(!$('#rpTitle').value.trim()) $('#rpTitle').value = file.name.replace(/\.pdf$/i, '');
+  msg.textContent = '업로드 완료 — 시즌과 제목을 확인하고 추가를 누르세요';
+}
+
+document.addEventListener('click', e => {
+  if(e.target.closest('#rpDrop') && !e.target.closest('#rpFile')) $('#rpFile')?.click();
+});
+document.addEventListener('change', e => {
+  if(e.target.id === 'rpFile') uploadReportFile(e.target.files?.[0]);
+});
+document.addEventListener('dragover', e => {
+  if(e.target.closest('#rpDrop')){ e.preventDefault(); $('#rpDrop').style.background = '#fdf3ef'; }
+});
+document.addEventListener('dragleave', e => {
+  if(e.target.closest('#rpDrop')) $('#rpDrop').style.background = '#fdfcfa';
+});
+document.addEventListener('drop', e => {
+  const zone = e.target.closest('#rpDrop'); if(!zone) return;
+  e.preventDefault();
+  zone.style.background = '#fdfcfa';
+  uploadReportFile(e.dataTransfer?.files?.[0]);
 });
 
 /* ═══ 탭 ═══ */
