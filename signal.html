@@ -288,7 +288,7 @@ a{color:var(--acc)}
 </head>
 <body>
 <header>
-  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260807-01</span></h1>
+  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260807-02</span></h1>
   <a href="index.html" id="backLink" style="font-size:11px;letter-spacing:.12em;font-weight:700;color:var(--acc);text-decoration:none;border:1px solid var(--acc);padding:6px 12px">← DASHBOARD</a>
   <div class="mrange">
     <label>기간</label>
@@ -340,7 +340,7 @@ a{color:var(--acc)}
 
 <script src="config.js"></script>
 <script type="module">
-console.log("TREND AGENT signal.html v260807-01");
+console.log("TREND AGENT signal.html v260807-02");
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ══ 설정 — 다른 파일들과 같은 값 ══ */
@@ -893,6 +893,10 @@ async function loadTrendSignals(){
     SB_NEWS = []; SB_LIFESTYLE = []; SB_SNS = [];
     for(const r of (data || [])){
       if(!r.keyword) continue;
+      /* 사내 리포트에서 등록한 항목은 TREND SIGNAL에 넣지 않는다.
+         여기는 엑셀로 모은 기사와 +수집으로 올린 SNS 자료만 보여주는 화면이고,
+         사내 리포트와 Lyst 자료는 시즌 리포트 · KEY BRAND에서만 쓴다. */
+      if(String(r.source || '').trim() === '사내 리포트') continue;
       if(r.source_type === 'news'){
         SB_NEWS.push({ id: r.id, url: r.url, note: r.keyword, category: REV_CAT_LABEL[r.category] || r.category || 'etc',
           keywords: [r.keyword], summary: r.note || '', image_url: r.image_url, stage: 'early',
