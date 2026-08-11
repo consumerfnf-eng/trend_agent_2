@@ -203,7 +203,7 @@ header h1{font-family:'Playfair Display',serif; font-size:22px}
 .lystDown{color:var(--rising); font-weight:800}
 /* 인쇄 — 종합 리포트만 남기고 나머지는 숨긴다 (브라우저 인쇄 → PDF로 저장) */
 @media print{
-  header, .tabs, #digestBar, #lystBox, #lystSaved, #rpSeasonBar, #rpGrid, #rpAdd,
+  header, .tabs, #digestBar, #lystBox, #lystSaved, #rpSeasonBar, #rpParts, #rpAdd,
   footer, #dpanel, #dpDim, #load, #noteTxt{ display:none !important }
   body{ background:#fff }
   main{ max-width:none; padding:0 }
@@ -265,7 +265,7 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
 <body>
 
 <header>
-  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260808-02</span></h1>
+  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260808-03</span></h1>
   <div class="tabs">
     <button data-v="signal" class="on">TREND SIGNAL</button>
     <button data-v="keywords">TREND KEYWORDS</button>
@@ -2005,6 +2005,7 @@ document.addEventListener('click', async e => {
 /* ═══ 시즌 리포트 ═══ */
 let RP_ROWS = [], RP_SEASON = 'ALL';
 let LYST_ROWS = [];
+let LYST_YEAR = null;   /* 보고 있는 연도 (25 · 26 …) */
 let LYST_EXTRA = [];
 
 /* 분기 표기 바꾸기 — Q2-26 → 26 Q2 */
@@ -2043,58 +2044,70 @@ function lystExtraHTML(qList){
 /* 저장된 Lyst 순위를 분기별로 보여준다 */
 function drawLystSaved(){
   const box = $('#lystSaved'); if(!box) return;
-  if(!LYST_ROWS.length){ box.innerHTML = ''; return; }
 
-  /* 분기를 가로로 — Q1부터 Q4까지, 자료 없는 분기는 비워둔다 */
-  const years = [...new Set(LYST_ROWS.map(r => String(r.quarter || '').split('-')[1]).filter(Boolean))]
-    .sort().reverse();
+  /* 연도 목록 — 2025년부터 올해까지 항상 보여주고, 자료 없는 해는 비워둔다 */
+  const thisYY = String(new Date().getFullYear()).slice(2);
+  const years = [];
+  for(let y = 25; y <= Number(thisYY); y++) years.push(String(y).padStart(2, '0'));
+  const withData = new Set(LYST_ROWS.map(r => String(r.quarter || '').split('-')[1]).filter(Boolean));
+  if(!LYST_YEAR || !years.includes(LYST_YEAR))
+    LYST_YEAR = [...years].reverse().find(y => withData.has(y)) || years[years.length - 1];
 
-  box.innerHTML = years.map(yy => {
-    const qs = ['Q1', 'Q2', 'Q3', 'Q4'].map(q => `${q}-${yy}`);
-    const byQ = {};
-    for(const q of qs) byQ[q] = LYST_ROWS.filter(r => r.quarter === q).sort((a,b) => a.rank - b.rank);
-    const linkOf = q => (byQ[q].find(r => r.source_url) || {}).source_url || '';
+  const yy = LYST_YEAR;
+  const qs = ['Q1', 'Q2', 'Q3', 'Q4'].map(q => `${q}-${yy}`);
+  const byQ = {};
+  for(const q of qs) byQ[q] = LYST_ROWS.filter(r => r.quarter === q).sort((a,b) => a.rank - b.rank);
+  const linkOf = q => (byQ[q].find(r => r.source_url) || {}).source_url || '';
+  const anyData = qs.some(q => byQ[q].length);
 
-    return `<section style="margin-bottom:18px">
-      <h3 style="font-family:'Playfair Display',serif; font-size:18px; border-bottom:1px solid var(--hair);
-        padding-bottom:5px; margin:0 0 10px">LYST INDEX 20${esc(yy)}
-        <span class="mini" style="font-weight:400">핫 브랜드 순위</span></h3>
-      <table class="lystTable" style="table-layout:fixed">
+  box.innerHTML = `
+    <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin:0 0 10px">
+      <span class="mini" style="font-weight:800">LYST INDEX</span>
+      ${years.map(y => `<button class="catbtn${y === yy ? ' on' : ''}" data-lystyear="${y}">20${y}</button>`).join('')}
+    </div>
+    ${anyData ? `
+    <table class="lystTable" style="table-layout:fixed">
+      <tr>
+        <td style="width:34px"></td>
+        ${qs.map(q => {
+          const has = byQ[q].length, url = linkOf(q);
+          return `<td style="text-align:center; font-weight:800; font-size:12px">
+            ${q.split('-')[0]}
+            ${has && url ? ` <a href="${esc(url)}" target="_blank" rel="noopener" class="mini">사이트 ↗</a>` : ''}
+            ${has ? `<div class="mini" style="font-weight:400">
+              <button class="blink ghost" style="padding:2px 8px" data-lystdel="${esc(q)}">삭제</button></div>` : ''}
+          </td>`;
+        }).join('')}
+      </tr>
+      ${Array.from({ length: 20 }, (_, i) => i + 1).map(rank => `
         <tr>
-          <td style="width:34px"></td>
+          <td style="text-align:right; font-weight:700; color:var(--sub); font-size:11px">${rank}</td>
           ${qs.map(q => {
-            const has = byQ[q].length;
-            const url = linkOf(q);
-            return `<td style="text-align:center; font-weight:800; font-size:12px">
-              ${q.split('-')[0]}
-              ${has && url ? ` <a href="${esc(url)}" target="_blank" rel="noopener" class="mini">사이트 ↗</a>` : ''}
-              ${has ? `<div class="mini" style="font-weight:400">
-                <button class="blink ghost" style="padding:2px 8px" data-lystdel="${esc(q)}">삭제</button></div>` : ''}
-            </td>`;
+            const hit = byQ[q].find(r => r.rank === rank);
+            if(!hit) return '<td></td>';
+            const c = String(hit.change || '').trim();
+            const chg = !c || c === '-' ? ''
+              : /^\+/.test(c) ? `<span class="lystUp" style="font-size:10px">▲${c.replace('+','')}</span>`
+              : /^-\d/.test(c) ? `<span class="lystDown" style="font-size:10px">▼${c.replace('-','')}</span>`
+              : `<span class="mini">${esc(c)}</span>`;
+            return `<td style="font-size:11.5px">${esc(hit.brand)} ${chg}</td>`;
           }).join('')}
-        </tr>
-        ${Array.from({ length: 20 }, (_, i) => i + 1).map(rank => `
-          <tr>
-            <td style="text-align:right; font-weight:700; color:var(--sub); font-size:11px">${rank}</td>
-            ${qs.map(q => {
-              const hit = byQ[q].find(r => r.rank === rank);
-              if(!hit) return '<td></td>';
-              const c = String(hit.change || '').trim();
-              const chg = !c || c === '-' ? ''
-                : /^\+/.test(c) ? `<span class="lystUp" style="font-size:10px">▲${c.replace('+','')}</span>`
-                : /^-\d/.test(c) ? `<span class="lystDown" style="font-size:10px">▼${c.replace('-','')}</span>`
-                : `<span class="mini">${esc(c)}</span>`;
-              return `<td style="font-size:11.5px">${esc(hit.brand)} ${chg}</td>`;
-            }).join('')}
-          </tr>`).join('')}
-      </table>
-      ${lystExtraHTML(qs.filter(q => byQ[q].length))}
-    </section>`;
-  }).join('');
+        </tr>`).join('')}
+    </table>
+    ${lystExtraHTML(qs.filter(q => byQ[q].length))}`
+    : '<div class="mini" style="padding:10px 0">20' + yy + '년 자료가 아직 없습니다 — 위에서 Lyst 주소를 불러와 저장하세요</div>'}`;
 }
 
+document.addEventListener('click', e => {
+  const y = e.target.closest('[data-lystyear]');
+  if(!y) return;
+  LYST_YEAR = y.dataset.lystyear;
+  drawLystSaved();
+});
+
 async function buildReportView(){
-  const grid = $('#rpGrid'); if(!grid) return;
+  /* 화면 구조가 바뀌면서 목록이 #rpParts 로 옮겨왔다 — 여기를 못 찾으면 아무것도 안 그려진다 */
+  const grid = $('#rpParts'); if(!grid) return;
   try{
     const { data, error } = await sb.from('season_reports').select('*').order('created_at', { ascending:false });
     if(error){
