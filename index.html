@@ -211,6 +211,16 @@ header h1{font-family:'Playfair Display',serif; font-size:22px}
   section{ break-inside:avoid }
   a{ color:#000; text-decoration:none }
 }
+.rpCard .rpThumb{cursor:pointer; margin-bottom:10px}
+.rpCard .rpThumb:hover{opacity:.88}
+.pdfOverlay{position:fixed; inset:0; background:rgba(20,18,16,.72); z-index:200;
+  display:flex; align-items:center; justify-content:center; padding:24px}
+.pdfBox{background:var(--paper); border-radius:14px; padding:18px 20px; width:min(1400px, 96vw); position:relative}
+.pdfClose{position:absolute; top:10px; right:14px; border:0; background:none; font-size:26px; cursor:pointer; color:var(--sub)}
+.pdfTitle{font-family:'Playfair Display',serif; font-size:20px; margin-bottom:10px}
+.pdfStrip{display:flex; gap:14px; overflow-x:auto; padding-bottom:8px; align-items:flex-start}
+.pdfPage{flex:0 0 auto}
+.pdfPage canvas{display:block; border:1px solid var(--hair); border-radius:6px; background:#fff}
 .lystTable{width:100%; border-collapse:collapse; font-size:12px}
 .lystTable td{padding:4px 8px; border-bottom:1px solid var(--hair)}
 .bkws{display:flex; flex-wrap:wrap; gap:4px; margin-top:8px}
@@ -255,7 +265,7 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
 <body>
 
 <header>
-  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260807-12</span></h1>
+  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260807-14</span></h1>
   <div class="tabs">
     <button data-v="signal" class="on">TREND SIGNAL</button>
     <button data-v="keywords">TREND KEYWORDS</button>
@@ -305,6 +315,7 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
         <button data-lang="ko" class="kwLangBtn" style="border:none; background:#fff; color:var(--sub); padding:7px 18px; font-size:11.5px; font-weight:800; letter-spacing:.03em; cursor:pointer; font-family:inherit">한국어</button>
       </div>
     </div>
+    <div id="volMoves" style="margin:16px 0 18px"></div>
     <div class="kwtablewrap"><table>
       <thead id="kwHead2"><tr><th>해시태그</th><th>한국어</th><th>대표 클러스터</th><th>카테고리</th><th>트렌드 지수</th><th>검색량 추이</th><th>변화</th></tr></thead>
       <tbody id="kwBody2"></tbody>
@@ -316,6 +327,7 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
 <div id="brandView" class="view"><div id="brandMain">
   <h2>Key Brands <span style="font-size:12px;color:var(--sub);font-family:'Noto Sans KR'">— 수집 자료에서 언급된 브랜드 + Lyst Index 순위</span></h2>
 
+  <div id="brandCross" style="margin:14px 0 20px"></div>
   <div class="bgrid" id="bgrid"></div>
 </div></div>
 
@@ -1773,14 +1785,16 @@ async function drawDigest(){
     <h3 style="font-family:'Playfair Display',serif; font-size:17px; border-bottom:1px solid var(--hair);
       padding-bottom:5px; margin-bottom:10px">${n}. ${title}</h3>${inner}</section>`;
 
+  window.__volBlock = volBlock;
+  window.__brandBlock = brandBlock;
+  window.__brandQ = latestQ;
+  renderMovedBlocks();
+
   box.innerHTML = `<div id="digestBody" style="border:1px solid var(--hair); border-radius:12px; padding:20px 24px; background:#fff">
     <h2 style="font-family:'Playfair Display',serif; font-size:22px">${esc(sn.season)} 트렌드 종합 리포트</h2>
     ${head}
     ${sec(1, '무드별 방향', catBlocks)}
-    ${sec(2, '검색량 움직임', volBlock)}
-    ${sec(3, `브랜드 교차 ${latestQ ? `(Lyst ${qLabel(latestQ)})` : ''}`, brandBlock)}
-    ${sec(4, '리포트 간 겹치는 내용', kwBlock)}
-    ${sec(5, '참고 자료', repBlock)}
+    ${sec(2, '리포트 간 겹치는 내용', kwBlock)}
   </div>`;
 }
 
@@ -1789,6 +1803,28 @@ document.addEventListener('click', e => {
   if(d){ DIGEST_SEASON = d.dataset.digest; buildDigest(); return; }
   if(e.target.closest('#digestPrint')){ window.print(); return; }
 });
+
+/* 종합 리포트에서 옮겨온 두 블록을 각자 자리에 그린다
+   — 검색량 움직임은 TREND KEYWORDS, 브랜드 교차는 KEY BRAND 맨 위 */
+/* 종합 리포트를 아직 한 번도 그리지 않았으면 계산만 돌려서 두 블록을 채운다 */
+async function ensureDigestData(){
+  if(window.__volBlock && window.__brandBlock){ renderMovedBlocks(); return; }
+  try{ await buildDigest(); }catch(e){ console.warn('블록 준비 실패:', e); }
+}
+
+function renderMovedBlocks(){
+  const v = $('#volMoves');
+  if(v && window.__volBlock){
+    v.innerHTML = `<h3 style="font-family:'Playfair Display',serif; font-size:17px;
+      border-bottom:1px solid var(--hair); padding-bottom:5px; margin:0 0 10px">검색량 움직임</h3>${window.__volBlock}`;
+  }
+  const b = $('#brandCross');
+  if(b && window.__brandBlock){
+    b.innerHTML = `<h3 style="font-family:'Playfair Display',serif; font-size:17px;
+      border-bottom:1px solid var(--hair); padding-bottom:5px; margin:0 0 10px">브랜드 교차${
+        window.__brandQ ? ` <span class="mini" style="font-weight:400">Lyst ${qLabel(window.__brandQ)}</span>` : ''}</h3>${window.__brandBlock}`;
+  }
+}
 
 /* ═══ Lyst Index 순위 불러오기 ═══ */
 let LYST_PREVIEW = null;
@@ -2051,6 +2087,101 @@ async function buildReportView(){
   }catch(e){ console.warn('시즌 리포트 로드 실패:', e); }
 }
 
+/* ── PDF 미리보기 ───────────────────────────────────────────
+   pdf.js를 필요할 때만 불러와 첫 페이지를 썸네일로 그리고,
+   카드를 누르면 전체 페이지를 가로로 넘겨보게 한다. */
+let _pdfLib = null;
+async function pdfLib(){
+  if(_pdfLib) return _pdfLib;
+  await new Promise((ok, no) => {
+    const sc = document.createElement('script');
+    sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    sc.onload = ok; sc.onerror = no;
+    document.head.appendChild(sc);
+  });
+  const lib = window.pdfjsLib;
+  lib.GlobalWorkerOptions.workerSrc =
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  _pdfLib = lib;
+  return lib;
+}
+
+const _pdfCache = new Map();
+async function openPdf(url){
+  if(_pdfCache.has(url)) return _pdfCache.get(url);
+  const lib = await pdfLib();
+  const doc = await lib.getDocument({ url, withCredentials: false }).promise;
+  _pdfCache.set(url, doc);
+  return doc;
+}
+
+async function renderPage(doc, n, canvas, targetH){
+  const page = await doc.getPage(n);
+  const base = page.getViewport({ scale: 1 });
+  const scale = targetH / base.height;
+  const vp = page.getViewport({ scale });
+  canvas.width = Math.round(vp.width);
+  canvas.height = Math.round(vp.height);
+  await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+}
+
+/* 카드 썸네일 — 첫 페이지만 */
+async function drawThumbs(){
+  for(const box of document.querySelectorAll('[data-thumb]')){
+    if(box.dataset.done) continue;
+    box.dataset.done = '1';
+    try{
+      const doc = await openPdf(box.dataset.thumb);
+      const cv = document.createElement('canvas');
+      cv.style.cssText = 'width:100%; height:auto; display:block; border-radius:8px; background:#fff';
+      await renderPage(doc, 1, cv, 420);
+      box.innerHTML = '';
+      box.appendChild(cv);
+      box.insertAdjacentHTML('beforeend',
+        `<div class="mini" style="margin-top:4px">${doc.numPages}쪽 · 눌러서 전체 보기</div>`);
+    }catch(e){
+      box.innerHTML = '<div class="mini" style="padding:20px 0; text-align:center">미리보기를 만들 수 없습니다</div>';
+    }
+  }
+}
+
+/* 전체 페이지 — 가로 스크롤 */
+async function openPdfStrip(url, title){
+  const wrap = document.createElement('div');
+  wrap.className = 'pdfOverlay';
+  wrap.innerHTML = `<div class="pdfBox">
+    <button class="pdfClose" aria-label="닫기">×</button>
+    <div class="pdfTitle">${esc(title || '')}</div>
+    <div class="pdfStrip"><div class="mini" style="padding:40px">불러오는 중…</div></div>
+    <div class="mini" style="margin-top:6px">좌우로 밀어서 넘겨보세요 · Esc로 닫기</div>
+  </div>`;
+  document.body.appendChild(wrap);
+  const strip = wrap.querySelector('.pdfStrip');
+  try{
+    const doc = await openPdf(url);
+    strip.innerHTML = '';
+    for(let i = 1; i <= doc.numPages; i++){
+      const holder = document.createElement('div');
+      holder.className = 'pdfPage';
+      const cv = document.createElement('canvas');
+      holder.appendChild(cv);
+      holder.insertAdjacentHTML('beforeend', `<div class="mini" style="text-align:center">${i}</div>`);
+      strip.appendChild(holder);
+      await renderPage(doc, i, cv, 640);
+    }
+  }catch(e){
+    strip.innerHTML = '<div class="mini" style="padding:40px">PDF를 불러오지 못했습니다</div>';
+  }
+}
+
+document.addEventListener('click', e => {
+  if(e.target.closest('.pdfClose') || e.target.classList.contains('pdfOverlay'))
+    document.querySelector('.pdfOverlay')?.remove();
+});
+document.addEventListener('keydown', e => {
+  if(e.key === 'Escape') document.querySelector('.pdfOverlay')?.remove();
+});
+
 function drawReport(){
   const seasons = [...new Set(RP_ROWS.map(r => r.season).filter(Boolean))].sort().reverse();
   $('#rpSeasonBar').innerHTML = ['ALL', ...seasons].map(sn =>
@@ -2058,20 +2189,29 @@ function drawReport(){
 
   const rows = RP_ROWS.filter(r => RP_SEASON === 'ALL' || r.season === RP_SEASON);
   $('#rpGrid').innerHTML = rows.length ? rows.map(r => `
-    <div class="bcard">
+    <div class="bcard rpCard">
+      ${r.kind === 'pdf'
+        ? `<div class="rpThumb" data-thumb="${esc(r.url)}" data-title="${esc((r.season || '') + ' ' + (r.title || ''))}">
+             <div class="mini" style="padding:30px 0; text-align:center">미리보기 준비 중…</div></div>`
+        : ''}
       <div class="k">${esc(r.season || '시즌 미지정')} · ${r.kind === 'pdf' ? 'PDF' : '사이트'}</div>
       <h3>${esc(r.title || '(제목 없음)')}</h3>
       ${r.note ? `<div class="mini" style="margin-top:6px">${esc(r.note)}</div>` : ''}
       <div class="blinks">
-        ${r.kind === 'pdf'
-          ? `<button class="blink" data-rpview="${esc(String(r.id))}" data-url="${esc(r.url)}">여기서 보기</button>` : ''}
-        <a class="blink${r.kind === 'pdf' ? ' ghost' : ''}" href="${esc(r.url)}" target="_blank" rel="noopener">${r.kind === 'pdf' ? '새 창 ↗' : '사이트 열기 ↗'}</a>
+        <a class="blink ghost" href="${esc(r.url)}" target="_blank" rel="noopener">${r.kind === 'pdf' ? '새 창 ↗' : '사이트 열기 ↗'}</a>
         <button class="blink ghost" data-rpdel="${esc(String(r.id))}">삭제</button>
       </div>
-      <div class="rpViewer" data-viewer="${esc(String(r.id))}" style="display:none; margin-top:10px"></div>
     </div>`).join('')
     : '<div style="color:var(--sub);padding:20px">등록된 리포트가 없습니다 — 아래 "+ 리포트 추가"로 넣어보세요</div>';
+  drawThumbs();
 }
+
+/* 썸네일 클릭 → 전체 페이지 보기 */
+document.addEventListener('click', e => {
+  const th = e.target.closest('[data-thumb]');
+  if(!th) return;
+  openPdfStrip(th.dataset.thumb, th.dataset.title);
+});
 
 document.addEventListener('click', async e => {
   const sb2 = e.target.closest('[data-season]');
@@ -2199,8 +2339,8 @@ document.querySelector('.tabs').addEventListener('click', e => {
   document.querySelectorAll('.tabs button').forEach(x => x.classList.toggle('on', x === b));
   ['signal','keywords','brand','report'].forEach(v => $('#' + v + 'View').classList.toggle('on', b.dataset.v === v));
   if(b.dataset.v === 'signal'){ const f = $('#signalFrame'); if(!f.src) f.src = f.dataset.src; }
-  if(b.dataset.v === 'keywords'){ buildKwTable2(); }
-  if(b.dataset.v === 'brand'){ buildBrandView(); }
+  if(b.dataset.v === 'keywords'){ buildKwTable2(); ensureDigestData(); }
+  if(b.dataset.v === 'brand'){ buildBrandView(); ensureDigestData(); }
   if(b.dataset.v === 'report'){ buildReportView(); }
   $('#noteTxt').textContent = TABNOTE[b.dataset.v];
 });
