@@ -243,6 +243,16 @@ tr.krow{cursor:pointer} tr.krow:hover{background:#faf6ec}
 .ovPeriod{display:inline-block; vertical-align:middle; margin-left:10px; font-family:'Noto Sans KR', sans-serif;
   font-size:11px; font-weight:700; letter-spacing:.04em; color:var(--acc);
   background:#fdf3ef; border:1px solid #f1d9cf; padding:3px 10px; border-radius:20px}
+.snsStyle{border:1px solid var(--hair); border-radius:12px; padding:16px 18px; margin-bottom:14px; background:var(--card)}
+.snsStyle header{display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:6px}
+.snsStyle h4{font-size:15px; font-weight:800; margin:0}
+.snsSub{font-size:11.5px; font-weight:800; color:var(--sub); letter-spacing:.05em; margin:12px 0 6px}
+.snsRow{display:grid; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); gap:10px}
+.snsShot{margin:0}
+.snsShot img{width:100%; aspect-ratio:3/4; object-fit:cover; border-radius:8px; background:#efeae1; display:block}
+.snsShot figcaption{font-size:10.5px; color:var(--sub); margin-top:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.snsShot figcaption a{color:var(--sub); text-decoration:none}
+.snsShot figcaption a:hover{color:var(--acc); text-decoration:underline}
 .bubbleTabs{display:flex; gap:4px; margin:2px 0 8px}
 .bubbleTabs button{font-size:10px; font-weight:800; letter-spacing:.03em; padding:4px 11px; border-radius:20px;
   background:#f2efe9; border:1px solid #e2ddd3; color:#6b6357; cursor:pointer; font-family:inherit}
@@ -298,7 +308,7 @@ a{color:var(--acc)}
 </head>
 <body>
 <header>
-  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260807-03</span></h1>
+  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260808-01</span></h1>
   <a href="index.html" id="backLink" style="font-size:11px;letter-spacing:.12em;font-weight:700;color:var(--acc);text-decoration:none;border:1px solid var(--acc);padding:6px 12px">← DASHBOARD</a>
   <div class="mrange">
     <label>기간</label>
@@ -350,7 +360,7 @@ a{color:var(--acc)}
 
 <script src="config.js"></script>
 <script type="module">
-console.log("TREND AGENT signal.html v260807-03");
+console.log("TREND AGENT signal.html v260808-01");
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ══ 설정 — 다른 파일들과 같은 값 ══ */
@@ -966,11 +976,11 @@ function renderCurrentView(){
   const isLife = scatF === 'lifestyle';
   $('#lifeBlock').style.display = isLife ? '' : 'none';
   $('#newsBlock').style.display = isLife ? 'none' : '';
-  $('#snsBlock').style.display  = isLife ? 'none' : '';
+  $('#snsBlock').style.display  = '';   /* 라이프스타일 탭에서도 SNS 섹션을 보여준다 */
   $('#catSub').textContent = isLife
     ? '소비자 활동·문화·행태 트렌드를 모아봤어요 — 다른 카테고리를 고르면 패션·SNS 트렌드를 볼 수 있어요'
     : '카테고리를 고르면 패션·SNS 트렌드를 볼 수 있어요';
-  if(isLife) drawLifeBlock();
+  if(isLife){ drawLifeBlock(); drawSnsForCat(); }
   else { drawNewsGrid(); drawSnsForCat(); }
 }
 
@@ -1497,17 +1507,89 @@ function aggregateManualSns(items){
   return [...map.values()];
 }
 
+/* SNS는 "스타일 하나 = 카드 하나" 로 그린다.
+   같은 keyword(스타일)끼리 묶고, 그 안에서 sub_group으로 줄을 나누고,
+   사진마다 계정을 적어준다. 참고 슬라이드 구조와 같은 형태. */
+function snsStyleCardsHTML(items){
+  const styles = new Map();
+  for(const it of items){
+    const label = canonKw(it.keyword || '(제목 없음)');
+    if(!styles.has(label)) styles.set(label, { label, items: [], months: new Set(), tags: new Set() });
+    const e = styles.get(label);
+    e.items.push(it);
+    if(it.ym) e.months.add(it.ym);
+    for(const t of (it.tags || [])) e.tags.add(t);
+  }
+  const list = [...styles.values()].sort((a,b) => b.items.length - a.items.length);
+
+  return list.map(st => {
+    /* 하위 구분별로 묶기 — 구분이 없으면 한 줄로 */
+    const groups = new Map();
+    for(const it of st.items){
+      const g = (it.sub_group || '').trim();
+      if(!groups.has(g)) groups.set(g, []);
+      groups.get(g).push(it);
+    }
+    const months = [...st.months].sort().join(', ');
+    const tags = [...st.tags].slice(0, 6);
+
+    const rows = [...groups.entries()]
+      .sort((a,b) => (a[0] ? 0 : 1) - (b[0] ? 0 : 1) || b[1].length - a[1].length)
+      .map(([g, shots]) => `
+        ${g ? `<div class="snsSub">#${esc(g)}</div>` : ''}
+        <div class="snsRow">
+          ${shots.map(x => `
+            <figure class="snsShot">
+              ${x.url
+                ? `<a href="${esc(x.url)}" target="_blank" rel="noopener">
+                     <img src="${esc(x.image_url || '')}" alt="" loading="lazy"
+                          referrerpolicy="no-referrer" onerror="imgFail(this)"></a>`
+                : `<img src="${esc(x.image_url || '')}" alt="" loading="lazy"
+                        referrerpolicy="no-referrer" onerror="imgFail(this)">`}
+              <figcaption>${x.account
+                ? `<a href="https://www.instagram.com/${esc(String(x.account).replace(/^@/, ''))}/"
+                      target="_blank" rel="noopener">${esc(x.account)}</a>`
+                : '<span class="mini">계정 미입력</span>'}</figcaption>
+            </figure>`).join('')}
+        </div>`).join('');
+
+    return `<article class="snsStyle" data-kwlabel="${esc(st.label)}">
+      <header>
+        <h4>${esc(st.label)}</h4>
+        <span class="mini">사진 ${st.items.length}장${months ? ' · ' + esc(months) : ''}</span>
+      </header>
+      ${tags.length ? `<div class="tagrow">${tags.map(t =>
+        `<button class="tagchip${tagFilter === t ? ' on' : ''}" data-tag="${esc(t)}">#${esc(t)}</button>`).join('')}</div>` : ''}
+      ${rows}
+    </article>`;
+  }).join('');
+}
+
 function drawSnsForCat(){
-  const catItems = SNS_VIRAL.filter(s => snsCategoriesOf(s).includes(scatF));
-  const { ranked, genericCount } = aggregateSnsKw(catItems);
-  const manual = aggregateManualSns(SB_SNS.filter(s => s.category === scatF && visible(s)));
-  const combined = [...manual, ...ranked].sort((a,b) => b.score - a.score || b.count - a.count);
+  const items = SB_SNS.filter(s => s.category === scatF && visible(s));
   TAG_POOL['#snsBubble'] = aggregateManualSns(SB_SNS.filter(s => s.category === scatF && inMonth(s)));
-  renderKwBlock('#snsKwGrid','#snsMoreBtn','#snsKwMore','#snsCnt', combined, snsExampleHTML, true,
-    '해당 카테고리의 SNS 시그널이 아직 없습니다', 8, undefined, '#snsBubble', scatF);
-  $('#snsGenericNote').textContent = genericCount
-    ? `해시태그가 없는 콘텐츠 ${genericCount}건은 키워드 집계에서 제외했어요`
-    : '';
+
+  /* 버블은 기존대로 (키워드 / 해시태그 토글 유지) */
+  const bubbleSel = '#snsBubble';
+  const mode = BUBBLE_MODE[bubbleSel] || 'kw';
+  const ranked = aggregateManualSns(items);
+  const tabs = `<div class="bubbleTabs" data-bubble="${bubbleSel}">
+    <button data-mode="kw"${mode==='kw'?' class="on"':''}>키워드</button>
+    <button data-mode="tag"${mode==='tag'?' class="on"':''}>해시태그</button>
+  </div>`;
+  const body = mode === 'tag'
+    ? tagBubbleHTML(TAG_POOL[bubbleSel] || ranked, '#snsKwGrid')
+    : bubbleHTML(ranked, '#snsKwGrid', scatF);
+  const bb = $(bubbleSel);
+  if(bb) bb.innerHTML = tabs + `<div class="bubbleRow">${body}</div>`;
+
+  $('#snsCnt').textContent = items.length ? `${items.length}장 · 스타일별` : '';
+  $('#snsKwGrid').innerHTML = items.length
+    ? snsStyleCardsHTML(items)
+    : '<div class="empty">해당 카테고리의 SNS 자료가 아직 없습니다</div>';
+  const more = $('#snsMoreBtn'); if(more) more.style.display = 'none';
+  const moreList = $('#snsKwMore'); if(moreList) moreList.innerHTML = '';
+  $('#snsGenericNote').textContent = '';
 }
 
 /* 라이프스타일 — 비슷한 키워드는 테마로 묶어서 보여줌 (카테고리 필터와 무관하게 항상 전체 표시) */
