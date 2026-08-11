@@ -321,7 +321,7 @@ a{color:var(--acc)}
 </head>
 <body>
 <header>
-  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260808-05</span></h1>
+  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260808-07</span></h1>
   <a href="index.html" id="backLink" style="font-size:11px;letter-spacing:.12em;font-weight:700;color:var(--acc);text-decoration:none;border:1px solid var(--acc);padding:6px 12px">← DASHBOARD</a>
   <div class="mrange">
     <label>기간</label>
@@ -373,7 +373,7 @@ a{color:var(--acc)}
 
 <script src="config.js"></script>
 <script type="module">
-console.log("TREND AGENT signal.html v260808-05");
+console.log("TREND AGENT signal.html v260808-07");
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ══ 설정 — 다른 파일들과 같은 값 ══ */
@@ -1217,15 +1217,13 @@ function aggregateClusters(ranked){
 
 /* 클러스터 버블 — 크기=카드 수, 🔥는 카드 많은 순 상위에 크기 비례로.
    각 버블에 "더보기" 버튼이 붙어서 클릭하면 상세 모달이 열림. */
-/* ═══ 해시태그 산점도 ═══
-   가로는 년월, 세로는 점유율(또는 확산 폭), 크기는 언급량.
-   색은 한 가지에 투명도만 달리해 겹칠수록 진해지도록 했다. */
-let TAG_Y = 'share';   /* share(점유율) | spread(확산 폭) */
+/* ═══ 해시태그 타임라인 ═══
+   가로만 년월이고 세로에는 의미가 없다. 원 크기와 진하기가 언급량을 나타내고,
+   원끼리 겹치지 않도록 밀어내되 줄을 맞추지 않아 자연스럽게 흩어지게 한다. */
 
 function tagScatterHTML(ranked, gridSel){
   /* 태그 × 월 집계 */
-  const cell = new Map();          /* '태그|월' → {tag, ym, count, cats:Set} */
-  const monthTotal = new Map();    /* 월 → 그 달의 태그 부착 총량 */
+  const cell = new Map();
   for(const e of ranked){
     for(const it of (e.items || [])){
       const ym = it.ym; if(!ym) continue;
@@ -1235,79 +1233,108 @@ function tagScatterHTML(ranked, gridSel){
         const c = cell.get(key);
         c.count++;
         if(it.category) c.cats.add(it.category);
-        monthTotal.set(ym, (monthTotal.get(ym) || 0) + 1);
       }
     }
   }
   const pts = [...cell.values()];
   if(!pts.length) return '<div class="empty" style="padding:10px 0">이 섹션에는 아직 해시태그가 없습니다</div>';
 
-  const months = [...new Set(pts.map(p => p.ym))].sort();
-  const yOf = p => TAG_Y === 'share'
-    ? (p.count / Math.max(monthTotal.get(p.ym) || 1, 1)) * 100
-    : p.cats.size;
-  const maxY = Math.max(...pts.map(yOf), TAG_Y === 'share' ? 10 : 2);
-  const maxC = Math.max(...pts.map(p => p.count), 1);
-
-  const W = 1000, H = 460, padL = 52, padR = 28, padT = 24, padB = 40;
-  const plotW = W - padL - padR, plotH = H - padT - padB;
-  const xAt = ym => months.length === 1
-    ? padL + plotW / 2
-    : padL + plotW * (months.indexOf(ym) / (months.length - 1));
-  const yAt = v => padT + plotH * (1 - v / maxY);
-  /* 같은 자리에 겹치지 않게 태그 이름으로 살짝 흩뿌린다 */
-  const jitter = t => { let h = 0; for(const ch of t) h = (h * 31 + ch.charCodeAt(0)) % 97; return (h / 97 - 0.5) * 46; };
-
-  const ticks = 4;
-  let svg = `<svg viewBox="0 0 ${W} ${H}" style="width:100%; height:auto; display:block" role="img">`;
-  for(let i = 0; i <= ticks; i++){
-    const v = maxY * i / ticks, y = yAt(v);
-    svg += `<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="#e9e3d8" stroke-width="1"/>`;
-    svg += `<text x="${padL-10}" y="${y+4}" font-size="12" fill="#a99f90" text-anchor="end">${
-      TAG_Y === 'share' ? v.toFixed(0) + '%' : v.toFixed(0)}</text>`;
+  /* 선택한 기간의 모든 달을 축에 세운다 — 자료가 없는 달도 빈칸으로 */
+  const months = [];
+  {
+    const [ys, ms] = String(monthStart || '').split('-').map(Number);
+    const [ye, me] = String(monthEnd   || '').split('-').map(Number);
+    if(ys && ye){
+      let y = ys, m = ms;
+      for(let guard = 0; guard < 60; guard++){
+        months.push(`${y}-${String(m).padStart(2, '0')}`);
+        if(y === ye && m === me) break;
+        m++; if(m > 12){ m = 1; y++; }
+      }
+    }
   }
-  for(const m of months){
-    const x = xAt(m);
+  if(!months.length) months.push(...[...new Set(pts.map(p => p.ym))].sort());
+
+  const maxC = Math.max(...pts.map(p => p.count), 1);
+  const colW = Math.max(150, Math.min(260, 1200 / months.length));
+  const W = Math.max(900, colW * months.length + 60), H = 430;
+  const padL = 30, padR = 30, padT = 24, padB = 40;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const xAt = i => padL + plotW * ((i + 0.5) / months.length);
+
+  /* 원 크기·글씨 — 언급량이 많을수록 크고 진하게 */
+  const nodes = [...pts]
+    .filter(p => months.includes(p.ym))
+    .sort((a,b) => b.count - a.count)
+    .slice(0, 40)
+    .map((p, i) => {
+      const ratio = p.count / maxC;
+      const r = 16 + 38 * Math.sqrt(ratio);
+      const fs = Math.max(10, Math.min(14, r / 3));
+      const name = '#' + p.tag;
+      const labelW = name.length * fs * 0.56;
+      const inside = labelW <= r * 1.8 - 6;
+      /* 글씨가 잘리지 않도록, 원 밖에 쓰는 경우 그만큼 자리를 더 잡아둔다 */
+      const rr = Math.max(r, inside ? 0 : labelW / 2 + 4);
+      const col = months.indexOf(p.ym);
+      return { p, r, fs, name, inside, rr, col,
+        x: xAt(col) + (Math.random() - 0.5) * (colW * 0.5),
+        y: padT + rr + Math.random() * Math.max(1, plotH - rr * 2),
+        op: 0.2 + 0.55 * ratio };
+    });
+
+  /* 겹치지 않게 밀어내기 — 규칙적으로 줄 세우지 않고 자연스럽게 흩어지도록 */
+  for(let step = 0; step < 300; step++){
+    for(let i = 0; i < nodes.length; i++){
+      for(let j = i + 1; j < nodes.length; j++){
+        const a = nodes[i], b = nodes[j];
+        const need = a.rr + b.rr + (a.inside && b.inside ? 5 : 12);
+        let dx = b.x - a.x, dy = b.y - a.y;
+        let d = Math.hypot(dx, dy);
+        if(d >= need) continue;
+        if(d < 0.01){ dx = Math.random() - 0.5; dy = Math.random() - 0.5; d = Math.hypot(dx, dy); }
+        const push = (need - d) / 2;
+        a.x -= (dx/d) * push; a.y -= (dy/d) * push;
+        b.x += (dx/d) * push; b.y += (dy/d) * push;
+      }
+    }
+    for(const n of nodes){
+      const cx = xAt(n.col);
+      const lo = Math.max(padL + n.rr, cx - colW/2 + n.rr);
+      const hi = Math.min(W - padR - n.rr, cx + colW/2 - n.rr);
+      n.x = lo > hi ? cx : Math.min(hi, Math.max(lo, n.x));
+      n.y = Math.min(padT + plotH - n.rr - (n.inside ? 0 : n.fs), Math.max(padT + n.rr, n.y));
+    }
+  }
+
+  let svg = `<svg viewBox="0 0 ${W} ${H}" style="width:100%; height:auto; display:block" role="img">`;
+  months.forEach((m, i) => {
+    const x = xAt(i);
     svg += `<line x1="${x}" y1="${padT}" x2="${x}" y2="${padT+plotH}" stroke="#f2ede4" stroke-width="1"/>`;
     svg += `<text x="${x}" y="${H-14}" font-size="12.5" fill="#8a8578" text-anchor="middle">${esc(m.replace('-', '.'))}</text>`;
-  }
+  });
+  svg += `<line x1="${padL}" y1="${padT+plotH+6}" x2="${W-padR}" y2="${padT+plotH+6}" stroke="#e4ded2" stroke-width="1"/>`;
 
-  /* 큰 것부터 그려서 작은 원이 위에 오도록 */
-  const sorted = [...pts].sort((a,b) => b.count - a.count);
-  for(const p of sorted){
-    const r = 12 + 40 * Math.sqrt(p.count / maxC);
-    const x = xAt(p.ym) + jitter(p.tag);
-    const y = yAt(yOf(p));
-    const on = tagFilter === p.tag;
-    const op = 0.22 + 0.4 * (p.count / maxC);
-    svg += `<circle class="sc" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r.toFixed(1)}"
-      fill="#8d9aa8" fill-opacity="${on ? 0.85 : op.toFixed(2)}"
-      stroke="${on ? '#c8451f' : '#6f7c8a'}" stroke-width="${on ? 2 : 1}" stroke-opacity="0.55"
+  for(const n of [...nodes].sort((a,b) => b.r - a.r)){
+    const p = n.p, on = tagFilter === p.tag;
+    svg += `<circle class="sc" cx="${n.x.toFixed(1)}" cy="${n.y.toFixed(1)}" r="${n.r.toFixed(1)}"
+      fill="#8d9aa8" fill-opacity="${on ? 0.9 : n.op.toFixed(2)}"
+      stroke="${on ? '#c8451f' : '#6f7c8a'}" stroke-width="${on ? 2 : 1}" stroke-opacity="0.5"
       data-tagbubble="${esc(p.tag)}" data-target="${gridSel}" style="cursor:pointer">
-      <title>#${esc(p.tag)} · ${esc(p.ym)} · ${p.count}건 · 점유율 ${
-        ((p.count / Math.max(monthTotal.get(p.ym) || 1, 1)) * 100).toFixed(1)}% · 카테고리 ${p.cats.size}개</title></circle>`;
+      <title>#${esc(p.tag)} · ${esc(p.ym)} · ${p.count}건 · 카테고리 ${p.cats.size}개</title></circle>`;
   }
-  /* 큰 원에만 이름 표시 */
-  for(const p of sorted){
-    const r = 12 + 40 * Math.sqrt(p.count / maxC);
-    if(r < 22) continue;                     /* 이름이 들어갈 만큼 큰 원에만 */
-    const x = xAt(p.ym) + jitter(p.tag), y = yAt(yOf(p));
-    const fs = Math.max(11, Math.min(15, r / 2.6));
-    svg += `<text x="${x.toFixed(1)}" y="${(y + fs/3).toFixed(1)}" font-size="${fs.toFixed(1)}" font-weight="700"
-      fill="#2f3740" text-anchor="middle" pointer-events="none">#${esc(p.tag)}</text>`;
+  for(const n of nodes){
+    const y = n.inside ? n.y + n.fs/3 : n.y + n.r + n.fs;
+    svg += `<text x="${n.x.toFixed(1)}" y="${y.toFixed(1)}" font-size="${n.fs.toFixed(1)}" font-weight="700"
+      fill="${n.inside ? '#2f3740' : '#6b6357'}" text-anchor="middle" pointer-events="none">${esc(n.name)}</text>`;
   }
   svg += '</svg>';
 
   return `<div class="scatterWrap">
-    <div class="scatterTop">
-      <span class="mini">가로 년월 · 크기 언급량 · 세로 ${TAG_Y === 'share' ? '점유율' : '확산 폭'}</span>
-      <div class="yToggle">
-        <button class="${TAG_Y === 'share' ? 'on' : ''}" data-tagy="share">점유율</button>
-        <button class="${TAG_Y === 'spread' ? 'on' : ''}" data-tagy="spread">확산 폭</button>
-      </div>
-    </div>
+    <div class="scatterTop"><span class="mini">가로 년월 · 크기와 진하기는 언급량</span></div>
     ${svg}
-    <div class="mini" style="margin-top:4px">원을 누르면 그 태그가 달린 카드만 볼 수 있어요</div>
+    <div class="mini" style="margin-top:4px">원을 누르면 그 태그가 달린 카드만 볼 수 있어요${
+      pts.length > 40 ? ` · 언급 많은 40개만 표시 (전체 ${pts.length})` : ''}</div>
   </div>`;
 }
 
@@ -1791,13 +1818,6 @@ document.addEventListener('click', e => {
   const c = e.target.closest('circle.sc'); if(!c) return;
   const t = c.getAttribute('data-tagbubble'); if(!t) return;
   tagFilter = (tagFilter === t) ? null : t;
-  renderCurrentView();
-});
-
-/* 산점도 세로축 전환 */
-document.addEventListener('click', e => {
-  const b = e.target.closest('[data-tagy]'); if(!b) return;
-  TAG_Y = b.dataset.tagy;
   renderCurrentView();
 });
 
