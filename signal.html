@@ -321,7 +321,7 @@ a{color:var(--acc)}
 </head>
 <body>
 <header>
-  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260808-03</span></h1>
+  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260808-04</span></h1>
   <a href="index.html" id="backLink" style="font-size:11px;letter-spacing:.12em;font-weight:700;color:var(--acc);text-decoration:none;border:1px solid var(--acc);padding:6px 12px">← DASHBOARD</a>
   <div class="mrange">
     <label>기간</label>
@@ -373,7 +373,7 @@ a{color:var(--acc)}
 
 <script src="config.js"></script>
 <script type="module">
-console.log("TREND AGENT signal.html v260808-03");
+console.log("TREND AGENT signal.html v260808-04");
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ══ 설정 — 다른 파일들과 같은 값 ══ */
@@ -1582,7 +1582,7 @@ function renderKwBlock(gridSel, moreBtnSel, moreListSel, cntSel, ranked, example
     </div>`;
     /* 키워드 탭에서는 버블 대신 위쪽 HOT TREND KEYWORD 리포트가 그 역할을 하므로 버블은 그리지 않는다.
        해시태그 탭에서는 기존대로 태그 버블을 모두 표시한다. */
-    const body = mode === 'tag' ? tagBubbleHTML(TAG_POOL[bubbleSel] || ranked, gridSel) : '';
+    const body = mode === 'tag' ? tagScatterHTML(TAG_POOL[bubbleSel] || ranked, gridSel) : '';
     $(bubbleSel).innerHTML = tabs + `<div class="bubbleRow">${body}</div>`;
   }
   const moreBtn = $(moreBtnSel), moreList = $(moreListSel);
@@ -1682,19 +1682,9 @@ function drawSnsForCat(){
   const items = SB_SNS.filter(s => s.category === scatF && visible(s));
   TAG_POOL['#snsBubble'] = aggregateManualSns(SB_SNS.filter(s => s.category === scatF && inMonth(s)));
 
-  /* 버블은 기존대로 (키워드 / 해시태그 토글 유지) */
-  const bubbleSel = '#snsBubble';
-  const mode = BUBBLE_MODE[bubbleSel] || 'kw';
-  const ranked = aggregateManualSns(items);
-  const tabs = `<div class="bubbleTabs" data-bubble="${bubbleSel}">
-    <button data-mode="kw"${mode==='kw'?' class="on"':''}>키워드</button>
-    <button data-mode="tag"${mode==='tag'?' class="on"':''}>해시태그</button>
-  </div>`;
-  const body = mode === 'tag'
-    ? tagScatterHTML(TAG_POOL[bubbleSel] || ranked, '#snsKwGrid')
-    : bubbleHTML(ranked, '#snsKwGrid', scatF);
-  const bb = $(bubbleSel);
-  if(bb) bb.innerHTML = tabs + `<div class="bubbleRow">${body}</div>`;
+  /* SNS는 버블·산점도 없이 스타일 카드만 보여준다 */
+  const bb = $('#snsBubble');
+  if(bb) bb.innerHTML = '';
 
   $('#snsCnt').textContent = items.length ? `${items.length}장 · 스타일별` : '';
   const sg = $('#snsKwGrid');
