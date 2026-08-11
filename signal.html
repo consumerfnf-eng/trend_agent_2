@@ -244,6 +244,7 @@ tr.krow{cursor:pointer} tr.krow:hover{background:#faf6ec}
   font-size:11px; font-weight:700; letter-spacing:.04em; color:var(--acc);
   background:#fdf3ef; border:1px solid #f1d9cf; padding:3px 10px; border-radius:20px}
 .scatterWrap{flex:1 1 100%; width:100%; padding:4px 0 2px}
+.scatterScroll{overflow-x:auto; padding-bottom:4px}
 .scatterTop{display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:4px}
 .yToggle{display:inline-flex; border:1px solid var(--tx); border-radius:20px; overflow:hidden}
 .yToggle button{border:0; background:#fff; color:var(--sub); padding:4px 14px; cursor:pointer;
@@ -321,7 +322,7 @@ a{color:var(--acc)}
 </head>
 <body>
 <header>
-  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260808-07</span></h1>
+  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260808-08</span></h1>
   <a href="index.html" id="backLink" style="font-size:11px;letter-spacing:.12em;font-weight:700;color:var(--acc);text-decoration:none;border:1px solid var(--acc);padding:6px 12px">← DASHBOARD</a>
   <div class="mrange">
     <label>기간</label>
@@ -373,7 +374,7 @@ a{color:var(--acc)}
 
 <script src="config.js"></script>
 <script type="module">
-console.log("TREND AGENT signal.html v260808-07");
+console.log("TREND AGENT signal.html v260808-08");
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ══ 설정 — 다른 파일들과 같은 값 ══ */
@@ -1256,58 +1257,69 @@ function tagScatterHTML(ranked, gridSel){
   if(!months.length) months.push(...[...new Set(pts.map(p => p.ym))].sort());
 
   const maxC = Math.max(...pts.map(p => p.count), 1);
-  const colW = Math.max(150, Math.min(260, 1200 / months.length));
-  const W = Math.max(900, colW * months.length + 60), H = 430;
-  const padL = 30, padR = 30, padT = 24, padB = 40;
-  const plotW = W - padL - padR, plotH = H - padT - padB;
-  const xAt = i => padL + plotW * ((i + 0.5) / months.length);
 
-  /* 원 크기·글씨 — 언급량이 많을수록 크고 진하게 */
-  const nodes = [...pts]
+  /* 원 크기·글씨 — 언급량에 정비례. 1건짜리는 확실히 작고 옅게 */
+  const rOf  = c => 9 + 45 * (c / maxC);
+  const fsOf = c => 8.5 + 6.5 * (c / maxC);
+
+  const picked = [...pts]
     .filter(p => months.includes(p.ym))
     .sort((a,b) => b.count - a.count)
-    .slice(0, 40)
-    .map((p, i) => {
-      const ratio = p.count / maxC;
-      const r = 16 + 38 * Math.sqrt(ratio);
-      const fs = Math.max(10, Math.min(14, r / 3));
-      const name = '#' + p.tag;
-      const labelW = name.length * fs * 0.56;
-      const inside = labelW <= r * 1.8 - 6;
-      /* 글씨가 잘리지 않도록, 원 밖에 쓰는 경우 그만큼 자리를 더 잡아둔다 */
-      const rr = Math.max(r, inside ? 0 : labelW / 2 + 4);
-      const col = months.indexOf(p.ym);
-      return { p, r, fs, name, inside, rr, col,
-        x: xAt(col) + (Math.random() - 0.5) * (colW * 0.5),
-        y: padT + rr + Math.random() * Math.max(1, plotH - rr * 2),
-        op: 0.2 + 0.55 * ratio };
-    });
+    .slice(0, 36);
 
-  /* 겹치지 않게 밀어내기 — 규칙적으로 줄 세우지 않고 자연스럽게 흩어지도록 */
-  for(let step = 0; step < 300; step++){
+  const nodes = picked.map(p => {
+    const r = rOf(p.count), fs = fsOf(p.count);
+    const name = '#' + p.tag;
+    const labelW = name.length * fs * 0.56;
+    const inside = labelW <= r * 1.75 - 4;
+    /* 글씨가 원 밖으로 나가면 그 폭만큼 자리를 더 잡아 서로 안 겹치게 */
+    const rr = Math.max(r, inside ? 0 : labelW / 2 + 3) + (inside ? 0 : fs * 0.5);
+    return { p, r, fs, name, inside, rr, col: months.indexOf(p.ym), op: 0.16 + 0.6 * (p.count / maxC) };
+  });
+
+  /* 칸 폭·높이는 실제로 들어갈 원의 양에 맞춰 잡는다 (좁으면 아무리 밀어내도 겹침) */
+  const maxRR = Math.max(...nodes.map(n => n.rr), 20);
+  const colW = Math.max(240, maxRR * 2 + 30);
+  const perCol = new Map();
+  for(const n of nodes) perCol.set(n.col, (perCol.get(n.col) || 0) + Math.PI * n.rr * n.rr);
+  const needH = Math.max(...[...perCol.values()].map(a => (a * 1.9) / colW), 340);
+
+  const padL = 30, padR = 30, padT = 26, padB = 42;
+  const W = colW * months.length + padL + padR;
+  const plotW = W - padL - padR;
+  const plotH = Math.min(900, Math.max(340, needH));
+  const H = plotH + padT + padB;
+  const xAt = i => padL + plotW * ((i + 0.5) / months.length);
+
+  for(const n of nodes){
+    n.x = xAt(n.col) + (Math.random() - 0.5) * (colW - n.rr * 2) * 0.9;
+    n.y = padT + n.rr + Math.random() * Math.max(1, plotH - n.rr * 2);
+  }
+
+  /* 겹치지 않게 밀어내기 — 칸을 살짝 넘어가도 되게 두어 끼임을 막는다 */
+  for(let step = 0; step < 420; step++){
     for(let i = 0; i < nodes.length; i++){
       for(let j = i + 1; j < nodes.length; j++){
         const a = nodes[i], b = nodes[j];
-        const need = a.rr + b.rr + (a.inside && b.inside ? 5 : 12);
+        const need = a.rr + b.rr + 5;
         let dx = b.x - a.x, dy = b.y - a.y;
         let d = Math.hypot(dx, dy);
         if(d >= need) continue;
-        if(d < 0.01){ dx = Math.random() - 0.5; dy = Math.random() - 0.5; d = Math.hypot(dx, dy); }
-        const push = (need - d) / 2;
+        if(d < 0.01){ dx = Math.random() - 0.5; dy = Math.random() - 0.5; d = Math.hypot(dx, dy) || 1; }
+        const push = (need - d) / 2 + 0.2;
         a.x -= (dx/d) * push; a.y -= (dy/d) * push;
         b.x += (dx/d) * push; b.y += (dy/d) * push;
       }
     }
     for(const n of nodes){
-      const cx = xAt(n.col);
-      const lo = Math.max(padL + n.rr, cx - colW/2 + n.rr);
-      const hi = Math.min(W - padR - n.rr, cx + colW/2 - n.rr);
-      n.x = lo > hi ? cx : Math.min(hi, Math.max(lo, n.x));
+      const cx = xAt(n.col), slack = colW * 0.62;
+      n.x = Math.min(Math.min(W - padR - n.rr, cx + slack), Math.max(Math.max(padL + n.rr, cx - slack), n.x));
       n.y = Math.min(padT + plotH - n.rr - (n.inside ? 0 : n.fs), Math.max(padT + n.rr, n.y));
     }
   }
 
-  let svg = `<svg viewBox="0 0 ${W} ${H}" style="width:100%; height:auto; display:block" role="img">`;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}"
+    style="display:block; max-width:none" role="img">`;
   months.forEach((m, i) => {
     const x = xAt(i);
     svg += `<line x1="${x}" y1="${padT}" x2="${x}" y2="${padT+plotH}" stroke="#f2ede4" stroke-width="1"/>`;
@@ -1332,9 +1344,9 @@ function tagScatterHTML(ranked, gridSel){
 
   return `<div class="scatterWrap">
     <div class="scatterTop"><span class="mini">가로 년월 · 크기와 진하기는 언급량</span></div>
-    ${svg}
+    <div class="scatterScroll">${svg}</div>
     <div class="mini" style="margin-top:4px">원을 누르면 그 태그가 달린 카드만 볼 수 있어요${
-      pts.length > 40 ? ` · 언급 많은 40개만 표시 (전체 ${pts.length})` : ''}</div>
+      pts.length > 36 ? ` · 언급 많은 36개만 표시 (전체 ${pts.length})` : ''}</div>
   </div>`;
 }
 
