@@ -221,6 +221,27 @@ header h1{font-family:'Playfair Display',serif; font-size:22px}
 .pdfStrip{display:flex; gap:14px; overflow-x:auto; padding-bottom:8px; align-items:flex-start}
 .pdfPage{flex:0 0 auto}
 .pdfPage canvas{display:block; border:1px solid var(--hair); border-radius:6px; background:#fff}
+.lystExtras{display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:18px; margin-top:22px}
+.lystSub h4{font-family:'Playfair Display',serif; font-size:15px; margin:0 0 8px;
+  border-bottom:1px solid var(--hair); padding-bottom:5px}
+/* Lyst 표 머리·연도 선택 */
+.lystHead{display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+  border-bottom:1px solid var(--hair); padding-bottom:8px; margin:0 0 12px}
+.lystHead h3{font-family:'Playfair Display',serif; font-size:19px; margin:0}
+.yearSeg{display:inline-flex; border:1px solid var(--ink); border-radius:20px; overflow:hidden}
+.yearSeg button{border:0; background:#fff; color:var(--sub); padding:5px 16px; cursor:pointer;
+  font-family:inherit; font-size:11.5px; font-weight:800; letter-spacing:.03em}
+.yearSeg button + button{border-left:1px solid var(--hair)}
+.yearSeg button.on{background:var(--ink); color:#fff}
+.yearSeg button:not(.on):hover{background:#f2efe9; color:var(--ink)}
+.lystTable td.qHead{text-align:center; padding:6px 10px 10px}
+.qHead .qName{font-weight:800; font-size:13px; letter-spacing:.04em}
+.qHead .qTools{display:flex; align-items:center; justify-content:center; gap:14px; margin-top:6px}
+.qHead .qTools a{font-size:10.5px; font-weight:700; color:var(--rising); text-decoration:none}
+.qHead .qTools a:hover{text-decoration:underline}
+.qHead .qTools button{font-size:10px; font-weight:700; color:var(--sub); background:none;
+  border:1px solid var(--hair); border-radius:20px; padding:2px 9px; cursor:pointer; font-family:inherit}
+.qHead .qTools button:hover{border-color:var(--rising); color:var(--rising)}
 .lystTable{width:100%; border-collapse:collapse; font-size:12px}
 .lystTable td{padding:4px 8px; border-bottom:1px solid var(--hair)}
 .bkws{display:flex; flex-wrap:wrap; gap:4px; margin-top:8px}
@@ -265,7 +286,7 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
 <body>
 
 <header>
-  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260808-03</span></h1>
+  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260808-05</span></h1>
   <div class="tabs">
     <button data-v="signal" class="on">TREND SIGNAL</button>
     <button data-v="keywords">TREND KEYWORDS</button>
@@ -332,7 +353,7 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
 </div></div>
 
 <div id="reportView" class="view"><div>
-  <h2>시즌 리포트 <span style="font-size:12px;color:var(--sub);font-family:'Noto Sans KR'">— 어페럴 · 슈즈 · MARKET TREND 자료를 시즌별로 모아둡니다</span></h2>
+  <h2>시즌 리포트 <span style="font-size:12px;color:var(--sub);font-family:'Noto Sans KR'">— APPAREL · SHOE · MARKET TREND 자료를 시즌별로 모아둡니다</span></h2>
   <div id="digestBar" style="display:none"></div>
   <div id="digest" style="display:none"></div>
 
@@ -342,8 +363,8 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
     <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; margin-top:12px">
       <div style="max-width:150px"><label class="mini">분류</label>
         <select id="rpPart">
-          <option value="apparel">어페럴</option>
-          <option value="shoes">슈즈</option>
+          <option value="apparel">APPAREL TREND</option>
+          <option value="shoes">SHOE TREND</option>
           <option value="market">MARKET TREND</option>
         </select></div>
       <div><label class="mini">시즌</label>
@@ -2023,9 +2044,12 @@ function lystExtraHTML(qList){
   const stats = of('stat').sort((a,b) => (b.value||0) - (a.value||0));
   const picks = of('pick');
   const block = (title, inner) => inner
-    ? `<div style="margin-top:14px"><div class="mini" style="font-weight:800; margin-bottom:4px">${title}</div>${inner}</div>` : '';
+    ? `<section class="lystSub"><h4>${title}</h4>${inner}</section>` : '';
 
-  return block(`인기 상품 ${prods.length}`, prods.length
+  const any = prods.length || movers.length || picks.length || stats.length;
+  if(!any) return '';
+
+  return `<div class="lystExtras">` + block(`인기 상품 ${prods.length}`, prods.length
       ? `<table class="lystTable">${prods.map(x =>
           `<tr><td style="width:40px"><b>${x.rank}</b></td><td>${esc(x.brand)}</td>
                <td class="mini">${esc(x.label || '')}</td></tr>`).join('')}</table>` : '')
@@ -2038,7 +2062,8 @@ function lystExtraHTML(qList){
                <td style="width:60px"><a href="${esc(x.source_url || '#')}" target="_blank" rel="noopener" class="mini">보기 ↗</a></td></tr>`).join('')}</table>` : '')
     + block(`핵심 수치 ${stats.length}`, stats.length
       ? `<table class="lystTable">${stats.map(x =>
-          `<tr><td style="width:60px"><b>${x.value}%</b></td><td class="mini">${esc(x.label || '')}</td></tr>`).join('')}</table>` : '');
+          `<tr><td style="width:60px"><b>${x.value}%</b></td><td class="mini">${esc(x.label || '')}</td></tr>`).join('')}</table>` : '')
+    + `</div>`;
 }
 
 /* 저장된 Lyst 순위를 분기별로 보여준다 */
@@ -2061,9 +2086,11 @@ function drawLystSaved(){
   const anyData = qs.some(q => byQ[q].length);
 
   box.innerHTML = `
-    <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin:0 0 10px">
-      <span class="mini" style="font-weight:800">LYST INDEX</span>
-      ${years.map(y => `<button class="catbtn${y === yy ? ' on' : ''}" data-lystyear="${y}">20${y}</button>`).join('')}
+    <div class="lystHead">
+      <h3>LYST INDEX</h3>
+      <div class="yearSeg">
+        ${years.map(y => `<button class="${y === yy ? 'on' : ''}" data-lystyear="${y}">20${y}</button>`).join('')}
+      </div>
     </div>
     ${anyData ? `
     <table class="lystTable" style="table-layout:fixed">
@@ -2071,11 +2098,12 @@ function drawLystSaved(){
         <td style="width:34px"></td>
         ${qs.map(q => {
           const has = byQ[q].length, url = linkOf(q);
-          return `<td style="text-align:center; font-weight:800; font-size:12px">
-            ${q.split('-')[0]}
-            ${has && url ? ` <a href="${esc(url)}" target="_blank" rel="noopener" class="mini">사이트 ↗</a>` : ''}
-            ${has ? `<div class="mini" style="font-weight:400">
-              <button class="blink ghost" style="padding:2px 8px" data-lystdel="${esc(q)}">삭제</button></div>` : ''}
+          return `<td class="qHead">
+            <div class="qName">${q.split('-')[0]}</div>
+            ${has ? `<div class="qTools">
+              ${url ? `<a href="${esc(url)}" target="_blank" rel="noopener">사이트 ↗</a>` : '<span></span>'}
+              <button data-lystdel="${esc(q)}">삭제</button>
+            </div>` : '<div class="qTools"><span class="mini">자료 없음</span></div>'}
           </td>`;
         }).join('')}
       </tr>
@@ -2221,8 +2249,8 @@ document.addEventListener('keydown', e => {
 });
 
 const RP_PARTS = [
-  { key:'apparel', label:'어페럴' },
-  { key:'shoes',   label:'슈즈' },
+  { key:'apparel', label:'APPAREL TREND' },
+  { key:'shoes',   label:'SHOE TREND' },
   { key:'market',  label:'MARKET TREND' },
 ];
 
