@@ -255,7 +255,7 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
 <body>
 
 <header>
-  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260807-11</span></h1>
+  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260807-12</span></h1>
   <div class="tabs">
     <button data-v="signal" class="on">TREND SIGNAL</button>
     <button data-v="keywords">TREND KEYWORDS</button>
@@ -1564,7 +1564,8 @@ async function drawDigest(){
   const inRange = r => r.sheet_month && r.sheet_month >= sn.month_from && r.sheet_month <= sn.month_to;
   /* 종합 리포트는 "마켓 리포트 자료"만 본다 — 시즌 리포트에 올린 PDF에서 등록한 항목과 Lyst 데이터.
      TREND SIGNAL(기사·SNS 수집)은 여기 포함하지 않는다. */
-  const isReport = r => /리포트/.test(String(r.source || ''));
+  /* '런웨이 리포트'처럼 수집 매체 이름에도 '리포트'가 들어가므로 정확히 일치시킨다 */
+  const isReport = r => String(r.source || '').trim() === '사내 리포트';
   const items = (sig.data || []).filter(r => inRange(r) && isReport(r));
   const allItems = (sig.data || []).filter(inRange);   /* 검색량·브랜드 교차 참고용 */
   const CAT_LABEL = window.KW_CATLABEL2 || {};
