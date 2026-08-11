@@ -294,7 +294,7 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
 <body>
 
 <header>
-  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260808-12</span></h1>
+  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260808-13</span></h1>
   <div class="tabs">
     <button data-v="signal" class="on">TREND SIGNAL</button>
     <button data-v="keywords">TREND KEYWORDS</button>
@@ -355,7 +355,7 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
 
 <div id="brandView" class="view"><div id="brandMain">
   <h2>Key Brands <span style="font-size:12px;color:var(--sub);font-family:'Noto Sans KR'">— 수집 자료에서 언급된 브랜드 + Lyst Index 순위</span></h2>
-
+  <div id="brandFilter" style="display:flex; gap:18px; flex-wrap:wrap; align-items:center; margin:14px 0 16px"></div>
   <div class="bgrid" id="bgrid"></div>
 </div></div>
 
@@ -852,6 +852,17 @@ let BRAND_LYST = {};   /* 브랜드 → 분기별 Lyst 순위 */
 /* 'Q2-26' 을 '262' 로 바꿔 최신순 정렬에 쓴다 (연도 먼저, 그다음 분기) */
 const qKey = q => { const m = String(q || '').match(/^Q([1-4])-(\d{2})$/i); return m ? m[2] + m[1] : '000'; };
 let BRAND_EXTRA = {};  /* 브랜드 → 인기 상품·급상승 정보 */
+let BRAND_PERIOD = 'ALL';   /* 언급 기간 — ALL · 3 · 6 · 12 (개월) */
+let BRAND_Q = 'ALL';        /* Lyst 분기 — ALL 또는 'Q2-26' */
+let BRAND_SIG = [];         /* 원본 자료 (필터를 다시 걸 때 쓰려고 보관) */
+let BRAND_VOC = {};         /* 브랜드 사전 */
+
+/* 최근 N개월의 시작 월 — '2026-06' 형태 */
+function monthCutoff(n){
+  const d = new Date();
+  d.setMonth(d.getMonth() - (n - 1));
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
 let LYST_LATEST = null;
 
 async function buildBrandView(){
@@ -882,9 +893,15 @@ async function buildBrandView(){
 
     const vocMap = {};
     for(const v of (voc.data || [])) vocMap[v.brand] = v;
+    BRAND_VOC = vocMap;
+    BRAND_SIG = sig.data || [];
+
+    /* 선택한 기간에 해당하는 자료만 집계 */
+    const cut = BRAND_PERIOD === 'ALL' ? null : monthCutoff(Number(BRAND_PERIOD));
+    const inPeriod = r => !cut || (r.sheet_month && r.sheet_month >= cut);
 
     const map = new Map();
-    for(const r of (sig.data || [])){
+    for(const r of BRAND_SIG.filter(inPeriod)){
       for(const b of (r.brands || [])){
         if(!map.has(b)) map.set(b, { brand:b, count:0, kws:new Set(), months:new Set(),
           tags:new Set(), cats:new Set(), items:[] });
@@ -918,11 +935,17 @@ async function buildBrandView(){
       ...e,
       kws:[...e.kws], months:[...e.months].sort(), tags:[...e.tags], cats:[...e.cats],
       voc: vocMap[e.brand] || {}
-    })).sort((a,b) =>
+    }))
+    /* 그 기간에 언급이 없어도 Lyst 정보가 있으면 남기고, 둘 다 없으면 뺀다 */
+    .filter(e => e.count > 0
+      || (BRAND_LYST[e.brand] || []).length
+      || (BRAND_EXTRA[e.brand] || []).some(x => x.kind === 'mover'))
+    .sort((a,b) =>
       (b.voc.is_key ? 1 : 0) - (a.voc.is_key ? 1 : 0) ||
       b.count - a.count ||
       a.brand.localeCompare(b.brand));
 
+    drawBrandFilter();
     drawBrandCards();
   }catch(e){
     console.warn('KEY BRAND 생성 실패:', e);
@@ -943,6 +966,37 @@ function brandLinks(v, name){
   return ig + web;
 }
 
+/* 언급 기간 · Lyst 분기 선택 바 */
+function drawBrandFilter(){
+  const bar = $('#brandFilter'); if(!bar) return;
+  const periods = [['ALL','전체'], ['3','최근 3개월'], ['6','최근 6개월'], ['12','최근 1년']];
+  const quarters = [...new Set(Object.values(BRAND_LYST).flat().map(r => r.quarter))]
+    .sort((a,b) => qKey(b).localeCompare(qKey(a)));
+
+  bar.innerHTML = `
+    <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap">
+      <span class="mini" style="font-weight:800">언급 기간</span>
+      <div class="yearSeg">${periods.map(([v, t]) =>
+        `<button class="${BRAND_PERIOD === v ? 'on' : ''}" data-bperiod="${v}">${t}</button>`).join('')}</div>
+    </div>
+    ${quarters.length ? `<div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap">
+      <span class="mini" style="font-weight:800">LYST 분기</span>
+      <div class="yearSeg">
+        <button class="${BRAND_Q === 'ALL' ? 'on' : ''}" data-bq="ALL">전체</button>
+        ${quarters.slice(0, 6).map(q =>
+          `<button class="${BRAND_Q === q ? 'on' : ''}" data-bq="${esc(q)}">${esc(qLabel(q))}</button>`).join('')}
+      </div>
+    </div>` : ''}
+    <span class="mini">${BRAND_PERIOD === 'ALL' ? '전체 기간' : monthCutoff(Number(BRAND_PERIOD)) + ' 이후'} 기준 · 언급이 없어도 Lyst 정보가 있으면 표시됩니다</span>`;
+}
+
+document.addEventListener('click', e => {
+  const p = e.target.closest('[data-bperiod]');
+  if(p){ BRAND_PERIOD = p.dataset.bperiod; buildBrandView(); return; }
+  const q = e.target.closest('[data-bq]');
+  if(q){ BRAND_Q = q.dataset.bq; drawBrandFilter(); drawBrandCards(); return; }
+});
+
 function drawBrandCards(){
   const bg = $('#bgrid');
   if(!BRAND_ROWS.length){
@@ -959,7 +1013,8 @@ function drawBrandCards(){
     const thumb = e.items[0]?.image_url
       ? `<img class="peek" src="${esc(e.items[0].image_url)}" alt="" loading="lazy">` : '';
     /* Lyst 순위 배지 — 분기별로 모두 표시 (최신 분기가 앞) */
-    const ranksAll = BRAND_LYST[e.brand] || [];
+    const ranksAll = (BRAND_LYST[e.brand] || [])
+      .filter(r => BRAND_Q === 'ALL' || r.quarter === BRAND_Q);
     const ranks = ranksAll.slice(0, 4);   /* 최신 4개 분기만 */
     const lystBadge = ranks.length
       ? `<div style="display:flex; flex-wrap:wrap; gap:4px; align-items:center; margin-bottom:6px">${
@@ -974,8 +1029,9 @@ function drawBrandCards(){
       : '';
     /* 급상승 브랜드 — LYST 26 Q2 HOT 🔥 배지 */
     const ex = BRAND_EXTRA[e.brand] || [];
-    const movers = ex.filter(x => x.kind === 'mover').sort((a,b) => qKey(b.quarter).localeCompare(qKey(a.quarter)));
-    const prods  = ex.filter(x => x.kind === 'product').sort((a,b) => qKey(b.quarter).localeCompare(qKey(a.quarter)));
+    const exQ = ex.filter(x => BRAND_Q === 'ALL' || x.quarter === BRAND_Q);
+    const movers = exQ.filter(x => x.kind === 'mover').sort((a,b) => qKey(b.quarter).localeCompare(qKey(a.quarter)));
+    const prods  = exQ.filter(x => x.kind === 'product').sort((a,b) => qKey(b.quarter).localeCompare(qKey(a.quarter)));
     const hotBadge = movers.length
       ? `<div style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom:6px">${
           movers.map(m => `<span class="lystBadge hot">LYST ${esc(qLabel(m.quarter))} HOT 🔥</span>`).join('')}</div>`
