@@ -265,7 +265,7 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
 <body>
 
 <header>
-  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260807-15</span></h1>
+  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260808-02</span></h1>
   <div class="tabs">
     <button data-v="signal" class="on">TREND SIGNAL</button>
     <button data-v="keywords">TREND KEYWORDS</button>
@@ -332,11 +332,48 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
 </div></div>
 
 <div id="reportView" class="view"><div>
-  <h2>시즌 리포트 <span style="font-size:12px;color:var(--sub);font-family:'Noto Sans KR'">— 시즌별 리포트 자료 · PDF 파일이나 사이트 주소를 모아둡니다</span></h2>
-  <div id="digestBar" style="display:flex; gap:8px; align-items:flex-end; flex-wrap:wrap; margin:14px 0 8px"></div>
-  <div id="digest" style="margin-bottom:20px"></div>
+  <h2>시즌 리포트 <span style="font-size:12px;color:var(--sub);font-family:'Noto Sans KR'">— 어페럴 · 슈즈 · MARKET TREND 자료를 시즌별로 모아둡니다</span></h2>
+  <div id="digestBar" style="display:none"></div>
+  <div id="digest" style="display:none"></div>
 
-  <details id="lystBox" style="margin:14px 0 10px; border:1px solid var(--hair); border-radius:10px; padding:12px 16px; background:#fff">
+  <!-- 1. 리포트 추가 -->
+  <details id="rpAdd" open style="margin:14px 0 18px; border:1px solid var(--hair); border-radius:10px; padding:12px 16px; background:#fff">
+    <summary style="cursor:pointer; font-weight:800; font-size:13px">+ 리포트 추가</summary>
+    <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; margin-top:12px">
+      <div style="max-width:150px"><label class="mini">분류</label>
+        <select id="rpPart">
+          <option value="apparel">어페럴</option>
+          <option value="shoes">슈즈</option>
+          <option value="market">MARKET TREND</option>
+        </select></div>
+      <div><label class="mini">시즌</label>
+        <input id="rpSeason" placeholder="27SS" style="width:100px"></div>
+      <div style="flex:1; min-width:220px"><label class="mini">제목</label>
+        <input id="rpTitle" placeholder="예: 27SS 슈즈 트렌드 리포트"></div>
+      <div style="flex:1; min-width:260px"><label class="mini">주소 — PDF 링크 또는 사이트 URL</label>
+        <input id="rpUrl" placeholder="https://... (아래에 파일을 놓으면 자동으로 채워집니다)"></div>
+      <div style="max-width:110px"><label class="mini">구분</label>
+        <select id="rpKind"><option value="pdf">PDF</option><option value="link">사이트</option></select></div>
+      <div style="flex:1; min-width:180px"><label class="mini">설명 (선택)</label>
+        <input id="rpNote" placeholder="한 줄 메모"></div>
+      <button class="btn sm" id="rpAddBtn">추가</button>
+    </div>
+    <div id="rpDrop" style="margin-top:12px; border:1px dashed var(--hair); border-radius:10px;
+      padding:20px; text-align:center; cursor:pointer; background:#fdfcfa">
+      <div style="font-weight:800; font-size:13px">PDF를 끌어다 놓거나 클릭해서 고르세요</div>
+      <div class="mini" style="margin-top:4px">올리면 주소 칸이 자동으로 채워집니다</div>
+      <div class="mini" id="rpDropMsg" style="margin-top:6px; color:var(--rising)"></div>
+      <input type="file" id="rpFile" accept="application/pdf" style="display:none">
+    </div>
+    <div class="mini" style="margin-top:8px">사내 드라이브 링크를 쓰려면 위 주소 칸에 직접 붙여넣어도 됩니다</div>
+  </details>
+
+  <!-- 2. 리포트 — 분류별 상자 -->
+  <div id="rpSeasonBar" style="display:flex; gap:6px; flex-wrap:wrap; margin:0 0 12px"></div>
+  <div id="rpParts"></div>
+
+  <!-- 3. Lyst 불러오기 -->
+  <details id="lystBox" style="margin:22px 0 10px; border:1px solid var(--hair); border-radius:10px; padding:12px 16px; background:#fff">
     <summary style="cursor:pointer; font-weight:800; font-size:13px">Lyst Index 불러오기 — 분기별로 쌓입니다</summary>
     <div style="display:flex; gap:8px; align-items:flex-end; flex-wrap:wrap; margin-top:12px">
       <div style="flex:1; min-width:320px"><label class="mini">Lyst Index 주소</label>
@@ -348,35 +385,8 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
     <div class="mini" style="margin-top:8px">지난 분기 주소를 넣으면 과거 기록도 함께 쌓을 수 있습니다</div>
   </details>
 
+  <!-- 4. Lyst 순위 — 분기를 가로로 -->
   <div id="lystSaved" style="margin-bottom:18px"></div>
-
-  <div id="rpSeasonBar" style="display:flex; gap:6px; flex-wrap:wrap; margin:14px 0 10px"></div>
-  <div id="rpGrid" class="bgrid"></div>
-
-  <details id="rpAdd" style="margin-top:22px; border:1px solid var(--hair); border-radius:10px; padding:12px 16px; background:#fff">
-    <summary style="cursor:pointer; font-weight:800; font-size:13px">+ 리포트 추가</summary>
-    <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; margin-top:12px">
-      <div><label class="mini">시즌</label>
-        <input id="rpSeason" placeholder="27SS" style="width:100px"></div>
-      <div style="flex:1; min-width:220px"><label class="mini">제목</label>
-        <input id="rpTitle" placeholder="예: 27SS 슈즈 트렌드 리포트"></div>
-      <div style="flex:1; min-width:260px"><label class="mini">주소 — PDF 링크 또는 사이트 URL</label>
-        <input id="rpUrl" placeholder="https://... (아래에 파일을 놓으면 자동으로 채워집니다)"></div>
-      <div style="max-width:120px"><label class="mini">구분</label>
-        <select id="rpKind"><option value="pdf">PDF</option><option value="link">사이트</option></select></div>
-      <div style="flex:1; min-width:200px"><label class="mini">설명 (선택)</label>
-        <input id="rpNote" placeholder="한 줄 메모"></div>
-      <button class="btn sm" id="rpAddBtn">추가</button>
-    </div>
-    <div id="rpDrop" style="margin-top:12px; border:1px dashed var(--hair); border-radius:10px;
-      padding:20px; text-align:center; cursor:pointer; background:#fdfcfa">
-      <div style="font-weight:800; font-size:13px">PDF를 끌어다 놓거나 클릭해서 고르세요</div>
-      <div class="mini" style="margin-top:4px">파일당 50MB까지 · 올리면 주소 칸이 자동으로 채워집니다</div>
-      <div class="mini" id="rpDropMsg" style="margin-top:6px; color:var(--rising)"></div>
-      <input type="file" id="rpFile" accept="application/pdf" style="display:none">
-    </div>
-    <div class="mini" style="margin-top:8px">사내 드라이브 링크를 쓰려면 위 주소 칸에 직접 붙여넣어도 됩니다</div>
-  </details>
 </div></div>
 
 <aside id="dpanel">
@@ -2004,8 +2014,9 @@ function qLabel(q){
 }
 
 /* 그 분기의 인기 상품·급상승 브랜드·핵심 수치 */
-function lystExtraHTML(q){
-  const of = k => LYST_EXTRA.filter(x => x.quarter === q && x.kind === k);
+function lystExtraHTML(qList){
+  const qs = Array.isArray(qList) ? qList : [qList];
+  const of = k => LYST_EXTRA.filter(x => qs.includes(x.quarter) && x.kind === k);
   const prods = of('product').sort((a,b) => (a.rank||0) - (b.rank||0));
   const movers = of('mover').sort((a,b) => (b.value||0) - (a.value||0));
   const stats = of('stat').sort((a,b) => (b.value||0) - (a.value||0));
@@ -2033,37 +2044,52 @@ function lystExtraHTML(q){
 function drawLystSaved(){
   const box = $('#lystSaved'); if(!box) return;
   if(!LYST_ROWS.length){ box.innerHTML = ''; return; }
-  const byQ = new Map();
-  for(const r of LYST_ROWS){
-    if(!byQ.has(r.quarter)) byQ.set(r.quarter, []);
-    byQ.get(r.quarter).push(r);
-  }
-  const quarters = [...byQ.keys()].sort().reverse();
-  box.innerHTML = quarters.map((q, i) => {
-    const list = byQ.get(q).sort((a,b) => a.rank - b.rank);
-    return `<details ${i === 0 ? 'open' : ''} style="border:1px solid var(--hair); border-radius:10px;
-        padding:12px 16px; background:#fff; margin-bottom:8px">
-      <summary style="cursor:pointer; font-weight:800; font-size:13px">
-        LYST ${esc(qLabel(q))} <span class="mini" style="font-weight:400">— 핫 브랜드 ${list.length}개</span>
-      </summary>
-      <table class="lystTable" style="margin-top:10px">
-        ${list.map(r => {
-          const c = String(r.change || '').trim();
-          const chg = !c || c === '-' ? ''
-            : /^\+/.test(c) ? `<span class="lystUp">▲${c.replace('+','')}</span>`
-            : /^-\d/.test(c) ? `<span class="lystDown">▼${c.replace('-','')}</span>`
-            : `<span class="mini">${esc(c)}</span>`;
-          return `<tr><td style="width:40px"><b>${r.rank}</b></td>
-            <td>${esc(r.brand)}${r.raw_brand && r.raw_brand !== r.brand
-              ? ` <span class="mini">(${esc(r.raw_brand)})</span>` : ''}</td>
-            <td style="width:70px">${chg}</td></tr>`;
-        }).join('')}
+
+  /* 분기를 가로로 — Q1부터 Q4까지, 자료 없는 분기는 비워둔다 */
+  const years = [...new Set(LYST_ROWS.map(r => String(r.quarter || '').split('-')[1]).filter(Boolean))]
+    .sort().reverse();
+
+  box.innerHTML = years.map(yy => {
+    const qs = ['Q1', 'Q2', 'Q3', 'Q4'].map(q => `${q}-${yy}`);
+    const byQ = {};
+    for(const q of qs) byQ[q] = LYST_ROWS.filter(r => r.quarter === q).sort((a,b) => a.rank - b.rank);
+    const linkOf = q => (byQ[q].find(r => r.source_url) || {}).source_url || '';
+
+    return `<section style="margin-bottom:18px">
+      <h3 style="font-family:'Playfair Display',serif; font-size:18px; border-bottom:1px solid var(--hair);
+        padding-bottom:5px; margin:0 0 10px">LYST INDEX 20${esc(yy)}
+        <span class="mini" style="font-weight:400">핫 브랜드 순위</span></h3>
+      <table class="lystTable" style="table-layout:fixed">
+        <tr>
+          <td style="width:34px"></td>
+          ${qs.map(q => {
+            const has = byQ[q].length;
+            const url = linkOf(q);
+            return `<td style="text-align:center; font-weight:800; font-size:12px">
+              ${q.split('-')[0]}
+              ${has && url ? ` <a href="${esc(url)}" target="_blank" rel="noopener" class="mini">사이트 ↗</a>` : ''}
+              ${has ? `<div class="mini" style="font-weight:400">
+                <button class="blink ghost" style="padding:2px 8px" data-lystdel="${esc(q)}">삭제</button></div>` : ''}
+            </td>`;
+          }).join('')}
+        </tr>
+        ${Array.from({ length: 20 }, (_, i) => i + 1).map(rank => `
+          <tr>
+            <td style="text-align:right; font-weight:700; color:var(--sub); font-size:11px">${rank}</td>
+            ${qs.map(q => {
+              const hit = byQ[q].find(r => r.rank === rank);
+              if(!hit) return '<td></td>';
+              const c = String(hit.change || '').trim();
+              const chg = !c || c === '-' ? ''
+                : /^\+/.test(c) ? `<span class="lystUp" style="font-size:10px">▲${c.replace('+','')}</span>`
+                : /^-\d/.test(c) ? `<span class="lystDown" style="font-size:10px">▼${c.replace('-','')}</span>`
+                : `<span class="mini">${esc(c)}</span>`;
+              return `<td style="font-size:11.5px">${esc(hit.brand)} ${chg}</td>`;
+            }).join('')}
+          </tr>`).join('')}
       </table>
-      ${lystExtraHTML(q)}
-      <div class="mini" style="margin-top:10px">
-        <button class="blink ghost" data-lystdel="${esc(q)}">이 분기 기록 삭제</button>
-      </div>
-    </details>`;
+      ${lystExtraHTML(qs.filter(q => byQ[q].length))}
+    </section>`;
   }).join('');
 }
 
@@ -2137,7 +2163,7 @@ async function drawThumbs(){
       box.innerHTML = '';
       box.appendChild(cv);
       box.insertAdjacentHTML('beforeend',
-        `<div class="mini" style="margin-top:4px">${doc.numPages}쪽 · 눌러서 전체 보기</div>`);
+        '<div class="mini" style="margin-top:4px">자세히 보기</div>');
     }catch(e){
       box.innerHTML = '<div class="mini" style="padding:20px 0; text-align:center">미리보기를 만들 수 없습니다</div>';
     }
@@ -2181,13 +2207,22 @@ document.addEventListener('keydown', e => {
   if(e.key === 'Escape') document.querySelector('.pdfOverlay')?.remove();
 });
 
+const RP_PARTS = [
+  { key:'apparel', label:'어페럴' },
+  { key:'shoes',   label:'슈즈' },
+  { key:'market',  label:'MARKET TREND' },
+];
+
 function drawReport(){
   const seasons = [...new Set(RP_ROWS.map(r => r.season).filter(Boolean))].sort().reverse();
   $('#rpSeasonBar').innerHTML = ['ALL', ...seasons].map(sn =>
     `<button class="catbtn${RP_SEASON === sn ? ' on' : ''}" data-season="${esc(sn)}">${sn === 'ALL' ? '전체' : esc(sn)}</button>`).join('');
 
-  const rows = RP_ROWS.filter(r => RP_SEASON === 'ALL' || r.season === RP_SEASON);
-  $('#rpGrid').innerHTML = rows.length ? rows.map(r => `
+  /* Lyst에서 자동으로 만들어진 줄은 아래 Lyst 표에서 보므로 카드로는 띄우지 않는다 */
+  const isLystRow = r => /^lyst/i.test(String(r.title || '')) || /lyst\.com/i.test(String(r.url || ''));
+  const rows = RP_ROWS.filter(r => (RP_SEASON === 'ALL' || r.season === RP_SEASON) && !isLystRow(r));
+
+  const card = r => `
     <div class="bcard rpCard">
       ${r.kind === 'pdf'
         ? `<div class="rpThumb" data-thumb="${esc(r.url)}" data-title="${esc((r.season || '') + ' ' + (r.title || ''))}">
@@ -2200,8 +2235,19 @@ function drawReport(){
         <a class="blink ghost" href="${esc(r.url)}" target="_blank" rel="noopener">${r.kind === 'pdf' ? '새 창 ↗' : '사이트 열기 ↗'}</a>
         <button class="blink ghost" data-rpdel="${esc(String(r.id))}">삭제</button>
       </div>
-    </div>`).join('')
-    : '<div style="color:var(--sub);padding:20px">등록된 리포트가 없습니다 — 아래 "+ 리포트 추가"로 넣어보세요</div>';
+    </div>`;
+
+  $('#rpParts').innerHTML = RP_PARTS.map(pt => {
+    const list = rows.filter(r => (r.part || 'apparel') === pt.key);
+    return `<section style="margin-bottom:22px">
+      <h3 style="font-family:'Playfair Display',serif; font-size:18px; border-bottom:1px solid var(--hair);
+        padding-bottom:5px; margin:0 0 12px">${esc(pt.label)}
+        <span class="mini" style="font-weight:400">${list.length}건</span></h3>
+      ${list.length ? `<div class="bgrid">${list.map(card).join('')}</div>`
+        : '<div class="mini" style="padding:10px 0">등록된 자료가 없습니다</div>'}
+    </section>`;
+  }).join('');
+
   drawThumbs();
 }
 
@@ -2219,6 +2265,7 @@ document.addEventListener('click', async e => {
   const add = e.target.closest('#rpAddBtn');
   if(add){
     const row = {
+      part:   $('#rpPart').value,
       season: $('#rpSeason').value.trim().toUpperCase() || null,
       title:  $('#rpTitle').value.trim(),
       url:    $('#rpUrl').value.trim(),
@@ -2226,10 +2273,24 @@ document.addEventListener('click', async e => {
       note:   $('#rpNote').value.trim() || null,
     };
     if(!row.title || !row.url) return alert('제목과 주소는 반드시 입력해 주세요');
-    const { data, error } = await sb.from('season_reports').insert(row).select('id');
-    if(error) return alert('추가 실패: ' + error.message);
+
+    let { data, error } = await sb.from('season_reports').insert(row).select('id');
+
+    /* part 칸이 아직 없는 상태면 그것만 빼고 다시 저장한다 —
+       분류는 못 담기지만 자료가 날아가지 않도록 */
+    if(error && /part/i.test(error.message || '')){
+      const { part, ...rest } = row;
+      const retry = await sb.from('season_reports').insert(rest).select('id');
+      data = retry.data; error = retry.error;
+      if(!error) alert('저장했습니다.\n\n다만 분류(어페럴/슈즈/MARKET TREND)는 저장되지 않았습니다 —'
+        + ' report_part SQL을 한 번 실행하면 다음부터 분류까지 저장됩니다.');
+    }
+    if(error) return alert('추가 실패: ' + error.message
+      + '\n\n제목·주소는 화면에 그대로 두었으니 다시 시도할 수 있습니다.');
     if(!data || !data.length) return alert('추가되지 않았습니다 — season_reports 표의 권한을 확인해 주세요');
+
     ['rpSeason','rpTitle','rpUrl','rpNote'].forEach(id => { $('#' + id).value = ''; });
+    $('#rpDropMsg').textContent = '';
     await buildReportView();
     return;
   }
@@ -2305,7 +2366,7 @@ async function uploadReportFile(file){
   $('#rpUrl').value = url;
   $('#rpKind').value = 'pdf';
   if(!$('#rpTitle').value.trim()) $('#rpTitle').value = file.name.replace(/\.pdf$/i, '');
-  msg.textContent = '업로드 완료 — 시즌과 제목을 확인하고 추가를 누르세요';
+  msg.textContent = '업로드 완료 — 분류·시즌·제목을 확인하고 [추가] 버튼을 눌러야 목록에 등록됩니다';
 }
 
 document.addEventListener('click', e => {
