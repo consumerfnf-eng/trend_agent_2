@@ -293,7 +293,7 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
 <body>
 
 <header>
-  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260808-09</span></h1>
+  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260808-11</span></h1>
   <div class="tabs">
     <button data-v="signal" class="on">TREND SIGNAL</button>
     <button data-v="keywords">TREND KEYWORDS</button>
@@ -355,7 +355,6 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
 <div id="brandView" class="view"><div id="brandMain">
   <h2>Key Brands <span style="font-size:12px;color:var(--sub);font-family:'Noto Sans KR'">— 수집 자료에서 언급된 브랜드 + Lyst Index 순위</span></h2>
 
-  <div id="brandCross" style="margin:14px 0 20px"></div>
   <div class="bgrid" id="bgrid"></div>
 </div></div>
 
@@ -876,13 +875,6 @@ async function buildBrandView(){
       if(!r.brand) continue;
       (BRAND_EXTRA[r.brand] ||= []).push(r);
     }
-    /* 급상승 브랜드는 순위가 없어도 카드로 띄운다 */
-    for(const b of Object.keys(BRAND_EXTRA)){
-      if(!map.has(b) && BRAND_EXTRA[b].some(x => x.kind === 'mover')){
-        map.set(b, { brand: b, count: 0, kws:new Set(), months:new Set(),
-          tags:new Set(), cats:new Set(), items:[] });
-      }
-    }
     if(sig.error){ console.warn('trend_signals 로드 실패:', sig.error.message); return; }
 
     const vocMap = {};
@@ -900,6 +892,14 @@ async function buildBrandView(){
         if(r.category) e.cats.add(r.category);
         for(const t of (r.tags || [])) e.tags.add(t);
         if(r.image_url && e.items.length < 4) e.items.push(r);
+      }
+    }
+
+    /* 급상승 브랜드는 순위가 없어도 카드로 띄운다 */
+    for(const b of Object.keys(BRAND_EXTRA)){
+      if(!map.has(b) && BRAND_EXTRA[b].some(x => x.kind === 'mover')){
+        map.set(b, { brand: b, count: 0, kws:new Set(), months:new Set(),
+          tags:new Set(), cats:new Set(), items:[] });
       }
     }
 
@@ -921,7 +921,12 @@ async function buildBrandView(){
       a.brand.localeCompare(b.brand));
 
     drawBrandCards();
-  }catch(e){ console.warn('KEY BRAND 생성 실패:', e); }
+  }catch(e){
+    console.warn('KEY BRAND 생성 실패:', e);
+    const bg2 = $('#bgrid');
+    if(bg2) bg2.innerHTML = '<div style="color:var(--sub);padding:20px">브랜드 카드를 만들지 못했습니다 — '
+      + esc(String(e && e.message || e)) + '</div>';
+  }
 }
 
 /* 링크가 없으면 검색 링크로 대신 연결 — 주소를 지어내지 않기 위함 */
@@ -1855,12 +1860,7 @@ function renderMovedBlocks(){
     v.innerHTML = `<h3 style="font-family:'Playfair Display',serif; font-size:17px;
       border-bottom:1px solid var(--hair); padding-bottom:5px; margin:0 0 10px">검색량 움직임</h3>${window.__volBlock}`;
   }
-  const b = $('#brandCross');
-  if(b && window.__brandBlock){
-    b.innerHTML = `<h3 style="font-family:'Playfair Display',serif; font-size:17px;
-      border-bottom:1px solid var(--hair); padding-bottom:5px; margin:0 0 10px">브랜드 교차${
-        window.__brandQ ? ` <span class="mini" style="font-weight:400">Lyst ${qLabel(window.__brandQ)}</span>` : ''}</h3>${window.__brandBlock}`;
-  }
+  /* 브랜드 교차 표는 화면에서 뺐다 — Lyst 순위는 각 브랜드 카드의 배지로 확인 */
 }
 
 /* ═══ Lyst Index 순위 불러오기 ═══ */
