@@ -193,6 +193,16 @@ tr.krow{cursor:pointer} tr.krow:hover{background:#faf6ec}
 .cmHead{font-family:'Cormorant Garamond', serif; font-size:38px; font-weight:600; color:var(--tx); margin-bottom:4px}
 .cmSub{font-size:12px; color:var(--sub); margin-bottom:14px}
 .cmChips{display:flex; flex-wrap:wrap; gap:6px; padding-bottom:18px; border-bottom:1px solid var(--hair); margin-bottom:20px}
+.cmChip{cursor:pointer}
+.cmChip:hover{outline:2px solid var(--acc); outline-offset:1px}
+.cmEditBar{font-size:11px; color:var(--sub); margin:6px 0 14px}
+.cmEditBox{display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin:8px 0 14px;
+  padding:10px 12px; border:1px solid #f1d9cf; border-radius:10px; background:#fffdfb}
+.cmEditBox input{border:1px solid var(--hair); border-radius:6px; padding:6px 9px; font:inherit; font-size:12px; min-width:160px}
+.cmEditBox button{font-size:11px; font-weight:800; padding:6px 12px; border-radius:20px; cursor:pointer;
+  border:1px solid var(--hair); background:#fff; color:var(--tx); font-family:inherit}
+.cmEditBox button.go{background:var(--acc); border-color:var(--acc); color:#fff}
+.cmEditBox button.del{color:var(--acc)}
 .cmChip{font-size:11px; font-weight:600; padding:3px 10px; border-radius:20px; background:#f4efe6; color:var(--tx)}
 .cmChip.head{background:var(--tx); color:#fff}
 .cmChipMini{font-size:10px; padding:1px 7px; border-radius:20px; background:#f4efe6; color:var(--sub); margin-right:3px; display:inline-block; margin-bottom:2px}
@@ -288,7 +298,7 @@ a{color:var(--acc)}
 </head>
 <body>
 <header>
-  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260807-02</span></h1>
+  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260807-03</span></h1>
   <a href="index.html" id="backLink" style="font-size:11px;letter-spacing:.12em;font-weight:700;color:var(--acc);text-decoration:none;border:1px solid var(--acc);padding:6px 12px">← DASHBOARD</a>
   <div class="mrange">
     <label>기간</label>
@@ -340,7 +350,7 @@ a{color:var(--acc)}
 
 <script src="config.js"></script>
 <script type="module">
-console.log("TREND AGENT signal.html v260807-02");
+console.log("TREND AGENT signal.html v260807-03");
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ══ 설정 — 다른 파일들과 같은 값 ══ */
@@ -1746,7 +1756,7 @@ function openClusterModal(head){
     || (b.it.ym||'').localeCompare(a.it.ym||''));
 
   const chips = [head, ...cluster].map(t =>
-    `<span class="cmChip${t === head ? ' head' : ''}">#${esc(t)}</span>`).join('');
+    `<span class="cmChip${t === head ? ' head' : ''}" data-tagedit="${esc(t)}" title="눌러서 이름 바꾸기 · 삭제">#${esc(t)}</span>`).join('');
 
   const cardsHTML = scored.length ? scored.map(({it, matched}) => {
     const title = it.note || it.keyword || (it.keywords && it.keywords[0]) || '';
@@ -1814,6 +1824,9 @@ function openClusterModal(head){
       <div class="cmHead">#${esc(head)}</div>
       <div class="cmSub">이 클러스터의 유사 키워드 · 매칭 태그 2개 이상인 카드를 겹침 많은 순으로 표시</div>
       <div class="cmChips">${chips}</div>
+      <div class="cmEditBar">
+        태그를 눌러서 <b>이름 바꾸기</b>나 <b>삭제</b>를 할 수 있어요 — 그 태그가 달린 모든 카드에 적용됩니다
+      </div>
       <div class="cmGrid">${cardsHTML}</div>
       ${relatedHTML}
     </div>
@@ -1825,6 +1838,89 @@ function openClusterModal(head){
 document.addEventListener('click', e => {
   if(e.target.closest('.cmClose') || e.target.classList.contains('cmOverlay')){
     document.querySelector('.cmOverlay')?.remove();
+  }
+});
+
+/* ═══ 해시태그 바로 고치기 ═══
+   클러스터 상세 창에서 태그를 누르면 이름 바꾸기·삭제 도구가 열린다.
+   그 태그가 달린 모든 카드에 적용되므로 삭제는 한 번 더 확인한다. */
+document.addEventListener('click', e => {
+  const chip = e.target.closest('[data-tagedit]');
+  if(!chip) return;
+  const tag = chip.dataset.tagedit;
+  const box = chip.closest('.cmBox'); if(!box) return;
+
+  box.querySelector('.cmEditBox')?.remove();
+  const el = document.createElement('div');
+  el.className = 'cmEditBox';
+  el.innerHTML = `
+    <span style="font-weight:800; font-size:12px">#${esc(tag)}</span>
+    <input class="cmNewName" value="${esc(tag)}" placeholder="새 이름">
+    <button class="go" data-tagrename="${esc(tag)}">이름 바꾸기</button>
+    <button class="del" data-tagremove="${esc(tag)}">삭제</button>
+    <button data-tagcancel="1">취소</button>
+    <span class="cmEditMsg mini"></span>`;
+  chip.closest('.cmChips').after(el);
+});
+
+/* 대상 카드 찾기 — 그 태그가 달린 모든 항목 */
+async function tagTargets(tag){
+  const { data, error } = await sb.from('trend_signals').select('id, tags').contains('tags', [tag]);
+  if(error){ alert('불러오기 실패: ' + error.message); return null; }
+  return data || [];
+}
+
+document.addEventListener('click', async e => {
+  if(e.target.closest('[data-tagcancel]')){ e.target.closest('.cmEditBox')?.remove(); return; }
+
+  const box = e.target.closest('.cmEditBox');
+  const msg = () => box?.querySelector('.cmEditMsg');
+
+  /* 이름 바꾸기 */
+  const rn = e.target.closest('[data-tagrename]');
+  if(rn){
+    const from = rn.dataset.tagrename;
+    const to = box.querySelector('.cmNewName').value.trim().toLowerCase().replace(/^#/, '');
+    if(!to || to === from){ msg().textContent = '새 이름을 입력해 주세요'; return; }
+    const rows = await tagTargets(from); if(!rows) return;
+    if(!confirm(`#${from} → #${to}\n\n이 태그가 달린 ${rows.length}개 항목에 모두 적용됩니다. 진행할까요?`)) return;
+    msg().textContent = '바꾸는 중…';
+    for(const r of rows){
+      const next = [...new Set((r.tags || []).map(t => t === from ? to : t))];
+      await sb.from('trend_signals').update({ tags: next }).eq('id', r.id);
+    }
+    /* 사전에도 반영 */
+    const { data: cls } = await sb.from('tag_clusters').select('head, members').contains('members', [from]);
+    for(const c of (cls || [])){
+      await sb.from('tag_clusters')
+        .update({ members: [...new Set((c.members || []).map(m => m === from ? to : m))] }).eq('head', c.head);
+    }
+    await sb.from('tag_clusters').update({ head: to }).eq('head', from);
+    document.querySelector('.cmOverlay')?.remove();
+    if(tagFilter === from) tagFilter = to;
+    await loadAliases(); await loadTrendSignals();
+    return;
+  }
+
+  /* 삭제 */
+  const rm = e.target.closest('[data-tagremove]');
+  if(rm){
+    const tag = rm.dataset.tagremove;
+    const rows = await tagTargets(tag); if(!rows) return;
+    if(!confirm(`#${tag} 태그를 지웁니다.\n\n이 태그가 달린 ${rows.length}개 항목에서 빠지고 사전에서도 제거됩니다.\n되돌릴 수 없습니다. 진행할까요?`)) return;
+    msg().textContent = '지우는 중…';
+    for(const r of rows){
+      await sb.from('trend_signals').update({ tags: (r.tags || []).filter(t => t !== tag) }).eq('id', r.id);
+    }
+    const { data: cls } = await sb.from('tag_clusters').select('head, members').contains('members', [tag]);
+    for(const c of (cls || [])){
+      await sb.from('tag_clusters')
+        .update({ members: (c.members || []).filter(m => m !== tag) }).eq('head', c.head);
+    }
+    document.querySelector('.cmOverlay')?.remove();
+    if(tagFilter === tag) tagFilter = null;
+    await loadAliases(); await loadTrendSignals();
+    return;
   }
 });
 document.addEventListener('keydown', e => {
