@@ -243,6 +243,19 @@ tr.krow{cursor:pointer} tr.krow:hover{background:#faf6ec}
 .ovPeriod{display:inline-block; vertical-align:middle; margin-left:10px; font-family:'Noto Sans KR', sans-serif;
   font-size:11px; font-weight:700; letter-spacing:.04em; color:var(--acc);
   background:#fdf3ef; border:1px solid #f1d9cf; padding:3px 10px; border-radius:20px}
+.scatterWrap{padding:4px 0 2px}
+.scatterTop{display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:4px}
+.yToggle{display:inline-flex; border:1px solid var(--tx); border-radius:20px; overflow:hidden}
+.yToggle button{border:0; background:#fff; color:var(--sub); padding:4px 14px; cursor:pointer;
+  font-family:inherit; font-size:10.5px; font-weight:800; letter-spacing:.03em}
+.yToggle button + button{border-left:1px solid var(--hair)}
+.yToggle button.on{background:var(--tx); color:#fff}
+circle.sc{transition:fill-opacity .15s}
+circle.sc:hover{fill-opacity:.8}
+.snsWrap{display:block}
+.snsMore{margin-top:8px; font-size:11px; font-weight:800; color:var(--sub); background:none;
+  border:1px solid var(--hair); border-radius:20px; padding:4px 12px; cursor:pointer; font-family:inherit}
+.snsMore:hover{border-color:var(--acc); color:var(--acc)}
 .snsStyle{border:1px solid var(--hair); border-radius:12px; padding:16px 18px; margin-bottom:14px; background:var(--card)}
 .snsStyle header{display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:6px}
 .snsStyle h4{font-size:15px; font-weight:800; margin:0}
@@ -308,7 +321,7 @@ a{color:var(--acc)}
 </head>
 <body>
 <header>
-  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260808-01</span></h1>
+  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260808-03</span></h1>
   <a href="index.html" id="backLink" style="font-size:11px;letter-spacing:.12em;font-weight:700;color:var(--acc);text-decoration:none;border:1px solid var(--acc);padding:6px 12px">← DASHBOARD</a>
   <div class="mrange">
     <label>기간</label>
@@ -360,7 +373,7 @@ a{color:var(--acc)}
 
 <script src="config.js"></script>
 <script type="module">
-console.log("TREND AGENT signal.html v260808-01");
+console.log("TREND AGENT signal.html v260808-03");
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ══ 설정 — 다른 파일들과 같은 값 ══ */
@@ -1204,6 +1217,99 @@ function aggregateClusters(ranked){
 
 /* 클러스터 버블 — 크기=카드 수, 🔥는 카드 많은 순 상위에 크기 비례로.
    각 버블에 "더보기" 버튼이 붙어서 클릭하면 상세 모달이 열림. */
+/* ═══ 해시태그 산점도 ═══
+   가로는 년월, 세로는 점유율(또는 확산 폭), 크기는 언급량.
+   색은 한 가지에 투명도만 달리해 겹칠수록 진해지도록 했다. */
+let TAG_Y = 'share';   /* share(점유율) | spread(확산 폭) */
+
+function tagScatterHTML(ranked, gridSel){
+  /* 태그 × 월 집계 */
+  const cell = new Map();          /* '태그|월' → {tag, ym, count, cats:Set} */
+  const monthTotal = new Map();    /* 월 → 그 달의 태그 부착 총량 */
+  for(const e of ranked){
+    for(const it of (e.items || [])){
+      const ym = it.ym; if(!ym) continue;
+      for(const t of (it.tags || [])){
+        const key = t + '|' + ym;
+        if(!cell.has(key)) cell.set(key, { tag: t, ym, count: 0, cats: new Set() });
+        const c = cell.get(key);
+        c.count++;
+        if(it.category) c.cats.add(it.category);
+        monthTotal.set(ym, (monthTotal.get(ym) || 0) + 1);
+      }
+    }
+  }
+  const pts = [...cell.values()];
+  if(!pts.length) return '<div class="empty" style="padding:10px 0">이 섹션에는 아직 해시태그가 없습니다</div>';
+
+  const months = [...new Set(pts.map(p => p.ym))].sort();
+  const yOf = p => TAG_Y === 'share'
+    ? (p.count / Math.max(monthTotal.get(p.ym) || 1, 1)) * 100
+    : p.cats.size;
+  const maxY = Math.max(...pts.map(yOf), TAG_Y === 'share' ? 10 : 2);
+  const maxC = Math.max(...pts.map(p => p.count), 1);
+
+  const W = 900, H = 380, padL = 44, padR = 24, padT = 18, padB = 34;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const xAt = ym => months.length === 1
+    ? padL + plotW / 2
+    : padL + plotW * (months.indexOf(ym) / (months.length - 1));
+  const yAt = v => padT + plotH * (1 - v / maxY);
+  /* 같은 자리에 겹치지 않게 태그 이름으로 살짝 흩뿌린다 */
+  const jitter = t => { let h = 0; for(const ch of t) h = (h * 31 + ch.charCodeAt(0)) % 97; return (h / 97 - 0.5) * 26; };
+
+  const ticks = 4;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" style="width:100%; height:auto; display:block" role="img">`;
+  for(let i = 0; i <= ticks; i++){
+    const v = maxY * i / ticks, y = yAt(v);
+    svg += `<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="#e9e3d8" stroke-width="1"/>`;
+    svg += `<text x="${padL-8}" y="${y+3}" font-size="9" fill="#a99f90" text-anchor="end">${
+      TAG_Y === 'share' ? v.toFixed(0) + '%' : v.toFixed(0)}</text>`;
+  }
+  for(const m of months){
+    const x = xAt(m);
+    svg += `<line x1="${x}" y1="${padT}" x2="${x}" y2="${padT+plotH}" stroke="#f2ede4" stroke-width="1"/>`;
+    svg += `<text x="${x}" y="${H-12}" font-size="9.5" fill="#a99f90" text-anchor="middle">${esc(m.replace('-', '.'))}</text>`;
+  }
+
+  /* 큰 것부터 그려서 작은 원이 위에 오도록 */
+  const sorted = [...pts].sort((a,b) => b.count - a.count);
+  for(const p of sorted){
+    const r = 7 + 30 * Math.sqrt(p.count / maxC);
+    const x = xAt(p.ym) + jitter(p.tag);
+    const y = yAt(yOf(p));
+    const on = tagFilter === p.tag;
+    const op = 0.22 + 0.4 * (p.count / maxC);
+    svg += `<circle class="sc" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r.toFixed(1)}"
+      fill="#8d9aa8" fill-opacity="${on ? 0.85 : op.toFixed(2)}"
+      stroke="${on ? '#c8451f' : '#6f7c8a'}" stroke-width="${on ? 2 : 1}" stroke-opacity="0.55"
+      data-tagbubble="${esc(p.tag)}" data-target="${gridSel}" style="cursor:pointer">
+      <title>#${esc(p.tag)} · ${esc(p.ym)} · ${p.count}건 · 점유율 ${
+        ((p.count / Math.max(monthTotal.get(p.ym) || 1, 1)) * 100).toFixed(1)}% · 카테고리 ${p.cats.size}개</title></circle>`;
+  }
+  /* 큰 원에만 이름 표시 */
+  for(const p of sorted.slice(0, 8)){
+    const r = 7 + 30 * Math.sqrt(p.count / maxC);
+    if(r < 16) continue;
+    const x = xAt(p.ym) + jitter(p.tag), y = yAt(yOf(p));
+    svg += `<text x="${x.toFixed(1)}" y="${(y+3).toFixed(1)}" font-size="10.5" font-weight="700"
+      fill="#3d4650" text-anchor="middle" pointer-events="none">#${esc(p.tag)}</text>`;
+  }
+  svg += '</svg>';
+
+  return `<div class="scatterWrap">
+    <div class="scatterTop">
+      <span class="mini">가로 년월 · 크기 언급량 · 세로 ${TAG_Y === 'share' ? '점유율' : '확산 폭'}</span>
+      <div class="yToggle">
+        <button class="${TAG_Y === 'share' ? 'on' : ''}" data-tagy="share">점유율</button>
+        <button class="${TAG_Y === 'spread' ? 'on' : ''}" data-tagy="spread">확산 폭</button>
+      </div>
+    </div>
+    ${svg}
+    <div class="mini" style="margin-top:4px">원을 누르면 그 태그가 달린 카드만 볼 수 있어요</div>
+  </div>`;
+}
+
 function tagBubbleHTML(ranked, gridSel){
   const clusters = aggregateClusters(ranked).slice(0, 14);
   if(!clusters.length) return '<div class="empty" style="padding:10px 0">이 섹션에는 아직 해시태그가 없습니다</div>';
@@ -1533,12 +1639,7 @@ function snsStyleCardsHTML(items){
     const months = [...st.months].sort().join(', ');
     const tags = [...st.tags].slice(0, 6);
 
-    const rows = [...groups.entries()]
-      .sort((a,b) => (a[0] ? 0 : 1) - (b[0] ? 0 : 1) || b[1].length - a[1].length)
-      .map(([g, shots]) => `
-        ${g ? `<div class="snsSub">#${esc(g)}</div>` : ''}
-        <div class="snsRow">
-          ${shots.map(x => `
+    const shotHTML = x => `
             <figure class="snsShot">
               ${x.url
                 ? `<a href="${esc(x.url)}" target="_blank" rel="noopener">
@@ -1550,8 +1651,20 @@ function snsStyleCardsHTML(items){
                 ? `<a href="https://www.instagram.com/${esc(String(x.account).replace(/^@/, ''))}/"
                       target="_blank" rel="noopener">${esc(x.account)}</a>`
                 : '<span class="mini">계정 미입력</span>'}</figcaption>
-            </figure>`).join('')}
-        </div>`).join('');
+            </figure>`;
+
+    const rows = [...groups.entries()]
+      .sort((a,b) => (a[0] ? 0 : 1) - (b[0] ? 0 : 1) || b[1].length - a[1].length)
+      .map(([g, shots], gi) => {
+        const head = shots.slice(0, 4), rest = shots.slice(4);
+        const gid = `${st.label}-${g || 'x'}-${gi}`.replace(/[^\w가-힣-]/g, '_');
+        return `
+        ${g ? `<div class="snsSub">#${esc(g)}</div>` : ''}
+        <div class="snsRow">${head.map(shotHTML).join('')}</div>
+        ${rest.length ? `
+          <div class="snsRow snsRest" data-rest="${esc(gid)}" style="display:none">${rest.map(shotHTML).join('')}</div>
+          <button class="snsMore" data-more="${esc(gid)}">+ ${rest.length}장 더보기</button>` : ''}`;
+      }).join('');
 
     return `<article class="snsStyle" data-kwlabel="${esc(st.label)}">
       <header>
@@ -1578,13 +1691,16 @@ function drawSnsForCat(){
     <button data-mode="tag"${mode==='tag'?' class="on"':''}>해시태그</button>
   </div>`;
   const body = mode === 'tag'
-    ? tagBubbleHTML(TAG_POOL[bubbleSel] || ranked, '#snsKwGrid')
+    ? tagScatterHTML(TAG_POOL[bubbleSel] || ranked, '#snsKwGrid')
     : bubbleHTML(ranked, '#snsKwGrid', scatF);
   const bb = $(bubbleSel);
   if(bb) bb.innerHTML = tabs + `<div class="bubbleRow">${body}</div>`;
 
   $('#snsCnt').textContent = items.length ? `${items.length}장 · 스타일별` : '';
-  $('#snsKwGrid').innerHTML = items.length
+  const sg = $('#snsKwGrid');
+  /* SNS는 카드를 가로로 넘겨보는 좁은 칸이 아니라 전체 폭을 쓴다 */
+  sg.className = items.length ? 'snsWrap' : 'kwgrid';
+  sg.innerHTML = items.length
     ? snsStyleCardsHTML(items)
     : '<div class="empty">해당 카테고리의 SNS 자료가 아직 없습니다</div>';
   const more = $('#snsMoreBtn'); if(more) more.style.display = 'none';
@@ -1677,6 +1793,31 @@ document.addEventListener('click', e => {
   const tg = b.dataset.reptag;
   tagFilter = (tagFilter === tg) ? null : tg;
   renderCurrentView();
+});
+
+/* 산점도의 원 클릭 → 그 태그로 걸러 보기 */
+document.addEventListener('click', e => {
+  const c = e.target.closest('circle.sc'); if(!c) return;
+  const t = c.getAttribute('data-tagbubble'); if(!t) return;
+  tagFilter = (tagFilter === t) ? null : t;
+  renderCurrentView();
+});
+
+/* 산점도 세로축 전환 */
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-tagy]'); if(!b) return;
+  TAG_Y = b.dataset.tagy;
+  renderCurrentView();
+});
+
+/* SNS 사진 더보기 */
+document.addEventListener('click', e => {
+  const b = e.target.closest('.snsMore'); if(!b) return;
+  const box = document.querySelector(`.snsRest[data-rest="${b.dataset.more}"]`);
+  if(!box) return;
+  const open = box.style.display !== 'none';
+  box.style.display = open ? 'none' : 'grid';
+  b.textContent = open ? b.textContent.replace('접기', '더보기') : '접기';
 });
 
 /* 버블 보기 전환 — 키워드 / 해시태그 */
