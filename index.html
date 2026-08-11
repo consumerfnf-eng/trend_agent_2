@@ -225,6 +225,9 @@ header h1{font-family:'Playfair Display',serif; font-size:22px}
 .rpForm .row{display:flex; gap:8px; flex-wrap:wrap}
 .rpForm input, .rpForm select{border:1px solid var(--hair); border-radius:6px; padding:5px 8px;
   font:inherit; font-size:12px; width:100%}
+.qExtra{margin-top:26px}
+.qExtraHead{font-family:'Playfair Display',serif; font-size:17px; margin:0 0 4px;
+  border-bottom:2px solid var(--ink); padding-bottom:6px; letter-spacing:.03em}
 .lystExtras{display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:18px; margin-top:22px}
 .lystSub h4{font-family:'Playfair Display',serif; font-size:15px; margin:0 0 8px;
   border-bottom:1px solid var(--hair); padding-bottom:5px}
@@ -290,7 +293,7 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
 <body>
 
 <header>
-  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260808-08</span></h1>
+  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260808-09</span></h1>
   <div class="tabs">
     <button data-v="signal" class="on">TREND SIGNAL</button>
     <button data-v="keywords">TREND KEYWORDS</button>
@@ -2133,7 +2136,12 @@ function drawLystSaved(){
           }).join('')}
         </tr>`).join('')}
     </table>
-    ${lystExtraHTML(qs.filter(q => byQ[q].length))}`
+    ${qs.filter(q => byQ[q].length).map(q => {
+      const inner = lystExtraHTML([q]);
+      return inner ? `<section class="qExtra">
+        <h4 class="qExtraHead">${q.split('-')[0]} <span class="mini" style="font-weight:400">부가 정보</span></h4>
+        ${inner}</section>` : '';
+    }).join('')}`
     : '<div class="mini" style="padding:10px 0">20' + yy + '년 자료가 아직 없습니다 — 위에서 Lyst 주소를 불러와 저장하세요</div>'}`;
 }
 
