@@ -265,7 +265,7 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
 <body>
 
 <header>
-  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260807-14</span></h1>
+  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260807-15</span></h1>
   <div class="tabs">
     <button data-v="signal" class="on">TREND SIGNAL</button>
     <button data-v="keywords">TREND KEYWORDS</button>
@@ -1551,10 +1551,8 @@ async function buildDigest(){
       return;
     }
     if(!DIGEST_SEASON) DIGEST_SEASON = SEASONS[0].season;
-    bar.innerHTML = `<span class="mini" style="font-weight:800">종합 리포트</span>`
-      + SEASONS.map(s2 => `<button class="catbtn${DIGEST_SEASON === s2.season ? ' on' : ''}"
-          data-digest="${esc(s2.season)}" title="${esc(s2.label || '')}">${esc(s2.season)}</button>`).join('')
-      + `<button class="btn ghost sm" id="digestPrint">인쇄 · PDF 저장</button>`;
+    /* 종합 리포트 화면은 접어두고, 계산 결과만 TREND KEYWORDS·KEY BRAND로 넘긴다 */
+    bar.innerHTML = '';
     await drawDigest();
   }catch(e){ console.warn('종합 리포트 실패:', e); }
 }
@@ -1674,7 +1672,7 @@ async function drawDigest(){
   /* ── 3. 브랜드 교차 — 의류 / 슈즈 각각 ── */
   const SHOE_CATS = new Set(['슈즈', 'shoes']);
   const brandCat = new Map();            /* 브랜드 → {shoe, wear} 건수 */
-  for(const r of allItems){
+  for(const r of (sig.data || [])){
     const isShoe = SHOE_CATS.has(r.category);
     for(const b of (r.brands || [])){
       if(!brandCat.has(b)) brandCat.set(b, { shoe: 0, wear: 0 });
@@ -1790,7 +1788,8 @@ async function drawDigest(){
   window.__brandQ = latestQ;
   renderMovedBlocks();
 
-  box.innerHTML = `<div id="digestBody" style="border:1px solid var(--hair); border-radius:12px; padding:20px 24px; background:#fff">
+  box.innerHTML = '';
+  if(false) box.innerHTML = `<div id="digestBody" style="border:1px solid var(--hair); border-radius:12px; padding:20px 24px; background:#fff">
     <h2 style="font-family:'Playfair Display',serif; font-size:22px">${esc(sn.season)} 트렌드 종합 리포트</h2>
     ${head}
     ${sec(1, '무드별 방향', catBlocks)}
