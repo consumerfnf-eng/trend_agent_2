@@ -244,7 +244,7 @@ tr.krow{cursor:pointer} tr.krow:hover{background:#faf6ec}
   font-size:11px; font-weight:700; letter-spacing:.04em; color:var(--acc);
   background:#fdf3ef; border:1px solid #f1d9cf; padding:3px 10px; border-radius:20px}
 .scatterWrap{flex:1 1 100%; width:100%; padding:4px 0 2px}
-.scatterScroll{overflow-x:auto; padding-bottom:4px}
+.scatterScroll{padding-bottom:4px}
 .scatterTop{display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:4px}
 .yToggle{display:inline-flex; border:1px solid var(--tx); border-radius:20px; overflow:hidden}
 .yToggle button{border:0; background:#fff; color:var(--sub); padding:4px 14px; cursor:pointer;
@@ -322,7 +322,7 @@ a{color:var(--acc)}
 </head>
 <body>
 <header>
-  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260808-08</span></h1>
+  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260808-09</span></h1>
   <a href="index.html" id="backLink" style="font-size:11px;letter-spacing:.12em;font-weight:700;color:var(--acc);text-decoration:none;border:1px solid var(--acc);padding:6px 12px">← DASHBOARD</a>
   <div class="mrange">
     <label>기간</label>
@@ -374,7 +374,7 @@ a{color:var(--acc)}
 
 <script src="config.js"></script>
 <script type="module">
-console.log("TREND AGENT signal.html v260808-08");
+console.log("TREND AGENT signal.html v260808-09");
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ══ 설정 — 다른 파일들과 같은 값 ══ */
@@ -1256,54 +1256,84 @@ function tagScatterHTML(ranked, gridSel){
   }
   if(!months.length) months.push(...[...new Set(pts.map(p => p.ym))].sort());
 
-  const maxC = Math.max(...pts.map(p => p.count), 1);
+  /* ── 각 달마다 언급량 상위 10개만 뽑는다 (대표 키워드) ── */
+  const TOPN = 10;
+  const byMonth = new Map(months.map(m => [m, []]));
+  for(const p of pts) if(byMonth.has(p.ym)) byMonth.get(p.ym).push(p);
+  const picked = [];
+  for(const m of months){
+    byMonth.get(m).sort((a,b) => b.count - a.count);
+    picked.push(...byMonth.get(m).slice(0, TOPN));
+  }
+  if(!picked.length) return '<div class="empty" style="padding:10px 0">이 섹션에는 아직 해시태그가 없습니다</div>';
 
-  /* 원 크기·글씨 — 언급량에 정비례. 1건짜리는 확실히 작고 옅게 */
-  const rOf  = c => 9 + 45 * (c / maxC);
-  const fsOf = c => 8.5 + 6.5 * (c / maxC);
+  const maxC = Math.max(...picked.map(p => p.count), 1);
 
-  const picked = [...pts]
-    .filter(p => months.includes(p.ym))
-    .sort((a,b) => b.count - a.count)
-    .slice(0, 36);
+  /* ── 캔버스: 가로로 화면 폭을 꽉 채우고 세로는 한 화면에 담기게 고정 ── */
+  const padL = 20, padR = 20, padT = 14, padB = 30;
+  const plotH = 430;                         // 세로 고정 (스크롤 없음)
+  const H = plotH + padT + padB;
+  const W = Math.round(H * 2.6);              // 가로:세로 = 2.6 → width:100% 로 늘려도 한 화면에 들어옴
+  const plotW = W - padL - padR;
+  const M = months.length;
+  const colW = plotW / M;
+  const xAt = i => padL + colW * (i + 0.5);
+
+  /* 라벨을 원 안에 넣기 위한 도우미 (필요하면 두 줄로 접어 글씨를 키운다) */
+  const wrapTag = (name) => {
+    if(name.length <= 9) return [name];
+    let cut = -1, best = 1e9, mid = name.length / 2;
+    for(let i = 1; i < name.length - 1; i++)
+      if(name[i] === '-'){ const d = Math.abs(i - mid); if(d < best){ best = d; cut = i; } }
+    if(cut > 0) return [name.slice(0, cut + 1), name.slice(cut + 1)];
+    const c = Math.ceil(name.length / 2);
+    return [name.slice(0, c), name.slice(c)];
+  };
+  const fitLabel = (name, r, target) => {
+    const one = Math.min(target, (2 * r * 0.84) / Math.max(name.length * 0.56, 1), 2 * r * 0.72);
+    if(one >= 5.4) return { lines: [name], fs: one };
+    const lines = wrapTag(name);
+    const maxLen = Math.max(...lines.map(l => l.length), 1);
+    const fs = Math.min(target, (2 * r * 0.88) / (maxLen * 0.56), (2 * r * 0.80) / 2.15);
+    return { lines, fs: Math.max(fs, 4.8) };
+  };
+
+  /* 반지름은 언급량에 비례하되, 칸 폭 안에 들어오게 상한을 둔다 */
+  const rMax = Math.max(28, Math.min(colW * 0.46, 84));
+  const rMin = Math.min(15, rMax * 0.5);
 
   const nodes = picked.map(p => {
-    const r = rOf(p.count), fs = fsOf(p.count);
-    const name = '#' + p.tag;
-    const labelW = name.length * fs * 0.56;
-    const inside = labelW <= r * 1.75 - 4;
-    /* 글씨가 원 밖으로 나가면 그 폭만큼 자리를 더 잡아 서로 안 겹치게 */
-    const rr = Math.max(r, inside ? 0 : labelW / 2 + 3) + (inside ? 0 : fs * 0.5);
-    return { p, r, fs, name, inside, rr, col: months.indexOf(p.ym), op: 0.16 + 0.6 * (p.count / maxC) };
+    const col = months.indexOf(p.ym);
+    const r = rMin + (rMax - rMin) * (p.count / maxC);
+    return { p, col, r, op: 0.18 + 0.62 * (p.count / maxC) };
   });
 
-  /* 칸 폭·높이는 실제로 들어갈 원의 양에 맞춰 잡는다 (좁으면 아무리 밀어내도 겹침) */
-  const maxRR = Math.max(...nodes.map(n => n.rr), 20);
-  const colW = Math.max(240, maxRR * 2 + 30);
-  const perCol = new Map();
-  for(const n of nodes) perCol.set(n.col, (perCol.get(n.col) || 0) + Math.PI * n.rr * n.rr);
-  const needH = Math.max(...[...perCol.values()].map(a => (a * 1.9) / colW), 340);
-
-  const padL = 30, padR = 30, padT = 26, padB = 42;
-  const W = colW * months.length + padL + padR;
-  const plotW = W - padL - padR;
-  const plotH = Math.min(900, Math.max(340, needH));
-  const H = plotH + padT + padB;
-  const xAt = i => padL + plotW * ((i + 0.5) / months.length);
-
+  /* 칸마다 원 면적이 넘치면 그 칸만 반지름을 살짝 줄여 다 담기게 */
+  const colArea = colW * plotH * 0.5;
+  const areaByCol = new Map();
+  for(const n of nodes) areaByCol.set(n.col, (areaByCol.get(n.col) || 0) + Math.PI * n.r * n.r);
   for(const n of nodes){
-    n.x = xAt(n.col) + (Math.random() - 0.5) * (colW - n.rr * 2) * 0.9;
-    n.y = padT + n.rr + Math.random() * Math.max(1, plotH - n.rr * 2);
+    const a = areaByCol.get(n.col) || 0;
+    if(a > colArea) n.r *= Math.sqrt(colArea / a);
   }
 
-  /* 겹치지 않게 밀어내기 — 칸을 살짝 넘어가도 되게 두어 끼임을 막는다 */
-  for(let step = 0; step < 420; step++){
+  /* 최종 반지름에 맞춰 라벨(줄·글씨) 확정 */
+  for(const n of nodes){
+    const lab = fitLabel('#' + n.p.tag, n.r, 14);
+    n.lines = lab.lines; n.fs = lab.fs;
+  }
+
+  /* 초기 배치 후 겹치지 않게 밀어내기 — 칸 안, 세로 범위 안으로 가둠 */
+  for(const n of nodes){
+    n.x = xAt(n.col) + (Math.random() - 0.5) * Math.max(1, colW - n.r * 2) * 0.8;
+    n.y = padT + n.r + Math.random() * Math.max(1, plotH - n.r * 2);
+  }
+  for(let step = 0; step < 480; step++){
     for(let i = 0; i < nodes.length; i++){
       for(let j = i + 1; j < nodes.length; j++){
         const a = nodes[i], b = nodes[j];
-        const need = a.rr + b.rr + 5;
-        let dx = b.x - a.x, dy = b.y - a.y;
-        let d = Math.hypot(dx, dy);
+        const need = a.r + b.r + 4;
+        let dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy);
         if(d >= need) continue;
         if(d < 0.01){ dx = Math.random() - 0.5; dy = Math.random() - 0.5; d = Math.hypot(dx, dy) || 1; }
         const push = (need - d) / 2 + 0.2;
@@ -1312,20 +1342,21 @@ function tagScatterHTML(ranked, gridSel){
       }
     }
     for(const n of nodes){
-      const cx = xAt(n.col), slack = colW * 0.62;
-      n.x = Math.min(Math.min(W - padR - n.rr, cx + slack), Math.max(Math.max(padL + n.rr, cx - slack), n.x));
-      n.y = Math.min(padT + plotH - n.rr - (n.inside ? 0 : n.fs), Math.max(padT + n.rr, n.y));
+      const cx = xAt(n.col), half = colW / 2 - 2;
+      n.x = Math.min(cx + half, Math.max(cx - half, n.x));
+      n.x = Math.min(W - padR - n.r, Math.max(padL + n.r, n.x));
+      n.y = Math.min(padT + plotH - n.r, Math.max(padT + n.r, n.y));
     }
   }
 
-  let svg = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}"
-    style="display:block; max-width:none" role="img">`;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet"
+    style="display:block; width:100%; height:auto; max-height:72vh; margin:0 auto" role="img">`;
   months.forEach((m, i) => {
-    const x = xAt(i);
-    svg += `<line x1="${x}" y1="${padT}" x2="${x}" y2="${padT+plotH}" stroke="#f2ede4" stroke-width="1"/>`;
-    svg += `<text x="${x}" y="${H-14}" font-size="12.5" fill="#8a8578" text-anchor="middle">${esc(m.replace('-', '.'))}</text>`;
+    const x0 = padL + colW * i;
+    if(i > 0) svg += `<line x1="${x0}" y1="${padT}" x2="${x0}" y2="${padT+plotH}" stroke="#f2ede4" stroke-width="1"/>`;
+    svg += `<text x="${xAt(i)}" y="${H-10}" font-size="13" fill="#8a8578" text-anchor="middle">${esc(m.replace('-', '.'))}</text>`;
   });
-  svg += `<line x1="${padL}" y1="${padT+plotH+6}" x2="${W-padR}" y2="${padT+plotH+6}" stroke="#e4ded2" stroke-width="1"/>`;
+  svg += `<line x1="${padL}" y1="${padT+plotH+5}" x2="${W-padR}" y2="${padT+plotH+5}" stroke="#e4ded2" stroke-width="1"/>`;
 
   for(const n of [...nodes].sort((a,b) => b.r - a.r)){
     const p = n.p, on = tagFilter === p.tag;
@@ -1335,18 +1366,26 @@ function tagScatterHTML(ranked, gridSel){
       data-tagbubble="${esc(p.tag)}" data-target="${gridSel}" style="cursor:pointer">
       <title>#${esc(p.tag)} · ${esc(p.ym)} · ${p.count}건 · 카테고리 ${p.cats.size}개</title></circle>`;
   }
+  /* 라벨은 항상 원 안에 (한 줄 또는 두 줄, 세로 중앙 정렬) */
   for(const n of nodes){
-    const y = n.inside ? n.y + n.fs/3 : n.y + n.r + n.fs;
-    svg += `<text x="${n.x.toFixed(1)}" y="${y.toFixed(1)}" font-size="${n.fs.toFixed(1)}" font-weight="700"
-      fill="${n.inside ? '#2f3740' : '#6b6357'}" text-anchor="middle" pointer-events="none">${esc(n.name)}</text>`;
+    const fill = n.r >= 22 ? '#273039' : '#3a4048';
+    const nL = n.lines.length;
+    const y0 = n.y - (nL - 1) * n.fs * 0.55 + n.fs * 0.34;
+    let tspan = '';
+    n.lines.forEach((ln, k) => {
+      tspan += `<tspan x="${n.x.toFixed(1)}" y="${(y0 + k * n.fs * 1.05).toFixed(1)}">${esc(ln)}</tspan>`;
+    });
+    svg += `<text font-size="${n.fs.toFixed(1)}" font-weight="700" fill="${fill}"
+      text-anchor="middle" pointer-events="none">${tspan}</text>`;
   }
   svg += '</svg>';
 
+  const total = pts.filter(p => months.includes(p.ym)).length;
   return `<div class="scatterWrap">
-    <div class="scatterTop"><span class="mini">가로 년월 · 크기와 진하기는 언급량</span></div>
-    <div class="scatterScroll">${svg}</div>
+    <div class="scatterTop"><span class="mini">가로 년월 · 각 달 언급량 상위 ${TOPN}개 · 크기와 진하기는 언급량</span></div>
+    ${svg}
     <div class="mini" style="margin-top:4px">원을 누르면 그 태그가 달린 카드만 볼 수 있어요${
-      pts.length > 36 ? ` · 언급 많은 36개만 표시 (전체 ${pts.length})` : ''}</div>
+      total > picked.length ? ` · 달마다 대표 ${TOPN}개만 표시 (기간 전체 ${total})` : ''}</div>
   </div>`;
 }
 
