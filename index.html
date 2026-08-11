@@ -221,6 +221,10 @@ header h1{font-family:'Playfair Display',serif; font-size:22px}
 .pdfStrip{display:flex; gap:14px; overflow-x:auto; padding-bottom:8px; align-items:flex-start}
 .pdfPage{flex:0 0 auto}
 .pdfPage canvas{display:block; border:1px solid var(--hair); border-radius:6px; background:#fff}
+.rpForm{border-top:1px solid var(--hair); margin-top:10px; padding-top:10px}
+.rpForm .row{display:flex; gap:8px; flex-wrap:wrap}
+.rpForm input, .rpForm select{border:1px solid var(--hair); border-radius:6px; padding:5px 8px;
+  font:inherit; font-size:12px; width:100%}
 .lystExtras{display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:18px; margin-top:22px}
 .lystSub h4{font-family:'Playfair Display',serif; font-size:15px; margin:0 0 8px;
   border-bottom:1px solid var(--hair); padding-bottom:5px}
@@ -286,7 +290,7 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
 <body>
 
 <header>
-  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260808-05</span></h1>
+  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260808-07</span></h1>
   <div class="tabs">
     <button data-v="signal" class="on">TREND SIGNAL</button>
     <button data-v="keywords">TREND KEYWORDS</button>
@@ -1941,7 +1945,7 @@ document.addEventListener('click', async e => {
         .upsert(exs, { onConflict: 'quarter,kind,brand,label' }).select('id');
       if(er){ msg.textContent = '저장 실패: ' + er.message; return; }
       await sb.from('season_reports').insert({
-        season: quarter, kind: 'link', title: `Lyst 컬렉션 ${quarter}`,
+        season: quarter, kind: 'link', part: 'market', title: `Lyst 컬렉션 ${quarter}`,
         url: LYST_PREVIEW.source, note: `추천 제품 ${exs.length}개`,
       });
       msg.textContent = `${quarter} 컬렉션 저장 완료 — 제품 ${sv ? sv.length : 0}개`;
@@ -2011,7 +2015,7 @@ document.addEventListener('click', async e => {
 
     /* 시즌 리포트 목록에도 한 줄 남겨서 자료로 찾아볼 수 있게 */
     await sb.from('season_reports').insert({
-      season: quarter, kind: 'link', title: `Lyst Index ${quarter}`,
+      season: quarter, kind: 'link', part: 'market', title: `Lyst Index ${quarter}`,
       url: LYST_PREVIEW.source, note: `핫 브랜드 20개 — 1위 ${LYST_PREVIEW.brands[0]?.brand || ''}`,
     });
 
@@ -2025,6 +2029,7 @@ document.addEventListener('click', async e => {
 
 /* ═══ 시즌 리포트 ═══ */
 let RP_ROWS = [], RP_SEASON = 'ALL';
+let RP_EDIT = null;   /* 지금 수정 중인 리포트 id */
 let LYST_ROWS = [];
 let LYST_YEAR = null;   /* 보고 있는 연도 (25 · 26 …) */
 let LYST_EXTRA = [];
@@ -2254,14 +2259,70 @@ const RP_PARTS = [
   { key:'market',  label:'MARKET TREND' },
 ];
 
+/* 등록한 리포트의 분류·시즌·제목을 나중에 고칠 수 있게 */
+function rpFormHTML(r){
+  return `<div class="rpForm" data-form="${esc(String(r.id))}">
+    <div class="row">
+      <div style="max-width:150px"><label class="mini">분류</label>
+        <select data-f="part">
+          ${RP_PARTS.map(pt => `<option value="${pt.key}"${(r.part || 'apparel') === pt.key ? ' selected' : ''}>${pt.label}</option>`).join('')}
+        </select></div>
+      <div style="max-width:100px"><label class="mini">시즌</label>
+        <input data-f="season" value="${esc(r.season || '')}" placeholder="27SS"></div>
+    </div>
+    <div style="margin-top:6px"><label class="mini">제목</label>
+      <input data-f="title" value="${esc(r.title || '')}"></div>
+    <div style="margin-top:6px"><label class="mini">설명</label>
+      <input data-f="note" value="${esc(r.note || '')}"></div>
+    <div style="display:flex; gap:6px; margin-top:8px">
+      <button class="blink" data-rpsave="${esc(String(r.id))}">저장</button>
+      <button class="blink ghost" data-rpcancel="1">취소</button>
+      <span class="mini rpMsg"></span>
+    </div>
+  </div>`;
+}
+
+document.addEventListener('click', async e => {
+  const ed = e.target.closest('[data-rpedit]');
+  if(ed){ e.stopPropagation(); RP_EDIT = (RP_EDIT === ed.dataset.rpedit) ? null : ed.dataset.rpedit; drawReport(); return; }
+  if(e.target.closest('[data-rpcancel]')){ e.stopPropagation(); RP_EDIT = null; drawReport(); return; }
+
+  const sv = e.target.closest('[data-rpsave]');
+  if(sv){
+    e.stopPropagation();
+    const id = sv.dataset.rpsave;
+    const form = document.querySelector(`.rpForm[data-form="${id}"]`); if(!form) return;
+    const v = k => form.querySelector(`[data-f="${k}"]`)?.value.trim() ?? '';
+    const patch = {
+      part:   v('part') || 'apparel',
+      season: v('season').toUpperCase() || null,
+      title:  v('title') || null,
+      note:   v('note') || null,
+    };
+    if(!patch.title){ form.querySelector('.rpMsg').textContent = '제목은 비울 수 없습니다'; return; }
+    const { data, error } = await sb.from('season_reports').update(patch).eq('id', id).select('id');
+    if(error){ form.querySelector('.rpMsg').textContent = '저장 실패: ' + error.message; return; }
+    if(!data || !data.length){ form.querySelector('.rpMsg').textContent = '저장되지 않았습니다 — 권한을 확인해 주세요'; return; }
+    RP_EDIT = null;
+    await buildReportView();
+    return;
+  }
+});
+
 function drawReport(){
-  const seasons = [...new Set(RP_ROWS.map(r => r.season).filter(Boolean))].sort().reverse();
+  /* Lyst에서 자동으로 만들어진 줄은 아래 Lyst 표에서 보므로 카드로도, 시즌 탭에도 넣지 않는다
+     (그 줄의 시즌 값은 Q2-26 같은 분기 표기라 26FW·27SS 목록에 섞이면 안 됨) */
+  const isLystRow = r => /^lyst/i.test(String(r.title || '')) || /lyst\.com/i.test(String(r.url || ''));
+  const own = RP_ROWS.filter(r => !isLystRow(r));
+
+  /* 시즌 탭은 26FW·27SS 같은 시즌 표기만 — Q로 시작하는 분기 표기는 제외 */
+  const seasons = [...new Set(own.map(r => r.season).filter(Boolean))]
+    .filter(sn => !/^Q[1-4]/i.test(sn))
+    .sort().reverse();
   $('#rpSeasonBar').innerHTML = ['ALL', ...seasons].map(sn =>
     `<button class="catbtn${RP_SEASON === sn ? ' on' : ''}" data-season="${esc(sn)}">${sn === 'ALL' ? '전체' : esc(sn)}</button>`).join('');
 
-  /* Lyst에서 자동으로 만들어진 줄은 아래 Lyst 표에서 보므로 카드로는 띄우지 않는다 */
-  const isLystRow = r => /^lyst/i.test(String(r.title || '')) || /lyst\.com/i.test(String(r.url || ''));
-  const rows = RP_ROWS.filter(r => (RP_SEASON === 'ALL' || r.season === RP_SEASON) && !isLystRow(r));
+  const rows = own.filter(r => RP_SEASON === 'ALL' || r.season === RP_SEASON);
 
   const card = r => `
     <div class="bcard rpCard">
@@ -2274,8 +2335,10 @@ function drawReport(){
       ${r.note ? `<div class="mini" style="margin-top:6px">${esc(r.note)}</div>` : ''}
       <div class="blinks">
         <a class="blink ghost" href="${esc(r.url)}" target="_blank" rel="noopener">${r.kind === 'pdf' ? '새 창 ↗' : '사이트 열기 ↗'}</a>
+        <button class="blink" data-rpedit="${esc(String(r.id))}">수정</button>
         <button class="blink ghost" data-rpdel="${esc(String(r.id))}">삭제</button>
       </div>
+      ${RP_EDIT === String(r.id) ? rpFormHTML(r) : ''}
     </div>`;
 
   $('#rpParts').innerHTML = RP_PARTS.map(pt => {
@@ -2294,6 +2357,7 @@ function drawReport(){
 
 /* 썸네일 클릭 → 전체 페이지 보기 */
 document.addEventListener('click', e => {
+  if(e.target.closest('.rpForm')) return;
   const th = e.target.closest('[data-thumb]');
   if(!th) return;
   openPdfStrip(th.dataset.thumb, th.dataset.title);
