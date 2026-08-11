@@ -290,7 +290,7 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
 <body>
 
 <header>
-  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260808-07</span></h1>
+  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260808-08</span></h1>
   <div class="tabs">
     <button data-v="signal" class="on">TREND SIGNAL</button>
     <button data-v="keywords">TREND KEYWORDS</button>
@@ -1991,7 +1991,7 @@ document.addEventListener('click', async e => {
       }
       extras.push({ quarter, kind: 'product', rank: x.rank,
         brand: hit ? hit.brand : x.brand, raw_brand: x.brand,
-        label: x.product, source_url: LYST_PREVIEW.source });
+        label: x.product || '', source_url: LYST_PREVIEW.source });
     }
     for(const x of (LYST_PREVIEW.movers || [])){
       const hit = find(x.brand);
@@ -1999,18 +1999,24 @@ document.addEventListener('click', async e => {
         await sb.from('brand_vocabulary')
           .insert({ brand: x.brand, aliases: [x.brand.toLowerCase()] });
       }
-      extras.push({ quarter, kind: 'mover',
+      extras.push({ quarter, kind: 'mover', label: '',
         brand: hit ? hit.brand : x.brand, raw_brand: x.brand,
         value: x.pct, source_url: LYST_PREVIEW.source });
     }
     for(const x of (LYST_PREVIEW.stats || [])){
-      extras.push({ quarter, kind: 'stat', label: x.text, value: x.value,
+      extras.push({ quarter, kind: 'stat', brand: '', label: x.text || '', value: x.value,
         source_url: LYST_PREVIEW.source });
     }
+    let extraSaved = 0;
     if(extras.length){
-      const { error: exErr } = await sb.from('lyst_extra')
-        .upsert(extras, { onConflict: 'quarter,kind,brand,label' });
-      if(exErr) console.warn('부가 정보 저장 실패:', exErr.message);
+      const { data: exData, error: exErr } = await sb.from('lyst_extra')
+        .upsert(extras, { onConflict: 'quarter,kind,brand,label' }).select('id');
+      if(exErr){
+        alert('인기 상품·급상승 브랜드 저장에 실패했습니다.\n\n' + exErr.message
+          + '\n\nfix_lyst_extra SQL을 한 번 실행해 주세요. 브랜드 순위는 정상 저장됩니다.');
+      } else {
+        extraSaved = (exData || []).length;
+      }
     }
 
     /* 시즌 리포트 목록에도 한 줄 남겨서 자료로 찾아볼 수 있게 */
@@ -2019,7 +2025,7 @@ document.addEventListener('click', async e => {
       url: LYST_PREVIEW.source, note: `핫 브랜드 20개 — 1위 ${LYST_PREVIEW.brands[0]?.brand || ''}`,
     });
 
-    msg.textContent = `${quarter} 저장 완료 — 순위 ${rows.length}개 · 부가 정보 ${extras.length}개 · 새 브랜드 ${created}개`;
+    msg.textContent = `${quarter} 저장 완료 — 순위 ${rows.length}개 · 부가 정보 ${extraSaved}개 · 새 브랜드 ${created}개`;
     $('#lystPreview').innerHTML = '';
     LYST_PREVIEW = null;
     await buildReportView();
