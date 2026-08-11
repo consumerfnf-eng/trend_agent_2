@@ -255,6 +255,7 @@ header h1{font-family:'Playfair Display',serif; font-size:22px}
 .bkw{font-size:10px; font-weight:700; padding:3px 8px; border-radius:20px; background:#f2efe9;
   border:1px solid #e2ddd3; color:#6b6357}
 .bkw.ghost{background:none; color:var(--sub)}
+.bkw.lyst{background:#fdf3ef; border-color:#f1d9cf; color:var(--rising); font-weight:700}
 .btags{display:flex; flex-wrap:wrap; gap:4px; margin-top:6px}
 .btag{font-size:9.5px; font-weight:700; color:#c8451f}
 .blinks{display:flex; gap:8px; margin-top:10px; flex-wrap:wrap}
@@ -293,7 +294,7 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
 <body>
 
 <header>
-  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260808-11</span></h1>
+  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260808-12</span></h1>
   <div class="tabs">
     <button data-v="signal" class="on">TREND SIGNAL</button>
     <button data-v="keywords">TREND KEYWORDS</button>
@@ -848,6 +849,8 @@ document.addEventListener('click', e => {
    인스타그램과 공식 홈페이지로 연결한다. */
 let BRAND_ROWS = [];
 let BRAND_LYST = {};   /* 브랜드 → 분기별 Lyst 순위 */
+/* 'Q2-26' 을 '262' 로 바꿔 최신순 정렬에 쓴다 (연도 먼저, 그다음 분기) */
+const qKey = q => { const m = String(q || '').match(/^Q([1-4])-(\d{2})$/i); return m ? m[2] + m[1] : '000'; };
 let BRAND_EXTRA = {};  /* 브랜드 → 인기 상품·급상승 정보 */
 let LYST_LATEST = null;
 
@@ -866,8 +869,8 @@ async function buildBrandView(){
     for(const r of (lyst.data || [])){
       (BRAND_LYST[r.brand] ||= []).push(r);
     }
-    for(const k of Object.keys(BRAND_LYST)) BRAND_LYST[k].sort((a,b) => b.quarter.localeCompare(a.quarter));
-    LYST_LATEST = [...new Set((lyst.data || []).map(r => r.quarter))].sort().reverse()[0] || null;
+    for(const k of Object.keys(BRAND_LYST)) BRAND_LYST[k].sort((a,b) => qKey(b.quarter).localeCompare(qKey(a.quarter)));
+    LYST_LATEST = [...new Set((lyst.data || []).map(r => r.quarter))].sort((a,b) => qKey(b).localeCompare(qKey(a)))[0] || null;
 
     /* 브랜드별 인기 상품·급상승 정보 */
     BRAND_EXTRA = {};
@@ -956,7 +959,8 @@ function drawBrandCards(){
     const thumb = e.items[0]?.image_url
       ? `<img class="peek" src="${esc(e.items[0].image_url)}" alt="" loading="lazy">` : '';
     /* Lyst 순위 배지 — 분기별로 모두 표시 (최신 분기가 앞) */
-    const ranks = BRAND_LYST[e.brand] || [];
+    const ranksAll = BRAND_LYST[e.brand] || [];
+    const ranks = ranksAll.slice(0, 4);   /* 최신 4개 분기만 */
     const lystBadge = ranks.length
       ? `<div style="display:flex; flex-wrap:wrap; gap:4px; align-items:center; margin-bottom:6px">${
           ranks.map(r => {
@@ -970,8 +974,8 @@ function drawBrandCards(){
       : '';
     /* 급상승 브랜드 — LYST 26 Q2 HOT 🔥 배지 */
     const ex = BRAND_EXTRA[e.brand] || [];
-    const movers = ex.filter(x => x.kind === 'mover').sort((a,b) => b.quarter.localeCompare(a.quarter));
-    const prods  = ex.filter(x => x.kind === 'product').sort((a,b) => b.quarter.localeCompare(a.quarter));
+    const movers = ex.filter(x => x.kind === 'mover').sort((a,b) => qKey(b.quarter).localeCompare(qKey(a.quarter)));
+    const prods  = ex.filter(x => x.kind === 'product').sort((a,b) => qKey(b.quarter).localeCompare(qKey(a.quarter)));
     const hotBadge = movers.length
       ? `<div style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom:6px">${
           movers.map(m => `<span class="lystBadge hot">LYST ${esc(qLabel(m.quarter))} HOT 🔥</span>`).join('')}</div>`
@@ -979,10 +983,12 @@ function drawBrandCards(){
     /* 브랜드 아래 한 줄 설명 */
     const exLines = [
       ...movers.map(m => `LYST ${qLabel(m.quarter)} +${m.value}%`),
-      ...prods.map(pd => `LYST ${qLabel(pd.quarter)} 인기 상품 ${pd.rank}위 — ${pd.label || ''}`),
+      ...prods.slice(0, 4).map(pd => `LYST ${qLabel(pd.quarter)} 인기 ${pd.rank}위 · ${pd.label || ''}`),
     ];
     const exHtml = exLines.length
-      ? `<div class="mini" style="margin-top:6px; color:var(--rising)">${exLines.map(esc).join('<br>')}</div>` : '';
+      ? `<div class="bkws" style="margin-top:6px">${exLines.map(t =>
+          `<span class="bkw lyst">${esc(t)}</span>`).join('')}${
+          prods.length > 4 ? `<span class="bkw ghost">+${prods.length - 4}</span>` : ''}</div>` : '';
 
     const latest = ranks.find(r => r.quarter === LYST_LATEST);
     const cls = latest ? (latest.rank <= 3 ? ' lyst lyst3' : ' lyst')
