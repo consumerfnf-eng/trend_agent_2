@@ -27,6 +27,26 @@ header h1 em{font-style:normal; color:var(--rising)}
 .who{margin-left:auto; font-size:11px; color:var(--sub); display:flex; align-items:center; gap:10px}
 main{max-width:1180px; margin:0 auto; padding:22px 24px 90px}
 .view{display:none} .view.on{display:block}
+/* 등록 관리 목록 — 전역 input{width:100%} 때문에 체크박스가 폭을 다 먹지 않도록 */
+.mgRow{display:grid; grid-template-columns:20px 46px 1fr auto; gap:12px; align-items:start;
+  padding:11px 14px; border:1px solid var(--hair); border-radius:10px; margin-bottom:7px;
+  background:#fff; cursor:pointer}
+.mgRow.on{background:#fdf3ef; border-color:#f1d9cf}
+.mgRow input[type=checkbox]{width:16px !important; height:16px; margin:3px 0 0; padding:0; flex:none}
+.mgRow img{width:46px; height:60px; object-fit:cover; border-radius:6px; background:#efeae1; display:block}
+.mgRow .mgTitle{font-weight:800; font-size:13px; line-height:1.35; word-break:keep-all}
+.mgRow .mgMeta{font-size:11px; color:var(--sub); margin-top:3px}
+.mgRow .mgNote{font-size:11px; color:var(--sub); opacity:.85; margin-top:4px; line-height:1.5}
+.mgRow .mgBrands{font-size:11px; color:var(--accent); margin-top:4px}
+.mgRow .mgLink{font-size:11px; color:var(--sub); white-space:nowrap; text-decoration:none}
+.mgRow .mgEdit{font-size:10.5px; font-weight:800; color:var(--accent); background:#fdf3ef;
+  border:1px solid #f1d9cf; border-radius:20px; padding:4px 11px; cursor:pointer; white-space:nowrap;
+  font-family:inherit; width:auto}
+.mgForm{border:1px solid #f1d9cf; border-left:3px solid var(--accent); border-radius:10px;
+  padding:14px 16px; margin:-3px 0 10px; background:#fffdfb}
+.mgForm .row{display:flex; gap:10px; flex-wrap:wrap; margin-bottom:8px}
+.mgForm textarea{min-height:70px}
+.mgForm .btns{display:flex; gap:6px; align-items:center; margin-top:4px}
 h2.sec{font-family:'Playfair Display',serif; font-size:24px; border-bottom:1px solid var(--ink);
   padding-bottom:7px; margin:0 0 16px}
 h2.sec span{font-family:'Noto Sans KR'; font-size:12px; color:var(--sub); font-weight:400}
@@ -218,12 +238,15 @@ tbody tr:hover{background:#fdfcf9}
 <!-- ═══ 앱 ═══ -->
 <div id="app" hidden>
 <header>
+  <a href="index.html" id="backHome" title="대시보드로 돌아가기"
+     style="display:inline-flex; align-items:center; gap:5px; text-decoration:none; color:inherit;
+            border:1px solid var(--hair); border-radius:20px; padding:5px 13px; font-size:11px;
+            font-weight:800; letter-spacing:.03em; margin-right:14px; background:#fff">← 대시보드</a>
   <h1>TREND <em>AGENT</em></h1>
-  <span class="mini" id="verStamp" style="margin-left:8px;opacity:.55">v260805-01</span>
+  <span class="mini" id="verStamp" style="margin-left:8px;opacity:.55">v260808-01</span>
   <div class="tabs" id="tabs">
     <button data-v="intake" class="on">업로드</button>
     <button data-v="manage">등록 관리</button>
-    <button data-v="dict">해시태그 사전</button>
     <button data-v="conf">설정</button>
   </div>
   <div class="who"><span id="whoTxt"></span><button class="btn ghost sm" id="logout">로그아웃</button></div>
@@ -267,6 +290,9 @@ tbody tr:hover{background:#fdfcf9}
           <button class="btn ghost sm" id="brandAi" title="요약에서 브랜드 자동 추출">AI 추출</button>
         </div>
         <datalist id="brandList"></datalist>
+        <datalist id="styleList"></datalist>
+        <datalist id="subList"></datalist>
+        <datalist id="accountList"></datalist>
         <div id="brandChips" style="display:flex; flex-wrap:wrap; gap:4px; margin-top:6px"></div>
       </div>
       <div style="display:none"><label class="f">관찰 브랜드</label>
@@ -299,10 +325,14 @@ tbody tr:hover{background:#fdfcf9}
       <span class="mini" id="selCount">0장 선택</span>
       <input id="bulkKw" list="entList" placeholder="TREND KEYWORD 일괄 적용 (예: barrel leg, 메탈릭 로고)"
              style="max-width:300px; margin:0">
-      <button class="btn ghost sm" id="bulkApply">선택 적용</button>
+      <button class="btn ghost sm" id="bulkApply">스타일 적용</button>
+      <input id="bulkSub" list="subList" placeholder="하위 구분 일괄 적용 (예: BOMBER)"
+             style="max-width:230px; margin:0">
+      <button class="btn ghost sm" id="bulkSubApply">구분 적용</button>
       <span class="sp"></span>
       <span class="link-n" id="linkStat"></span>
       <button class="btn ghost sm" id="aiAll" disabled>AI로 채우기</button>
+      <button class="btn ghost sm" id="saveAsOnePost" disabled title="선택한 사진들을 한 게시물로 묶어 1건만 등록합니다">한 게시물로 등록</button>
       <button class="btn sm" id="saveImgs" disabled>CSV로 내보내기 (0/0)</button>
     </div>
     <div class="cards" id="imgCards"></div>
@@ -733,39 +763,6 @@ tbody tr:hover{background:#fdfcf9}
   <div id="mgList" style="margin-top:12px"></div>
 </section>
 
-<!-- ══════════════════════════════════════════════════════════
-     해시태그 사전 관리 (tag_clusters)
-     대표 클러스터 + 유사 키워드 + 한국어 별칭을 여기서 편집.
-     저장 시 Supabase tag_clusters 테이블에 upsert.
-     대시보드(signal.html, index.html)는 새로고침하면 자동 반영.
-     ══════════════════════════════════════════════════════════ -->
-<section id="dictView" class="view">
-  <h2 class="sec">해시태그 사전
-    <span>— 대시보드에서 쓰는 클러스터 사전. 여기서 수정하면 즉시 반영됩니다.
-    대량 개편은 엑셀 시트로 하는 게 편해요.</span>
-  </h2>
-
-  <div style="display:grid; grid-template-columns:280px 1fr; gap:20px; align-items:flex-start">
-    <!-- 왼쪽: 대표 목록 -->
-    <div style="background:#fff; border:1px solid var(--hair); border-radius:10px; padding:14px">
-      <div style="display:flex; gap:6px; align-items:center; margin-bottom:10px">
-        <input type="search" id="dictSearch" placeholder="검색"
-          style="flex:1; border:1px solid var(--hair); border-radius:6px; padding:6px 10px; font:inherit; font-size:12px">
-        <button class="btn sm" id="dictAddNew" title="새 대표 추가">+ 새</button>
-      </div>
-      <div class="mini" id="dictListCount" style="margin-bottom:6px"></div>
-      <div id="dictList" style="max-height:65vh; overflow-y:auto; display:flex; flex-direction:column; gap:2px"></div>
-    </div>
-
-    <!-- 오른쪽: 상세 편집 -->
-    <div id="dictEditor" style="background:#fff; border:1px solid var(--hair); border-radius:10px; padding:20px; min-height:400px">
-      <div class="mini" style="color:var(--sub); text-align:center; padding:80px 0">
-        왼쪽에서 대표 클러스터를 선택하거나<br>"+ 새" 버튼으로 만들어 보세요
-      </div>
-    </div>
-  </div>
-</section>
-
 <section id="confView" class="view">
   <h2 class="sec">설정</h2>
 
@@ -858,6 +855,9 @@ tbody tr:hover{background:#fdfcf9}
   <option>LINER</option><option>SNEAKERS</option><option>SANDALS</option><option>BOOTS</option><option>LOAFERS</option>
 </datalist>
 <datalist id="brandList"></datalist>
+        <datalist id="styleList"></datalist>
+        <datalist id="subList"></datalist>
+        <datalist id="accountList"></datalist>
 <div id="toast"></div>
 <div id="busy"><div class="spin"></div><span id="busyMsg">저장 중…</span></div>
 
@@ -1303,6 +1303,16 @@ async function intake(files){
   renderImgCards();
 }
 
+/* 사진 카드 안의 입력칸 값을 QUEUE_IMGS로 다시 읽어들임.
+   한글 입력은 마지막 글자가 조합 중이면 아직 반영되지 않았을 수 있어, 저장 직전에 한 번 더 부른다. */
+function syncImgCardInputs(){
+  const box = $('#imgCards'); if(!box) return;
+  [...box.children].forEach((c, i) => {
+    const it = QUEUE_IMGS[i]; if(!it) return;
+    c.querySelectorAll('[data-k]').forEach(el => { it.meta[el.dataset.k] = el.value; });
+  });
+}
+
 function renderImgCards(){
   const box = $('#imgCards');
   box.innerHTML = '';
@@ -1319,7 +1329,14 @@ function renderImgCards(){
         <div style="max-width:160px"><label class="f">카테고리</label>
           <select data-k="category"><option value="">선택</option>
             ${CATEGORIES.map(v=>`<option>${v}</option>`).join('')}</select></div>
-        <div><label class="f">키워드</label><input data-k="keyword" placeholder="예: 발레코어"></div>
+        <div><label class="f">스타일 (키워드)</label>
+          <input data-k="keyword" list="styleList" placeholder="예: 빈티지 퍼 트리밍"></div>
+      </div>
+      <div class="row">
+        <div style="max-width:180px"><label class="f">하위 구분</label>
+          <input data-k="sub_group" list="subList" placeholder="예: BOMBER"></div>
+        <div><label class="f">계정 — 사진마다 다르게</label>
+          <input data-k="account" list="accountList" placeholder="예: @ha.muu"></div>
       </div>
       <div><label class="f">이미지 설명 — 왜 트렌드인지</label><textarea data-k="note" placeholder="꼭 들어가야 하는 포인트만 짧게 메모해도 OK"></textarea></div>
       <div class="mini">${esc(it.name)} · ${kb(it.orig)} → ${kb(it.full.blob.size)} + ${kb(it.thumb.blob.size)}</div>`;
@@ -1327,7 +1344,12 @@ function renderImgCards(){
     c.querySelectorAll('[data-k]').forEach(el => {
       const k = el.dataset.k;
       el.value = String(it.meta[k] ?? '');
-      el.addEventListener('input', () => { it.meta[k] = el.value; });
+      const sync = () => { it.meta[k] = el.value; };
+      el.addEventListener('input', sync);
+      el.addEventListener('change', sync);
+      /* 한글은 마지막 글자가 조합 중일 수 있어 조합이 끝나는 시점에도 다시 읽는다 */
+      el.addEventListener('compositionend', sync);
+      el.addEventListener('blur', sync);
     });
     c.querySelector('.pick').onchange = e => {
       it.sel = e.target.checked; c.classList.toggle('sel', it.sel); selStat();
@@ -1358,6 +1380,11 @@ function selStat(){
   const n = picked().length, m = QUEUE_IMGS.length;
   $('#selCount').textContent = `${n}장 선택`;
   $('#saveImgs').textContent = `선택 등록 (${n}/${m})`;
+  const one = $('#saveAsOnePost');
+  if(one){
+    one.disabled = n < 2;
+    one.textContent = n >= 2 ? `한 게시물로 등록 (${n}장)` : '한 게시물로 등록';
+  }
   $('#saveImgs').disabled = !n || !IS_ADMIN;
   $('#aiAll').disabled    = !n || !GEMKEY;
 }
@@ -1373,6 +1400,15 @@ function linkStat(){
 /* ── 일괄 적용 ── */
 $('#selAll').onclick  = () => { QUEUE_IMGS.forEach(x=>x.sel=true);  renderImgCards(); };
 $('#selNone').onclick = () => { QUEUE_IMGS.forEach(x=>x.sel=false); renderImgCards(); };
+
+$('#bulkSubApply').onclick = () => {
+  const raw = $('#bulkSub').value.trim();
+  const tgt = picked();
+  if(!tgt.length) return toast('사진을 먼저 선택하세요');
+  tgt.forEach(it => { it.meta.sub_group = raw; });
+  renderImgCards();
+  toast(`${tgt.length}장에 하위 구분을 적용했습니다`);
+};
 
 $('#bulkApply').onclick = () => {
   const tgt = picked();
@@ -1437,6 +1473,64 @@ $('#aiAll').onclick = async () => {
   toast(bad ? `${n}장 채움 · ${bad}장 실패 — 콘솔을 확인하세요` : `${n}장 채웠습니다. 확인하고 고쳐주세요`);
 };
 
+/* ── 선택한 사진들을 "한 게시물"로 묶어 1건만 등록 ──
+   첫 번째 사진의 입력값(키워드·요약·카테고리 등)을 대표로 쓰고,
+   사진은 image_url(대표) + extra_images(나머지)에 담는다. */
+$('#saveAsOnePost').onclick = async () => {
+  syncImgCardInputs();
+  const tgt = picked();
+  if(tgt.length < 2) return toast('사진을 2장 이상 선택하세요');
+
+  const head = tgt[0];
+  if(!head.meta.keyword) return toast('첫 번째 사진에 키워드를 입력해주세요 (그 값이 게시물 제목이 됩니다)');
+  if(!confirm(`${tgt.length}장을 한 게시물로 등록합니다.\n\n제목: ${head.meta.keyword}\n\n첫 번째 사진의 입력값이 대표로 쓰이고, 나머지 사진은 같은 카드 안에서 넘겨보게 됩니다.`)) return;
+
+  /* 사진 전부 업로드 */
+  const urls = [];
+  for(let i = 0; i < tgt.length; i++){
+    const it = tgt[i];
+    if(it.meta.image_url){ urls.push(it.meta.image_url); continue; }
+    busy(true, `이미지 업로드 중… ${i+1}/${tgt.length}`);
+    try{
+      const path = `${$('#sigType').value}/${ymNow()}/${it.hash}.jpg`;
+      const { error: upErr } = await sb.storage.from('trend-images')
+        .upload(path, it.thumb.blob, { contentType: 'image/jpeg', upsert: true });
+      if(upErr) throw upErr;
+      urls.push(sb.storage.from('trend-images').getPublicUrl(path).data.publicUrl);
+    }catch(e){ console.error(e); }
+  }
+  if(!urls.length){ busy(false); return toast('이미지 업로드에 모두 실패했습니다'); }
+
+  busy(true, '등록 중…');
+  const row = {
+    source_type: $('#sigType').value,
+    category:    head.meta.category || null,
+    keyword:     head.meta.keyword,
+    sub_group:   head.meta.sub_group || null,
+    account:     head.meta.account || null,
+    url:         head.meta.source_url || null,
+    image_url:   urls[0],
+    extra_images: urls.slice(1),
+    note:        head.meta.note || null,
+    source:      $('#source').value || null,
+    region:      $('#region').value || null,
+    author:      $('#author').value || null,
+    sheet_month: $('#ym').value || null,
+    brands:      SESS_BRANDS.length ? [...SESS_BRANDS] : null,
+  };
+  const { data, error } = await sb.from('trend_signals').insert(row).select('id');
+  busy(false);
+  if(error){ die(error, '한 게시물 등록'); return; }
+  if(!data || !data.length){
+    alert('등록되지 않았습니다.\n\nextra_images 칸이 아직 없거나 권한 문제일 수 있습니다.\nmulti_photo SQL을 한 번 실행해 주세요.');
+    return;
+  }
+  toast(`${urls.length}장을 한 게시물로 등록했습니다`);
+  /* 등록한 사진들은 목록에서 제거 */
+  QUEUE_IMGS = QUEUE_IMGS.filter(x => !tgt.includes(x));
+  renderImgCards();
+};
+
 /* ── 이미지 저장 — Supabase trend_signals 테이블에 바로 등록 ── */
 $('#saveImgs').onclick = async () => {
   const tgt = picked();
@@ -1463,11 +1557,16 @@ $('#saveImgs').onclick = async () => {
     busy(false); return;
   }
 
+  /* 저장 직전 한 번 더 동기화 — 한글 마지막 글자가 조합 중인 채로 눌러도 값이 빠지지 않도록 */
+  syncImgCardInputs();
+
   busy(true, '등록 중…');
   const rows = tgt.map(it => ({
     source_type: $('#sigType').value,
     category:    it.meta.category || null,
     keyword:     it.meta.keyword,
+    sub_group:   it.meta.sub_group || null,
+    account:     it.meta.account || null,
     url:         it.meta.source_url || null,
     image_url:   it.meta.image_url || null,
     note:        it.meta.note || null,
@@ -1485,6 +1584,7 @@ $('#saveImgs').onclick = async () => {
   renderImgCards();
   const typeLabel = {news:'패션 트렌드', lifestyle:'라이프스타일 트렌드', sns:'SNS 트렌드'}[$('#sigType').value] || 'SNS 트렌드';
   toast(`${tgt.length}장 ${typeLabel}에 등록했습니다 — 대시보드에서 바로 확인 가능해요`);
+  loadSnsSuggest();
 };
 
 async function ensureBrand(name, ym){
@@ -3984,244 +4084,7 @@ async function nextSlot(viewId, t){
 
 const LOADERS = { feed:renderFeed, queue:renderQueue, map:loadMap, cluster:loadClusterTab,
   manage: loadManage,
-  dict: loadDictTab,
   conf: async () => { await renderAdmins(); await loadDna(); await renderAliases(); } };
-
-/* ═══════════════════════════════════════════════════════════
-   해시태그 사전 관리
-   - 왼쪽: 대표 클러스터 목록 (검색 필터)
-   - 오른쪽: 선택된 대표의 유사 키워드/한국어 별칭 편집
-   - 저장 시 Supabase tag_clusters upsert
-   ═══════════════════════════════════════════════════════════ */
-let DICT_ROWS = [];       /* [{head, members, ko_aliases}] 캐시 */
-let DICT_SEL = null;      /* 현재 편집 중인 head (신규면 null → 새 head 생성 모드) */
-let DICT_DIRTY = false;   /* 현재 편집 중 변경 여부 (탭 이동/선택 변경 시 확인) */
-
-async function loadDictTab(){
-  const { data, error } = await sb.from('tag_clusters').select('head, members, ko_aliases').order('head');
-  if(error){ die(error, '사전 로드'); return; }
-  DICT_ROWS = (data || []).map(r => ({
-    head: r.head,
-    members: r.members || [],
-    ko_aliases: r.ko_aliases || []
-  }));
-  renderDictList();
-  /* 이전 선택 유지 (있으면), 없으면 첫 번째 선택 */
-  if(DICT_SEL && DICT_ROWS.find(r => r.head === DICT_SEL)) renderDictEditor(DICT_SEL);
-  else if(DICT_ROWS.length) renderDictEditor(DICT_ROWS[0].head);
-}
-
-function renderDictList(){
-  const q = ($('#dictSearch')?.value || '').trim().toLowerCase();
-  const rows = q
-    ? DICT_ROWS.filter(r =>
-        r.head.toLowerCase().includes(q)
-        || r.members.some(m => m.toLowerCase().includes(q))
-        || r.ko_aliases.some(k => k.toLowerCase().includes(q)))
-    : DICT_ROWS;
-  $('#dictListCount').textContent = q
-    ? `${rows.length} / ${DICT_ROWS.length}개`
-    : `총 ${DICT_ROWS.length}개 대표`;
-  $('#dictList').innerHTML = rows.map(r => `
-    <button class="dictItem ${r.head === DICT_SEL ? 'on' : ''}" data-head="${esc(r.head)}"
-      style="text-align:left; background:${r.head === DICT_SEL ? 'var(--tx)' : 'transparent'};
-        color:${r.head === DICT_SEL ? '#fff' : 'var(--tx)'};
-        border:1px solid ${r.head === DICT_SEL ? 'var(--tx)' : 'transparent'};
-        border-radius:6px; padding:8px 10px; font:inherit; cursor:pointer; display:flex; justify-content:space-between; align-items:center">
-      <span style="font-weight:600; font-size:12px">#${esc(r.head)}</span>
-      <span style="font-size:10px; opacity:.7">${r.members.length}</span>
-    </button>`).join('') || '<div class="mini" style="text-align:center; padding:20px 0">사전이 비어있습니다</div>';
-}
-
-/* 편집기 렌더링: head가 null이면 새 대표 입력 모드 */
-function renderDictEditor(head){
-  DICT_SEL = head;
-  DICT_DIRTY = false;
-  const row = head ? DICT_ROWS.find(r => r.head === head) : { head:'', members:[], ko_aliases:[] };
-  if(!row) return;
-  const isNew = head === null;
-  $('#dictEditor').innerHTML = `
-    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:16px">
-      <div style="flex:1">
-        <label class="f">대표 클러스터 (영어, 소문자, 공백은 하이픈)</label>
-        <input type="text" id="dictHead" value="${esc(row.head)}" placeholder="예: retro"
-          style="width:100%; max-width:340px; border:1px solid var(--hair); border-radius:6px; padding:8px 10px; font:inherit">
-      </div>
-      ${!isNew ? `<button class="btn sm" id="dictDelete" style="background:#c8451f; border-color:#c8451f">이 대표 삭제</button>` : ''}
-    </div>
-
-    <div style="margin-bottom:18px">
-      <label class="f">유사 키워드 <span class="mini">— 대시보드에서 이 대표 클러스터로 묶일 태그들</span></label>
-      <div id="dictMembers" class="chipwrap" style="display:flex; flex-wrap:wrap; gap:5px; padding:8px; min-height:44px; border:1px solid var(--hair); border-radius:6px; background:#fafafa">
-        ${row.members.map(m => dictChipHTML(m, 'm')).join('')}
-      </div>
-      <input type="text" id="dictAddMember" placeholder="새 유사 태그 입력 후 Enter (여러 개는 콤마로)"
-        style="width:100%; margin-top:6px; border:1px solid var(--hair); border-radius:6px; padding:7px 10px; font:inherit; font-size:12px">
-    </div>
-
-    <div style="margin-bottom:20px">
-      <label class="f">한국어 별칭 <span class="mini">— 검색량 조회·검색창 매칭에 사용</span></label>
-      <div id="dictKo" class="chipwrap" style="display:flex; flex-wrap:wrap; gap:5px; padding:8px; min-height:44px; border:1px solid var(--hair); border-radius:6px; background:#fafafa">
-        ${row.ko_aliases.map(k => dictChipHTML(k, 'k')).join('')}
-      </div>
-      <input type="text" id="dictAddKo" placeholder="새 한국어 별칭 입력 후 Enter (여러 개는 콤마로)"
-        style="width:100%; margin-top:6px; border:1px solid var(--hair); border-radius:6px; padding:7px 10px; font:inherit; font-size:12px">
-    </div>
-
-    <div style="display:flex; gap:8px; align-items:center">
-      <button class="btn" id="dictSave">${isNew ? '만들기' : '저장'}</button>
-      <button class="btn ghost" id="dictCancel">취소</button>
-      <span class="mini" id="dictSaveStatus" style="margin-left:8px"></span>
-    </div>
-  `;
-  bindDictEditor();
-}
-
-function dictChipHTML(text, kind){
-  return `<span class="dictChip" data-kind="${kind}" data-val="${esc(text)}"
-    style="display:inline-flex; align-items:center; gap:4px; font-size:11px; background:#fff; border:1px solid var(--hair); border-radius:20px; padding:3px 4px 3px 10px">
-    ${esc(text)}
-    <button type="button" class="dictChipRm" title="삭제"
-      style="border:none; background:transparent; cursor:pointer; font-size:14px; line-height:1; color:var(--sub); padding:0 4px">×</button>
-  </span>`;
-}
-
-function bindDictEditor(){
-  const wrap = $('#dictEditor'); if(!wrap) return;
-
-  /* 태그 칩 삭제 */
-  wrap.querySelectorAll('.dictChipRm').forEach(btn => btn.onclick = e => {
-    e.stopPropagation();
-    btn.closest('.dictChip').remove();
-    DICT_DIRTY = true;
-    $('#dictSaveStatus').textContent = '수정됨 — 저장하지 않으면 사라집니다';
-  });
-
-  /* Enter로 태그 추가 (콤마 구분해서 여러 개도 가능) */
-  const addTo = (inpId, wrapId, kind) => {
-    const inp = $('#'+inpId); if(!inp) return;
-    inp.onkeydown = e => {
-      if(e.key !== 'Enter' && e.key !== ',') return;
-      e.preventDefault();
-      const raw = inp.value.trim(); if(!raw) return;
-      const parts = raw.split(',').map(x => x.trim()).filter(Boolean);
-      const existing = new Set([...$('#'+wrapId).querySelectorAll('.dictChip')].map(c => c.dataset.val));
-      const container = $('#'+wrapId);
-      let added = 0;
-      for(const p of parts){
-        /* 유사 키워드는 kebab-case로 정규화 (한국어는 그대로) */
-        const val = kind === 'm' ? p.toLowerCase().replace(/\s+/g,'-') : p;
-        if(existing.has(val)) continue;
-        existing.add(val);
-        container.insertAdjacentHTML('beforeend', dictChipHTML(val, kind));
-        added++;
-      }
-      inp.value = '';
-      if(added){
-        DICT_DIRTY = true;
-        $('#dictSaveStatus').textContent = '수정됨 — 저장하지 않으면 사라집니다';
-        /* 새로 추가된 칩의 삭제 버튼도 바인딩 */
-        container.querySelectorAll('.dictChipRm').forEach(btn => btn.onclick = e => {
-          e.stopPropagation();
-          btn.closest('.dictChip').remove();
-          DICT_DIRTY = true;
-          $('#dictSaveStatus').textContent = '수정됨 — 저장하지 않으면 사라집니다';
-        });
-      }
-    };
-  };
-  addTo('dictAddMember', 'dictMembers', 'm');
-  addTo('dictAddKo', 'dictKo', 'k');
-
-  /* head 이름 수정 감지 */
-  const headInp = $('#dictHead');
-  if(headInp){
-    headInp.oninput = () => {
-      DICT_DIRTY = true;
-      $('#dictSaveStatus').textContent = '수정됨 — 저장하지 않으면 사라집니다';
-    };
-  }
-
-  /* 저장 */
-  const saveBtn = $('#dictSave');
-  if(saveBtn) saveBtn.onclick = async () => {
-    const newHead = ($('#dictHead').value || '').trim().toLowerCase().replace(/\s+/g,'-');
-    if(!newHead){ toast('대표 이름을 입력해주세요'); return; }
-    const members = [...$('#dictMembers').querySelectorAll('.dictChip')].map(c => c.dataset.val);
-    const ko = [...$('#dictKo').querySelectorAll('.dictChip')].map(c => c.dataset.val);
-    saveBtn.disabled = true; $('#dictSaveStatus').textContent = '저장 중…';
-    try{
-      const oldHead = DICT_SEL;
-      /* 대표 이름 자체를 바꿨으면 PK가 바뀌는 것이라 삭제+생성 */
-      if(oldHead && oldHead !== newHead){
-        /* 새 이름이 이미 있으면 거부 */
-        if(DICT_ROWS.some(r => r.head === newHead)){
-          toast('이미 존재하는 대표 이름입니다');
-          saveBtn.disabled = false; $('#dictSaveStatus').textContent = '';
-          return;
-        }
-        await sb.from('tag_clusters').delete().eq('head', oldHead);
-      }
-      const { error } = await sb.from('tag_clusters')
-        .upsert({ head: newHead, members, ko_aliases: ko, updated_at: new Date().toISOString() });
-      if(error) throw error;
-      DICT_DIRTY = false;
-      DICT_SEL = newHead;
-      $('#dictSaveStatus').textContent = '✓ 저장됨 — 대시보드 새로고침하면 반영됩니다';
-      toast('사전 저장 완료');
-      await loadDictTab();
-    }catch(e){
-      die(e, '사전 저장');
-      saveBtn.disabled = false;
-      $('#dictSaveStatus').textContent = '';
-    }
-  };
-
-  /* 취소: 편집기 다시 로드 */
-  const cancelBtn = $('#dictCancel');
-  if(cancelBtn) cancelBtn.onclick = () => {
-    if(DICT_SEL) renderDictEditor(DICT_SEL);
-    else $('#dictEditor').innerHTML = '<div class="mini" style="color:var(--sub); text-align:center; padding:80px 0">왼쪽에서 대표 클러스터를 선택하세요</div>';
-  };
-
-  /* 삭제 */
-  const delBtn = $('#dictDelete');
-  if(delBtn) delBtn.onclick = async () => {
-    if(!DICT_SEL) return;
-    if(!confirm(`대표 "${DICT_SEL}"를 삭제할까요?\n\n이 대표에 속했던 유사 태그들은 어느 클러스터에도 속하지 않게 됩니다 (태그 자체는 카드에 그대로 남아있음).`)) return;
-    try{
-      const { error } = await sb.from('tag_clusters').delete().eq('head', DICT_SEL);
-      if(error) throw error;
-      toast('삭제 완료');
-      DICT_SEL = null;
-      await loadDictTab();
-    }catch(e){ die(e, '사전 삭제'); }
-  };
-}
-
-/* 목록 클릭 → 편집기 로드 (수정 중이면 확인) */
-document.addEventListener('click', e => {
-  const btn = e.target.closest('.dictItem'); if(!btn) return;
-  const head = btn.dataset.head;
-  if(head === DICT_SEL) return;
-  if(DICT_DIRTY && !confirm('저장하지 않은 변경사항이 있습니다. 버릴까요?')) return;
-  renderDictEditor(head);
-  renderDictList();
-});
-
-/* 검색 입력 */
-document.addEventListener('input', e => {
-  if(e.target.id === 'dictSearch') renderDictList();
-});
-
-/* 새 대표 추가 */
-document.addEventListener('click', e => {
-  if(e.target.id !== 'dictAddNew') return;
-  if(DICT_DIRTY && !confirm('저장하지 않은 변경사항이 있습니다. 버릴까요?')) return;
-  DICT_SEL = null;
-  renderDictEditor(null);
-});
-
 $('#tabs').onclick = e => {
   const b = e.target.closest('button'); if(!b) return;
   $$('#tabs button').forEach(x=>x.classList.toggle('on', x===b));
@@ -4235,6 +4098,26 @@ $('#tabs').onclick = e => {
    ═══════════════════════════════════════════════════════════ */
 let BRAND_VOC = [];
 let SESS_BRANDS = [];
+
+/* 이미 등록된 스타일·하위 구분·계정을 자동완성 후보로 불러온다 */
+async function loadSnsSuggest(){
+  try{
+    const { data, error } = await sb.from('trend_signals')
+      .select('keyword, sub_group, account, source_type');
+    if(error){ console.warn('자동완성 목록 로드 실패:', error.message); return; }
+    const rows = data || [];
+    const uniq = (arr) => [...new Set(arr.filter(v => v && String(v).trim()))].sort();
+
+    const fill = (id, values) => {
+      const dl = $('#' + id);
+      if(dl) dl.innerHTML = values.map(v => `<option value="${esc(v)}">`).join('');
+    };
+    /* 스타일은 SNS 자료 위주로, 나머지는 전체에서 */
+    fill('styleList',   uniq(rows.filter(r => r.source_type === 'sns').map(r => r.keyword)));
+    fill('subList',     uniq(rows.map(r => r.sub_group)));
+    fill('accountList', uniq(rows.map(r => r.account)));
+  }catch(e){ console.warn('자동완성 목록 로드 실패:', e); }
+}
 
 async function loadBrandVocab(){
   try{
@@ -4293,6 +4176,7 @@ $('#brandAi')?.addEventListener('click', () => {
    ═══════════════════════════════════════════════════════════ */
 let MG_ROWS = [];
 let MG_SEL = new Set();
+let MG_EDIT = null;   /* 지금 수정 중인 항목 id (문자열로 보관) */
 
 async function loadManage(){
   await loadBrandVocab();
@@ -4331,53 +4215,173 @@ function drawManage(){
   const rows = mgFiltered();
   const TYPE = { news:'패션', lifestyle:'라이프', sns:'SNS' };
   $('#mgList').innerHTML = rows.length ? rows.map(r => `
-    <label style="display:flex; gap:10px; align-items:flex-start; padding:10px 12px; border:1px solid var(--hair);
-      border-radius:10px; margin-bottom:6px; background:${MG_SEL.has(r.id) ? '#fdf3ef' : 'var(--card)'}; cursor:pointer">
-      <input type="checkbox" data-id="${r.id}" ${MG_SEL.has(r.id) ? 'checked' : ''} style="margin-top:3px">
-      ${r.image_url ? `<img src="${r.image_url}" style="width:46px;height:60px;object-fit:cover;border-radius:6px;background:#efeae1" loading="lazy">` : ''}
-      <div style="flex:1; min-width:0">
-        <div style="font-weight:800; font-size:13px">${r.keyword || '(키워드 없음)'}</div>
-        <div class="mini" style="margin-top:2px">
-          ${TYPE[r.source_type] || r.source_type || '-'} · ${r.category || '-'} · ${r.sheet_month || '-'} · ${r.source || '-'} · ${r.author || '-'}
-        </div>
-        <div class="mini" style="margin-top:3px; opacity:.85">${(r.note || '').slice(0, 90)}${(r.note||'').length > 90 ? '…' : ''}</div>
-        ${(r.brands||[]).length ? `<div class="mini" style="margin-top:3px;color:#c8451f">${r.brands.join(' · ')}</div>` : ''}
+    <div class="mgRow${MG_SEL.has(String(r.id)) ? ' on' : ''}" data-row="${r.id}">
+      <input type="checkbox" data-id="${r.id}" ${MG_SEL.has(String(r.id)) ? 'checked' : ''}>
+      ${r.image_url
+        ? `<img src="${r.image_url}" loading="lazy" referrerpolicy="no-referrer">`
+        : '<div style="width:46px;height:60px;border-radius:6px;background:#efeae1"></div>'}
+      <div style="min-width:0">
+        <div class="mgTitle">${esc(r.keyword || '(키워드 없음)')}</div>
+        <div class="mgMeta">${esc(TYPE[r.source_type] || r.source_type || '-')} · ${esc(r.category || '-')} · ${esc(r.sheet_month || '-')} · ${esc(r.source || '-')} · ${esc(r.author || '-')}${(r.moods||[]).length ? ' · ' + esc(r.moods.join('/')) : ''}${r.account ? ' · ' + esc(r.account) : ''}${r.sub_group ? ' · #' + esc(r.sub_group) : ''}</div>
+        ${r.note ? `<div class="mgNote">${esc(String(r.note).slice(0, 110))}${String(r.note).length > 110 ? '…' : ''}</div>` : ''}
+        ${(r.brands||[]).length ? `<div class="mgBrands">${esc(r.brands.join(' · '))}</div>` : ''}
       </div>
-      ${r.url ? `<a href="${r.url}" target="_blank" rel="noopener" class="mini" style="white-space:nowrap">원문 ↗</a>` : ''}
-    </label>`).join('')
+      <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-end">
+        <button class="mgEdit" data-edit="${r.id}">수정</button>
+        ${r.url ? `<a href="${esc(r.url)}" target="_blank" rel="noopener" class="mgLink">원문 ↗</a>` : ''}
+      </div>
+    </div>
+    ${MG_EDIT === String(r.id) ? mgFormHTML(r) : ''}`).join('')
     : '<div class="mini" style="padding:20px">조건에 맞는 항목이 없습니다</div>';
   $('#mgCount').textContent = `${MG_SEL.size}개 선택 · 전체 ${rows.length}개`;
   $('#mgDelete').disabled = MG_SEL.size === 0;
 }
 
+/* 수정 폼 — 키워드·요약·카테고리·구분·귀속월·해시태그·브랜드·링크를 바로 고침 */
+function mgFormHTML(r){
+  const cats = ['라이프스타일', ...CATEGORIES];
+  return `<div class="mgForm" data-form="${String(r.id)}">
+    <div class="row">
+      <div style="max-width:150px"><label class="f">구분</label>
+        <select data-e="source_type">
+          <option value="news"${r.source_type==='news'?' selected':''}>패션 트렌드</option>
+          <option value="lifestyle"${r.source_type==='lifestyle'?' selected':''}>라이프스타일</option>
+          <option value="sns"${r.source_type==='sns'?' selected':''}>SNS 트렌드</option>
+        </select></div>
+      <div style="max-width:160px"><label class="f">카테고리</label>
+        <select data-e="category"><option value="">선택</option>
+          ${cats.map(c => `<option${r.category===c?' selected':''}>${esc(c)}</option>`).join('')}</select></div>
+      <div style="max-width:120px"><label class="f">귀속 월</label>
+        <input data-e="sheet_month" value="${esc(r.sheet_month || '')}" placeholder="2026-08"></div>
+      <div style="max-width:120px"><label class="f">작성자</label>
+        <input data-e="author" value="${esc(r.author || '')}"></div>
+      <div style="max-width:150px"><label class="f">매체</label>
+        <input data-e="source" value="${esc(r.source || '')}"></div>
+      <div style="max-width:90px"><label class="f">시장</label>
+        <input data-e="region" value="${esc(r.region || '')}"></div>
+    </div>
+    <div class="row">
+      <div style="flex:1; min-width:220px"><label class="f">키워드 (카드 제목)</label>
+        <input data-e="keyword" value="${esc(r.keyword || '')}"></div>
+    </div>
+    <div><label class="f">요약</label><textarea data-e="note">${esc(r.note || '')}</textarea></div>
+    <div class="row" style="margin-top:8px">
+      <div style="flex:1; min-width:220px"><label class="f">해시태그 — 쉼표로 구분</label>
+        <input data-e="tags" value="${esc((r.tags || []).join(', '))}" placeholder="예: retro, sneakers"></div>
+      <div style="flex:1; min-width:220px"><label class="f">브랜드 — 쉼표로 구분</label>
+        <input data-e="brands" value="${esc((r.brands || []).join(', '))}" placeholder="예: 나이키, 푸마"></div>
+      <div style="flex:1; min-width:220px"><label class="f">무드 — 쉼표로 구분</label>
+        <input data-e="moods" value="${esc((r.moods || []).join(', '))}" placeholder="예: 페미닌, 아웃도어"></div>
+      <div style="max-width:180px"><label class="f">하위 구분</label>
+        <input data-e="sub_group" list="subList" value="${esc(r.sub_group || '')}" placeholder="예: BOMBER"></div>
+      <div style="max-width:200px"><label class="f">계정</label>
+        <input data-e="account" list="accountList" value="${esc(r.account || '')}" placeholder="예: @ha.muu"></div>
+    </div>
+    <div class="row">
+      <div style="flex:1; min-width:260px"><label class="f">원문 URL</label>
+        <input data-e="url" value="${esc(r.url || '')}"></div>
+      <div style="flex:1; min-width:260px"><label class="f">이미지 URL</label>
+        <input data-e="image_url" value="${esc(r.image_url || '')}"></div>
+    </div>
+    <div class="btns">
+      <button class="btn sm" data-save="${r.id}">저장</button>
+      <button class="btn ghost sm" data-cancel="1">취소</button>
+      <span class="mini">저장하면 대시보드에 바로 반영됩니다</span>
+    </div>
+  </div>`;
+}
+
+/* 수정 버튼 / 저장 / 취소 */
+$('#mgList')?.addEventListener('click', e => {
+  const ed = e.target.closest('[data-edit]');
+  if(ed){ e.stopPropagation(); const eid = String(ed.dataset.edit); MG_EDIT = (MG_EDIT === eid) ? null : eid; drawManage(); return; }
+  const cancel = e.target.closest('[data-cancel]');
+  if(cancel){ e.stopPropagation(); MG_EDIT = null; drawManage(); return; }
+});
+
+$('#mgList')?.addEventListener('click', async e => {
+  const sv = e.target.closest('[data-save]'); if(!sv) return;
+  e.stopPropagation();
+  const id = String(sv.dataset.save);
+  const form = $(`.mgForm[data-form="${id}"]`); if(!form) return;
+  const val = k => { const el = form.querySelector(`[data-e="${k}"]`); return el ? el.value.trim() : ''; };
+  const list = v => v ? v.split(',').map(x => x.trim()).filter(Boolean) : null;
+  const patch = {
+    source_type: val('source_type') || null,
+    category:    val('category') || null,
+    sheet_month: val('sheet_month') || null,
+    author:      val('author') || null,
+    source:      val('source') || null,
+    region:      val('region') || null,
+    keyword:     val('keyword') || null,
+    note:        val('note') || null,
+    tags:        list(val('tags')),
+    brands:      list(val('brands')),
+    moods:       list(val('moods')),
+    sub_group:   val('sub_group') || null,
+    account:     val('account') || null,
+    url:         val('url') || null,
+    image_url:   val('image_url') || null,
+  };
+  if(!patch.keyword){ toast('키워드는 비워둘 수 없습니다'); return; }
+  busy(true, '저장 중…');
+  const { data: saved, error } = await sb.from('trend_signals').update(patch).eq('id', id).select('id');
+  busy(false);
+  if(error){ die(error, '수정 저장'); return; }
+  if(!saved || !saved.length){
+    alert('저장되지 않았습니다.\n\nSupabase에서 이 표의 수정 권한이 열려 있지 않은 것 같습니다.\nenable_edit_delete SQL을 한 번 실행해 주세요.');
+    return;
+  }
+  toast('저장했습니다');
+  MG_EDIT = null;
+  await loadManage();
+});
+
 $('#mgList')?.addEventListener('change', e => {
   const c = e.target.closest('input[data-id]'); if(!c) return;
-  const id = Number(c.dataset.id);
+  const id = String(c.dataset.id);
   if(c.checked) MG_SEL.add(id); else MG_SEL.delete(id);
+  drawManage();
+});
+/* 행 아무 곳이나 눌러도 선택 토글 (원문 링크·체크박스 클릭은 제외) */
+$('#mgList')?.addEventListener('click', e => {
+  if(e.target.closest('a') || e.target.closest('.mgForm') || e.target.closest('button')
+     || e.target.matches('input[type=checkbox]')) return;
+  const row = e.target.closest('.mgRow'); if(!row) return;
+  const id = String(row.dataset.row);
+  if(MG_SEL.has(id)) MG_SEL.delete(id); else MG_SEL.add(id);
   drawManage();
 });
 $('#mgType')?.addEventListener('change', drawManage);
 $('#mgMonth')?.addEventListener('change', drawManage);
 $('#mgSearch')?.addEventListener('input', drawManage);
 $('#mgReload')?.addEventListener('click', loadManage);
-$('#mgSelAll')?.addEventListener('click', () => { mgFiltered().forEach(r => MG_SEL.add(r.id)); drawManage(); });
+$('#mgSelAll')?.addEventListener('click', () => { mgFiltered().forEach(r => MG_SEL.add(String(r.id))); drawManage(); });
 $('#mgSelNone')?.addEventListener('click', () => { MG_SEL.clear(); drawManage(); });
 
 $('#mgDelete')?.addEventListener('click', async () => {
   const ids = [...MG_SEL];
   if(!ids.length) return;
-  const names = MG_ROWS.filter(r => ids.includes(r.id)).map(r => r.keyword || '(키워드 없음)');
+  const names = MG_ROWS.filter(r => ids.includes(String(r.id))).map(r => r.keyword || '(키워드 없음)');
   if(!confirm(`${ids.length}개 항목을 삭제합니다.\n\n${names.slice(0,5).join('\n')}${names.length>5 ? `\n… 외 ${names.length-5}개` : ''}\n\n되돌릴 수 없습니다. 진행할까요?`)) return;
   busy(true, '삭제 중…');
-  const { error } = await sb.from('trend_signals').delete().in('id', ids);
+  /* .select()를 붙이면 실제로 지워진 행이 돌아온다 —
+     권한이 없으면 오류 없이 0건으로 끝나므로 반드시 확인해야 한다 */
+  const { data: gone, error } = await sb.from('trend_signals').delete().in('id', ids).select('id');
   busy(false);
   if(error){ die(error, '삭제'); return; }
-  toast(`${ids.length}개 삭제했습니다`);
+  if(!gone || !gone.length){
+    alert('삭제되지 않았습니다.\n\nSupabase에서 이 표의 삭제 권한이 열려 있지 않은 것 같습니다.\nenable_edit_delete SQL을 한 번 실행해 주세요.');
+    return;
+  }
+  toast(`${gone.length}개 삭제했습니다`);
+  MG_SEL.clear();
   await loadManage();
 });
 
 
 loadBrandVocab();
+loadSnsSuggest();
 drawBrandChips();
 
 boot();
