@@ -243,7 +243,7 @@ tr.krow{cursor:pointer} tr.krow:hover{background:#faf6ec}
 .ovPeriod{display:inline-block; vertical-align:middle; margin-left:10px; font-family:'Noto Sans KR', sans-serif;
   font-size:11px; font-weight:700; letter-spacing:.04em; color:var(--acc);
   background:#fdf3ef; border:1px solid #f1d9cf; padding:3px 10px; border-radius:20px}
-.scatterWrap{padding:4px 0 2px}
+.scatterWrap{flex:1 1 100%; width:100%; padding:4px 0 2px}
 .scatterTop{display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:4px}
 .yToggle{display:inline-flex; border:1px solid var(--tx); border-radius:20px; overflow:hidden}
 .yToggle button{border:0; background:#fff; color:var(--sub); padding:4px 14px; cursor:pointer;
@@ -321,7 +321,7 @@ a{color:var(--acc)}
 </head>
 <body>
 <header>
-  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260808-04</span></h1>
+  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260808-05</span></h1>
   <a href="index.html" id="backLink" style="font-size:11px;letter-spacing:.12em;font-weight:700;color:var(--acc);text-decoration:none;border:1px solid var(--acc);padding:6px 12px">← DASHBOARD</a>
   <div class="mrange">
     <label>기간</label>
@@ -373,7 +373,7 @@ a{color:var(--acc)}
 
 <script src="config.js"></script>
 <script type="module">
-console.log("TREND AGENT signal.html v260808-04");
+console.log("TREND AGENT signal.html v260808-05");
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ══ 설정 — 다른 파일들과 같은 값 ══ */
@@ -1249,33 +1249,33 @@ function tagScatterHTML(ranked, gridSel){
   const maxY = Math.max(...pts.map(yOf), TAG_Y === 'share' ? 10 : 2);
   const maxC = Math.max(...pts.map(p => p.count), 1);
 
-  const W = 900, H = 380, padL = 44, padR = 24, padT = 18, padB = 34;
+  const W = 1000, H = 460, padL = 52, padR = 28, padT = 24, padB = 40;
   const plotW = W - padL - padR, plotH = H - padT - padB;
   const xAt = ym => months.length === 1
     ? padL + plotW / 2
     : padL + plotW * (months.indexOf(ym) / (months.length - 1));
   const yAt = v => padT + plotH * (1 - v / maxY);
   /* 같은 자리에 겹치지 않게 태그 이름으로 살짝 흩뿌린다 */
-  const jitter = t => { let h = 0; for(const ch of t) h = (h * 31 + ch.charCodeAt(0)) % 97; return (h / 97 - 0.5) * 26; };
+  const jitter = t => { let h = 0; for(const ch of t) h = (h * 31 + ch.charCodeAt(0)) % 97; return (h / 97 - 0.5) * 46; };
 
   const ticks = 4;
   let svg = `<svg viewBox="0 0 ${W} ${H}" style="width:100%; height:auto; display:block" role="img">`;
   for(let i = 0; i <= ticks; i++){
     const v = maxY * i / ticks, y = yAt(v);
     svg += `<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="#e9e3d8" stroke-width="1"/>`;
-    svg += `<text x="${padL-8}" y="${y+3}" font-size="9" fill="#a99f90" text-anchor="end">${
+    svg += `<text x="${padL-10}" y="${y+4}" font-size="12" fill="#a99f90" text-anchor="end">${
       TAG_Y === 'share' ? v.toFixed(0) + '%' : v.toFixed(0)}</text>`;
   }
   for(const m of months){
     const x = xAt(m);
     svg += `<line x1="${x}" y1="${padT}" x2="${x}" y2="${padT+plotH}" stroke="#f2ede4" stroke-width="1"/>`;
-    svg += `<text x="${x}" y="${H-12}" font-size="9.5" fill="#a99f90" text-anchor="middle">${esc(m.replace('-', '.'))}</text>`;
+    svg += `<text x="${x}" y="${H-14}" font-size="12.5" fill="#8a8578" text-anchor="middle">${esc(m.replace('-', '.'))}</text>`;
   }
 
   /* 큰 것부터 그려서 작은 원이 위에 오도록 */
   const sorted = [...pts].sort((a,b) => b.count - a.count);
   for(const p of sorted){
-    const r = 7 + 30 * Math.sqrt(p.count / maxC);
+    const r = 12 + 40 * Math.sqrt(p.count / maxC);
     const x = xAt(p.ym) + jitter(p.tag);
     const y = yAt(yOf(p));
     const on = tagFilter === p.tag;
@@ -1288,12 +1288,13 @@ function tagScatterHTML(ranked, gridSel){
         ((p.count / Math.max(monthTotal.get(p.ym) || 1, 1)) * 100).toFixed(1)}% · 카테고리 ${p.cats.size}개</title></circle>`;
   }
   /* 큰 원에만 이름 표시 */
-  for(const p of sorted.slice(0, 8)){
-    const r = 7 + 30 * Math.sqrt(p.count / maxC);
-    if(r < 16) continue;
+  for(const p of sorted){
+    const r = 12 + 40 * Math.sqrt(p.count / maxC);
+    if(r < 22) continue;                     /* 이름이 들어갈 만큼 큰 원에만 */
     const x = xAt(p.ym) + jitter(p.tag), y = yAt(yOf(p));
-    svg += `<text x="${x.toFixed(1)}" y="${(y+3).toFixed(1)}" font-size="10.5" font-weight="700"
-      fill="#3d4650" text-anchor="middle" pointer-events="none">#${esc(p.tag)}</text>`;
+    const fs = Math.max(11, Math.min(15, r / 2.6));
+    svg += `<text x="${x.toFixed(1)}" y="${(y + fs/3).toFixed(1)}" font-size="${fs.toFixed(1)}" font-weight="700"
+      fill="#2f3740" text-anchor="middle" pointer-events="none">#${esc(p.tag)}</text>`;
   }
   svg += '</svg>';
 
