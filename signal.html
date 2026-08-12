@@ -132,14 +132,16 @@ tr.krow{cursor:pointer} tr.krow:hover{background:#faf6ec}
 .bubble .bc{color:var(--sub)}
 .bubble.top{background:var(--tx); border-color:var(--tx)}
 .bubble.top .bn, .bubble.top .bc{color:#fff}
-.kwgrid{display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:14px; margin-top:14px}
-@media (max-width:640px){ .kwgrid{grid-template-columns:1fr} }
+.kwgrid{display:grid; grid-template-columns:repeat(5, minmax(0, 1fr)); gap:14px; margin-top:14px}
+@media (max-width:1100px){ .kwgrid{grid-template-columns:repeat(4, minmax(0, 1fr))} }
+@media (max-width:900px){ .kwgrid{grid-template-columns:repeat(3, minmax(0, 1fr))} }
+@media (max-width:640px){ .kwgrid{grid-template-columns:repeat(2, minmax(0, 1fr))} }
 .kwgrid .kwcard{width:100%; min-width:0; box-sizing:border-box; overflow:hidden}
 .kwcard{background:var(--card); border:1px solid var(--hair); border-radius:10px; padding:14px; position:relative;
   display:flex; flex-direction:column}
 .kwcard .kwphotowrap{position:relative; width:calc(100% + 28px); margin:-14px -14px 10px; overflow:hidden}
 .kwcard .kwphotowrap .authorline{position:absolute; left:0; right:0; bottom:0; height:4px}
-.kwcard .kwphoto{width:100%; display:block; height:300px; object-fit:cover; background:#efeae1;
+.kwcard .kwphoto{width:100%; display:block; aspect-ratio:3/4; object-fit:cover; background:#efeae1;
   border-radius:10px 10px 0 0}
 .kwcard .kwdate{position:absolute; top:10px; left:10px; font-size:9px; font-weight:800; color:#fff;
   background:rgba(0,0,0,.55); padding:2px 7px; border-radius:8px; letter-spacing:.02em}
@@ -365,7 +367,7 @@ a{color:var(--acc)}
 </head>
 <body>
 <header>
-  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260808-12</span></h1>
+  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260808-13</span></h1>
   <a href="index.html" id="backLink" style="font-size:11px;letter-spacing:.12em;font-weight:700;color:var(--acc);text-decoration:none;border:1px solid var(--acc);padding:6px 12px">← DASHBOARD</a>
   <div class="mrange">
     <label>기간</label>
@@ -423,7 +425,7 @@ a{color:var(--acc)}
 
 <script src="config.js"></script>
 <script type="module">
-console.log("TREND AGENT signal.html v260808-12");
+console.log("TREND AGENT signal.html v260808-13");
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ══ 설정 — 다른 파일들과 같은 값 ══ */
