@@ -276,6 +276,38 @@ circle.sc:hover{fill-opacity:.8}
 .snsShot figcaption{font-size:10.5px; color:var(--sub); margin-top:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 .snsShot figcaption a{color:var(--sub); text-decoration:none}
 .snsShot figcaption a:hover{color:var(--acc); text-decoration:underline}
+/* 대표 6장 그리드 + 펼치기 */
+.snsCover{display:grid; grid-template-columns:repeat(3, 1fr); gap:10px}
+.snsStyle.has-full{cursor:pointer}
+.snsStyle .snsFull{display:none; margin-top:2px}
+.snsStyle.expanded .snsCover{display:none}
+.snsStyle.expanded .snsFull{display:block}
+.snsExpandHint{font-size:10px; font-weight:700; color:var(--acc); text-align:center; margin-top:10px; opacity:.8}
+.snsStyle.has-full .snsExpandHint::after{content:'눌러서 전체 보기 ▾'}
+.snsStyle.has-full.expanded .snsExpandHint::after{content:'접기 ▴'}
+/* 순서 편집 툴바 */
+.snsTools{display:inline-flex; gap:6px; margin-left:auto}
+.snsToolBtn{font-size:10.5px; font-weight:800; color:var(--sub); background:#fff; border:1px solid var(--hair);
+  border-radius:20px; padding:3px 12px; cursor:pointer}
+.snsToolBtn:hover{border-color:var(--acc); color:var(--acc)}
+.snsToolBtn.primary{background:var(--acc); border-color:var(--acc); color:#fff}
+/* 편집 모드 */
+.snsStyle.editing{cursor:default; outline:1px dashed transparent}
+.snsStyle.editing.dragging{opacity:.4}
+.snsStyle.editing.dragover{outline-color:var(--acc)}
+.snsStyle .dragdot{font-size:13px; color:var(--sub); cursor:grab; margin-right:2px; user-select:none}
+.snsEditGrid{display:grid; grid-template-columns:repeat(6, 1fr); gap:8px; margin-top:8px}
+@media(max-width:900px){ .snsEditGrid{grid-template-columns:repeat(4, 1fr)} }
+.snsEditShot{position:relative; margin:0; cursor:grab}
+.snsEditShot.dragging{opacity:.4}
+.snsEditShot.dragover{outline:2px solid var(--acc); outline-offset:1px; border-radius:8px}
+.snsEditShot img{width:100%; aspect-ratio:3/4; object-fit:cover; border-radius:8px; background:#efeae1; display:block; pointer-events:none}
+.snsEditShot figcaption{font-size:9px; color:var(--sub); margin-top:3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.coverStar{position:absolute; top:5px; left:5px; width:22px; height:22px; border-radius:50%; border:0;
+  background:rgba(0,0,0,.5); color:#fff; font-size:12px; line-height:22px; cursor:pointer; padding:0}
+.snsEditShot.iscover .coverStar{background:var(--acc); color:#fff}
+.snsEditShot.iscover img{outline:2px solid var(--acc); outline-offset:-2px; border-radius:8px}
+.snsEditNote{font-size:10px; color:var(--sub); margin:2px 0 10px}
 .bubbleTabs{display:flex; gap:4px; margin:2px 0 8px}
 .bubbleTabs button{font-size:10px; font-weight:800; letter-spacing:.03em; padding:4px 11px; border-radius:20px;
   background:#f2efe9; border:1px solid #e2ddd3; color:#6b6357; cursor:pointer; font-family:inherit}
@@ -333,7 +365,7 @@ a{color:var(--acc)}
 </head>
 <body>
 <header>
-  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260808-11</span></h1>
+  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260808-12</span></h1>
   <a href="index.html" id="backLink" style="font-size:11px;letter-spacing:.12em;font-weight:700;color:var(--acc);text-decoration:none;border:1px solid var(--acc);padding:6px 12px">← DASHBOARD</a>
   <div class="mrange">
     <label>기간</label>
@@ -369,7 +401,13 @@ a{color:var(--acc)}
     </div>
 
     <div class="srcBlock" id="snsBlock">
-      <h4 class="srcTitle">SNS 트렌드 <span id="snsCnt" class="srcCnt"></span></h4>
+      <h4 class="srcTitle">SNS 트렌드 <span id="snsCnt" class="srcCnt"></span>
+        <span class="snsTools" id="snsTools">
+          <button class="snsToolBtn" id="snsEditBtn">순서 편집</button>
+          <button class="snsToolBtn primary" id="snsSaveBtn" style="display:none">저장</button>
+          <button class="snsToolBtn" id="snsCancelBtn" style="display:none">취소</button>
+        </span>
+      </h4>
       <div class="sub">인스타 릴스 등 바이럴 콘텐츠에 실제로 달린 해시태그 언급 빈도순 — 이미지는 아직 수집되지 않아 텍스트로만 표시돼요</div>
       <div class="bubbleWrap" id="snsBubble"></div>
       <div class="kwgrid" id="snsKwGrid"></div>
@@ -385,7 +423,7 @@ a{color:var(--acc)}
 
 <script src="config.js"></script>
 <script type="module">
-console.log("TREND AGENT signal.html v260808-11");
+console.log("TREND AGENT signal.html v260808-12");
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ══ 설정 — 다른 파일들과 같은 값 ══ */
@@ -954,10 +992,13 @@ async function loadTrendSignals(){
       } else if(r.source_type === 'sns'){
         SB_SNS.push({ id: r.id, category: REV_CAT_LABEL[r.category] || r.category || 'etc', keyword: r.keyword,
           note: r.note || '', url: r.url, image_url: r.image_url, extra_images: r.extra_images || [], source: r.source, region: r.region,
-          author: r.author, tags: r.tags || [], ym: ymOf(r) });
+          author: r.author, tags: r.tags || [], ym: ymOf(r),
+          account: r.account || '', sub_group: r.sub_group || '',
+          photo_order: (r.photo_order ?? null), is_cover: !!r.is_cover });
       }
     }
     _KNOWN_CACHE = null;   /* 키워드 목록이 바뀌었으므로 캐시 초기화 */
+    await loadSnsStyleOrder();
     buildMonthOptions();
     renderStatic();
     try{ window.parent.postMessage('ta-signals-updated', '*'); }catch(e){}
@@ -972,6 +1013,28 @@ window.imgFail = function(img){
 };
 
 let scatF = 'lifestyle';
+/* SNS 순서 편집 — 스타일(박스) 순서는 sns_style_order 테이블에, 사진 순서·대표는 trend_signals 에 저장 */
+let SNS_EDIT = false;
+const SNS_STYLE_ORDER = {};                 /* 'category|keyword' → sort_order */
+const styleKey = (cat, kw) => `${cat}|${kw}`;
+async function loadSnsStyleOrder(){
+  try{
+    const { data } = await sb.from('sns_style_order').select('category,keyword,sort_order');
+    for(const k in SNS_STYLE_ORDER) delete SNS_STYLE_ORDER[k];
+    for(const r of (data || [])) SNS_STYLE_ORDER[styleKey(r.category, r.keyword)] = r.sort_order;
+  }catch(e){ /* 테이블이 아직 없으면 정렬은 기본값(사진 많은 순) */ }
+}
+/* 가벼운 안내 토스트 (없으면 만들어 씀) */
+function toast(msg){
+  let el = document.getElementById('taToast');
+  if(!el){
+    el = document.createElement('div'); el.id = 'taToast';
+    el.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#2f3740;color:#fff;font-size:12px;font-weight:700;padding:8px 16px;border-radius:20px;z-index:9999;opacity:0;transition:opacity .2s;pointer-events:none';
+    document.body.appendChild(el);
+  }
+  el.textContent = msg; el.style.opacity = '1';
+  clearTimeout(el._t); el._t = setTimeout(() => { el.style.opacity = '0'; }, 2200);
+}
 let tagFilter = null;   /* 선택한 해시태그 (null이면 전체) */
 
 function drawCatBar(){
@@ -1747,57 +1810,97 @@ function snsStyleCardsHTML(items){
     if(it.ym) e.months.add(it.ym);
     for(const t of (it.tags || [])) e.tags.add(t);
   }
-  const list = [...styles.values()].sort((a,b) => b.items.length - a.items.length);
+  /* 사진 순서: photo_order 오름차순(없으면 뒤로, 그 안은 등록순 유지) */
+  const photoSort = (a, b) => {
+    const ao = a.photo_order, bo = b.photo_order;
+    if(ao == null && bo == null) return 0;
+    if(ao == null) return 1;
+    if(bo == null) return -1;
+    return ao - bo;
+  };
+  for(const st of styles.values()) st.items.sort(photoSort);
+
+  /* 박스(스타일) 순서: 저장된 순서 우선, 없으면 사진 많은 순 뒤에 */
+  const ord = st => {
+    const v = SNS_STYLE_ORDER[styleKey(scatF, st.label)];
+    return v == null ? Infinity : v;
+  };
+  const list = [...styles.values()].sort((a, b) => (ord(a) - ord(b)) || (b.items.length - a.items.length));
+
+  const shotHTML = x => `
+      <figure class="snsShot">
+        ${x.url
+          ? `<a href="${esc(x.url)}" target="_blank" rel="noopener"><img src="${esc(x.image_url || '')}" alt="" loading="lazy"
+               referrerpolicy="no-referrer" onerror="imgFail(this)"></a>`
+          : `<img src="${esc(x.image_url || '')}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="imgFail(this)">`}
+        <figcaption>${x.account
+          ? `<a href="https://www.instagram.com/${esc(String(x.account).replace(/^@/, ''))}/" target="_blank" rel="noopener">${esc(x.account)}</a>`
+          : '<span class="mini">계정 미입력</span>'}</figcaption>
+      </figure>`;
 
   return list.map(st => {
-    /* 하위 구분별로 묶기 — 구분이 없으면 한 줄로 */
+    const months = [...st.months].sort().join(', ');
+    const tags = [...st.tags].slice(0, 6);
+    const tagRow = tags.length ? `<div class="tagrow">${tags.map(t =>
+      `<button class="tagchip${tagFilter === t ? ' on' : ''}" data-tag="${esc(t)}">#${esc(t)}</button>`).join('')}</div>` : '';
+
+    /* ── 편집 모드: 전체 사진을 한 그리드에 두고 드래그로 순서 변경 + ★ 로 대표 지정 ── */
+    if(SNS_EDIT){
+      const shots = st.items.map(x => `
+        <figure class="snsEditShot${x.is_cover ? ' iscover' : ''}" draggable="true" data-id="${esc(String(x.id))}">
+          <button class="coverStar" title="대표로 지정(최대 6장)">★</button>
+          <img src="${esc(x.image_url || '')}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="imgFail(this)">
+          <figcaption>${x.account ? esc(x.account) : '계정 미입력'}</figcaption>
+        </figure>`).join('');
+      return `<article class="snsStyle editing" draggable="true" data-kwlabel="${esc(st.label)}">
+        <header>
+          <span class="dragdot">⠿</span>
+          <h4>${esc(st.label)}</h4>
+          <span class="mini">사진 ${st.items.length}장${months ? ' · ' + esc(months) : ''}</span>
+        </header>
+        <div class="snsEditNote">박스를 드래그해 제목 순서를, 사진을 드래그해 사진 순서를 바꿔요 · ★ 는 메인에 보일 대표(최대 6장)</div>
+        <div class="snsEditGrid">${shots}</div>
+      </article>`;
+    }
+
+    /* ── 보기 모드: 대표(★) 사진, 없으면 앞에서부터 최대 6장. 박스를 누르면 전체 펼침 ── */
+    let cover = st.items.filter(x => x.is_cover).slice(0, 6);
+    if(!cover.length) cover = st.items.slice(0, 6);
+    const hasFull = st.items.length > cover.length;
+
+    /* 펼침 영역 — 하위 구분이 있으면 그룹 헤더로 나눠 전체 표시 */
     const groups = new Map();
     for(const it of st.items){
       const g = (it.sub_group || '').trim();
       if(!groups.has(g)) groups.set(g, []);
       groups.get(g).push(it);
     }
-    const months = [...st.months].sort().join(', ');
-    const tags = [...st.tags].slice(0, 6);
+    const full = [...groups.entries()]
+      .sort((a, b) => (a[0] ? 0 : 1) - (b[0] ? 0 : 1) || b[1].length - a[1].length)
+      .map(([g, shots]) => `${g ? `<div class="snsSub">#${esc(g)}</div>` : ''}<div class="snsRow">${shots.map(shotHTML).join('')}</div>`)
+      .join('');
 
-    const shotHTML = x => `
-            <figure class="snsShot">
-              ${x.url
-                ? `<a href="${esc(x.url)}" target="_blank" rel="noopener">
-                     <img src="${esc(x.image_url || '')}" alt="" loading="lazy"
-                          referrerpolicy="no-referrer" onerror="imgFail(this)"></a>`
-                : `<img src="${esc(x.image_url || '')}" alt="" loading="lazy"
-                        referrerpolicy="no-referrer" onerror="imgFail(this)">`}
-              <figcaption>${x.account
-                ? `<a href="https://www.instagram.com/${esc(String(x.account).replace(/^@/, ''))}/"
-                      target="_blank" rel="noopener">${esc(x.account)}</a>`
-                : '<span class="mini">계정 미입력</span>'}</figcaption>
-            </figure>`;
-
-    const rows = [...groups.entries()]
-      .sort((a,b) => (a[0] ? 0 : 1) - (b[0] ? 0 : 1) || b[1].length - a[1].length)
-      .map(([g, shots], gi) => {
-        const head = shots.slice(0, 4), rest = shots.slice(4);
-        const gid = `${st.label}-${g || 'x'}-${gi}`.replace(/[^\w가-힣-]/g, '_');
-        return `
-        ${g ? `<div class="snsSub">#${esc(g)}</div>` : ''}
-        <div class="snsRow">${head.map(shotHTML).join('')}</div>
-        ${rest.length ? `
-          <div class="snsRow snsRest" data-rest="${esc(gid)}" style="display:none">${rest.map(shotHTML).join('')}</div>
-          <button class="snsMore" data-more="${esc(gid)}">+ ${rest.length}장 더보기</button>` : ''}`;
-      }).join('');
-
-    return `<article class="snsStyle" data-kwlabel="${esc(st.label)}">
+    return `<article class="snsStyle${hasFull ? ' has-full' : ''}" data-kwlabel="${esc(st.label)}">
       <header>
         <h4>${esc(st.label)}</h4>
         <span class="mini">사진 ${st.items.length}장${months ? ' · ' + esc(months) : ''}</span>
       </header>
-      ${tags.length ? `<div class="tagrow">${tags.map(t =>
-        `<button class="tagchip${tagFilter === t ? ' on' : ''}" data-tag="${esc(t)}">#${esc(t)}</button>`).join('')}</div>` : ''}
-      ${rows}
+      ${tagRow}
+      <div class="snsCover">${cover.map(shotHTML).join('')}</div>
+      <div class="snsFull">${full}</div>
+      ${hasFull ? '<div class="snsExpandHint"></div>' : ''}
     </article>`;
   }).join('');
 }
+
+/* SNS 카드(박스)를 누르면 그 제목으로 등록된 사진 전체가 펼쳐진다.
+   링크·태그칩·사진 클릭은 각자 동작. 편집 모드에서는 펼치기를 끈다. */
+document.addEventListener('click', e => {
+  if(SNS_EDIT) return;
+  if(e.target.closest('a, button, .tagrow, .tagchip')) return;
+  const card = e.target.closest('.snsStyle.has-full'); if(!card) return;
+  card.classList.toggle('expanded');
+});
 
 function drawSnsForCat(){
   const items = SB_SNS.filter(s => s.category === scatF && visible(s));
@@ -1817,7 +1920,104 @@ function drawSnsForCat(){
   const more = $('#snsMoreBtn'); if(more) more.style.display = 'none';
   const moreList = $('#snsKwMore'); if(moreList) moreList.innerHTML = '';
   $('#snsGenericNote').textContent = '';
+
+  /* 편집 버튼 상태 */
+  const canEdit = items.length > 0;
+  $('#snsEditBtn').style.display   = (canEdit && !SNS_EDIT) ? '' : 'none';
+  $('#snsSaveBtn').style.display   = SNS_EDIT ? '' : 'none';
+  $('#snsCancelBtn').style.display = SNS_EDIT ? '' : 'none';
+
+  /* 편집 모드면 드래그 정렬 + 대표 지정 연결 */
+  if(SNS_EDIT && items.length){
+    makeSortable(sg, '.snsStyle');                                  // 박스(제목) 순서
+    sg.querySelectorAll('.snsEditGrid').forEach(g => makeSortable(g, '.snsEditShot')); // 사진 순서
+  }
 }
+
+/* 드래그로 순서를 바꾸는 최소 구현 — 그리드·세로 스택 모두 대응.
+   자기 컨테이너의 직속 항목이 드래그 중일 때만 반응해 사진↔박스가 섞이지 않게 한다. */
+function makeSortable(container, itemSel){
+  container.querySelectorAll(':scope > ' + itemSel).forEach(el => {
+    el.addEventListener('dragstart', e => { el.classList.add('dragging'); e.stopPropagation(); e.dataTransfer.effectAllowed = 'move'; });
+    el.addEventListener('dragend',   e => { el.classList.remove('dragging'); e.stopPropagation();
+      container.querySelectorAll('.dragover').forEach(x => x.classList.remove('dragover')); });
+  });
+  container.addEventListener('dragover', e => {
+    const dragging = container.querySelector(':scope > ' + itemSel + '.dragging'); if(!dragging) return;
+    e.preventDefault(); e.stopPropagation();
+    const after = dragAfter(container, itemSel, e.clientX, e.clientY);
+    container.querySelectorAll('.dragover').forEach(x => x.classList.remove('dragover'));
+    if(after){ after.classList.add('dragover'); container.insertBefore(dragging, after); }
+    else container.appendChild(dragging);
+  });
+}
+function dragAfter(container, itemSel, x, y){
+  const els = [...container.querySelectorAll(':scope > ' + itemSel + ':not(.dragging)')];
+  let best = null, bestD = Infinity;
+  for(const el of els){
+    const r = el.getBoundingClientRect();
+    const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    const beforeThis = (y < cy - 1) || (Math.abs(y - cy) <= r.height / 2 && x < cx);
+    if(!beforeThis) continue;
+    const d = Math.hypot(cx - x, cy - y);
+    if(d < bestD){ bestD = d; best = el; }
+  }
+  return best;
+}
+
+/* ★ 대표 지정 토글 — 카드마다 최대 6장 */
+document.addEventListener('click', e => {
+  const star = e.target.closest('.coverStar'); if(!star) return;
+  e.preventDefault(); e.stopPropagation();
+  const shot = star.closest('.snsEditShot'); if(!shot) return;
+  const grid = shot.closest('.snsEditGrid');
+  if(!shot.classList.contains('iscover') && grid.querySelectorAll('.snsEditShot.iscover').length >= 6){
+    toast?.('대표 사진은 최대 6장까지예요'); return;
+  }
+  shot.classList.toggle('iscover');
+});
+
+/* 편집 시작 / 취소 / 저장 */
+$('#snsEditBtn')?.addEventListener('click', () => { SNS_EDIT = true;  drawSnsForCat(); });
+$('#snsCancelBtn')?.addEventListener('click', () => { SNS_EDIT = false; drawSnsForCat(); });
+$('#snsSaveBtn')?.addEventListener('click', async () => {
+  const sg = $('#snsKwGrid');
+  /* 박스(제목) 순서 */
+  const cards = [...sg.querySelectorAll('.snsStyle')];
+  const styleRows = cards.map((c, i) => ({ category: scatF, keyword: c.dataset.kwlabel, sort_order: i }));
+  /* 사진 순서 + 대표 */
+  const photo = [];
+  cards.forEach(c => {
+    [...c.querySelectorAll('.snsEditShot')].forEach((s, j) => {
+      photo.push({ id: s.dataset.id, photo_order: j, is_cover: s.classList.contains('iscover') });
+    });
+  });
+
+  $('#snsSaveBtn').textContent = '저장 중…'; $('#snsSaveBtn').disabled = true;
+  try{
+    const { error: e1 } = await sb.from('sns_style_order').upsert(styleRows, { onConflict: 'category,keyword' });
+    if(e1) throw e1;
+    /* 사진은 행마다 update (RLS update 권한 필요) */
+    const res = await Promise.all(photo.map(p =>
+      sb.from('trend_signals').update({ photo_order: p.photo_order, is_cover: p.is_cover }).eq('id', p.id).select('id')));
+    const failed = res.filter(r => r.error || !(r.data && r.data.length));
+    if(failed.length) throw new Error(`사진 ${failed.length}건이 저장되지 않았습니다 (권한/RLS 확인)`);
+
+    /* 로컬 상태도 즉시 반영 */
+    for(const r of styleRows) SNS_STYLE_ORDER[styleKey(r.category, r.keyword)] = r.sort_order;
+    const byId = new Map(photo.map(p => [String(p.id), p]));
+    for(const it of SB_SNS){ const p = byId.get(String(it.id)); if(p){ it.photo_order = p.photo_order; it.is_cover = p.is_cover; } }
+
+    toast?.('순서를 저장했습니다');
+    SNS_EDIT = false;
+  }catch(err){
+    console.error(err);
+    alert('저장 실패: ' + (err.message || err) + '\n\nsns_ordering.sql 을 실행했는지, trend_signals UPDATE 권한이 있는지 확인해주세요.');
+  }finally{
+    $('#snsSaveBtn').textContent = '저장'; $('#snsSaveBtn').disabled = false;
+    drawSnsForCat();
+  }
+});
 
 /* 라이프스타일 — 비슷한 키워드는 테마로 묶어서 보여줌 (카테고리 필터와 무관하게 항상 전체 표시) */
 const LIFESTYLE_THEME_MAP = {
