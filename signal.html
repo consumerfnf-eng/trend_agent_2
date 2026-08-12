@@ -264,7 +264,9 @@ tr.krow{cursor:pointer} tr.krow:hover{background:#faf6ec}
 .yToggle button.on{background:var(--tx); color:#fff}
 circle.sc{transition:fill-opacity .15s}
 circle.sc:hover{fill-opacity:.8}
-.snsWrap{display:block}
+.snsWrap{display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:16px; align-items:start}
+.snsWrap .snsStyle{margin-bottom:0}
+@media (max-width:760px){ .snsWrap{grid-template-columns:1fr} }
 .snsMore{margin-top:8px; font-size:11px; font-weight:800; color:var(--sub); background:none;
   border:1px solid var(--hair); border-radius:20px; padding:4px 12px; cursor:pointer; font-family:inherit}
 .snsMore:hover{border-color:var(--acc); color:var(--acc)}
@@ -298,8 +300,8 @@ circle.sc:hover{fill-opacity:.8}
 .snsStyle.editing.dragging{opacity:.4}
 .snsStyle.editing.dragover{outline-color:var(--acc)}
 .snsStyle .dragdot{font-size:13px; color:var(--sub); cursor:grab; margin-right:2px; user-select:none}
-.snsEditGrid{display:grid; grid-template-columns:repeat(6, 1fr); gap:8px; margin-top:8px}
-@media(max-width:900px){ .snsEditGrid{grid-template-columns:repeat(4, 1fr)} }
+.snsEditGrid{display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; margin-top:8px}
+@media(max-width:900px){ .snsEditGrid{grid-template-columns:repeat(3, 1fr)} }
 .snsEditShot{position:relative; margin:0; cursor:grab}
 .snsEditShot.dragging{opacity:.4}
 .snsEditShot.dragover{outline:2px solid var(--acc); outline-offset:1px; border-radius:8px}
@@ -367,7 +369,7 @@ a{color:var(--acc)}
 </head>
 <body>
 <header>
-  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260808-13</span></h1>
+  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260808-14</span></h1>
   <a href="index.html" id="backLink" style="font-size:11px;letter-spacing:.12em;font-weight:700;color:var(--acc);text-decoration:none;border:1px solid var(--acc);padding:6px 12px">← DASHBOARD</a>
   <div class="mrange">
     <label>기간</label>
@@ -425,7 +427,7 @@ a{color:var(--acc)}
 
 <script src="config.js"></script>
 <script type="module">
-console.log("TREND AGENT signal.html v260808-13");
+console.log("TREND AGENT signal.html v260808-14");
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ══ 설정 — 다른 파일들과 같은 값 ══ */
