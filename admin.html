@@ -243,7 +243,7 @@ tbody tr:hover{background:#fdfcf9}
             border:1px solid var(--hair); border-radius:20px; padding:5px 13px; font-size:11px;
             font-weight:800; letter-spacing:.03em; margin-right:14px; background:#fff">← 대시보드</a>
   <h1>TREND <em>AGENT</em></h1>
-  <span class="mini" id="verStamp" style="margin-left:8px;opacity:.55">v260808-01</span>
+  <span class="mini" id="verStamp" style="margin-left:8px;opacity:.55">v260808-02</span>
   <div class="tabs" id="tabs">
     <button data-v="intake" class="on">업로드</button>
     <button data-v="manage">등록 관리</button>
@@ -925,7 +925,7 @@ $('#logout').onclick = async () => { await sb.auth.signOut(); location.reload();
 async function loadAll(){
   /* 예전 스키마(entities/sources/brands/celebs/aliases)는 새 프로젝트에 없음 —
      지금 폼엔 필요 없어서 건너뜀. "소스"만 고정 목록으로 채움 */
-  $('#source').innerHTML = ['런웨이 리포트','매거진','INSTAGRAM','TIKTOK','X','WEB']
+  $('#source').innerHTML = ['런웨이 리포트','매거진','셀럽 착장','INSTAGRAM','TIKTOK','X','WEB']
     .map(s => `<option value="${s}">${s}</option>`).join('');
   if(!window._gubunInit){ window._gubunInit = true; applyGubun(); }
   $('#ym').value = ymNow();
@@ -1259,6 +1259,20 @@ drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add(
 drop.addEventListener('dragleave', () => drop.classList.remove('over'));
 drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('over'); intake(e.dataTransfer.files); });
 fileInp.addEventListener('change', e => intake(e.target.files));
+
+/* 웹에서 Ctrl+C 한 이미지를 이 화면에서 바로 Ctrl+V 로 붙여넣으면 드롭한 것과 똑같이 큐에 담긴다.
+   클립보드에 이미지가 있을 때만 가로채고, 일반 텍스트 붙여넣기는 그대로 둔다. */
+document.addEventListener('paste', e => {
+  const items = e.clipboardData?.items; if(!items) return;
+  const files = [];
+  for(const it of items){
+    if(it.kind === 'file' && it.type.startsWith('image/')){ const f = it.getAsFile(); if(f) files.push(f); }
+  }
+  if(!files.length) return;
+  e.preventDefault();
+  intake(files);
+  if(typeof toast === 'function') toast(`붙여넣기 — 이미지 ${files.length}장 추가`);
+});
 
 /* 동영상 첫 프레임 → jpeg blob */
 function videoFrame(file){
