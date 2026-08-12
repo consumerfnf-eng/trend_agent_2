@@ -132,16 +132,14 @@ tr.krow{cursor:pointer} tr.krow:hover{background:#faf6ec}
 .bubble .bc{color:var(--sub)}
 .bubble.top{background:var(--tx); border-color:var(--tx)}
 .bubble.top .bn, .bubble.top .bc{color:#fff}
-.kwgrid{display:grid; grid-template-columns:repeat(5, minmax(0, 1fr)); gap:14px; margin-top:14px}
-@media (max-width:1100px){ .kwgrid{grid-template-columns:repeat(4, minmax(0, 1fr))} }
-@media (max-width:900px){ .kwgrid{grid-template-columns:repeat(3, minmax(0, 1fr))} }
-@media (max-width:640px){ .kwgrid{grid-template-columns:repeat(2, minmax(0, 1fr))} }
+.kwgrid{display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:14px; margin-top:14px}
+@media (max-width:640px){ .kwgrid{grid-template-columns:1fr} }
 .kwgrid .kwcard{width:100%; min-width:0; box-sizing:border-box; overflow:hidden}
 .kwcard{background:var(--card); border:1px solid var(--hair); border-radius:10px; padding:14px; position:relative;
   display:flex; flex-direction:column}
 .kwcard .kwphotowrap{position:relative; width:calc(100% + 28px); margin:-14px -14px 10px; overflow:hidden}
 .kwcard .kwphotowrap .authorline{position:absolute; left:0; right:0; bottom:0; height:4px}
-.kwcard .kwphoto{width:100%; display:block; aspect-ratio:3/4; object-fit:cover; background:#efeae1;
+.kwcard .kwphoto{width:100%; display:block; height:300px; object-fit:cover; background:#efeae1;
   border-radius:10px 10px 0 0}
 .kwcard .kwdate{position:absolute; top:10px; left:10px; font-size:9px; font-weight:800; color:#fff;
   background:rgba(0,0,0,.55); padding:2px 7px; border-radius:8px; letter-spacing:.02em}
@@ -149,6 +147,17 @@ tr.krow{cursor:pointer} tr.krow:hover{background:#faf6ec}
   background:rgba(0,0,0,.55); padding:2px 7px; border-radius:8px}
 .kwcard .kwsrc{position:absolute; bottom:10px; right:10px; font-size:9px; font-weight:800; color:#fff;
   background:rgba(0,0,0,.55); padding:2px 7px; border-radius:8px}
+/* 펼칠 수 있는 카드 — 박스를 누르면 숨은 사진·전체 설명이 나온다 */
+.kwcard.has-more{cursor:pointer}
+.kwcard .morebadge{position:absolute; bottom:10px; left:10px; font-size:9px; font-weight:800; color:#fff;
+  background:rgba(200,69,31,.85); padding:2px 8px; border-radius:20px; letter-spacing:.02em}
+.kwcard .kwmore{display:none; margin-top:10px}
+.kwcard.expanded .kwmore{display:block}
+.kwcard .kwmoreimgs{display:grid; grid-template-columns:repeat(3, 1fr); gap:6px}
+.kwcard .kwmoreimgs img{width:100%; height:118px; object-fit:cover; border-radius:6px; background:#efeae1}
+.kwcard .kwmorehint{font-size:9.5px; font-weight:700; color:var(--acc); text-align:center; margin-top:9px; opacity:.8}
+.kwcard.has-more .kwmorehint::after{content:'눌러서 전체 보기 ▾'}
+.kwcard.has-more.expanded .kwmorehint::after{content:'접기 ▴'}
 /* 여러 기사가 묶인 카드 — 사진은 단일 카드와 같은 크기로, 가로로 넘겨봄 */
 .kwcard .kwslidewrap{position:relative; width:calc(100% + 28px); margin:-14px -14px 10px}
 .kwcard .kwslides{display:flex; overflow-x:auto; scroll-snap-type:x mandatory; scrollbar-width:none; scroll-behavior:smooth}
@@ -273,7 +282,9 @@ circle.sc:hover{fill-opacity:.8}
 .bubbleTabs button.on{background:var(--tx); border-color:var(--tx); color:#fff}
 .kwcard .kwname{font-size:15px; font-weight:800; margin-bottom:4px; line-height:1.3}
 .kwcard .kwmeta{font-size:10.5px; color:var(--acc); font-weight:700; margin-bottom:8px}
-.kwcard .kwex{font-size:11px; color:var(--sub); line-height:1.5}
+.kwcard .kwex{font-size:11px; color:var(--sub); line-height:1.5;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden}
+.kwcard.expanded .kwex{-webkit-line-clamp:unset; overflow:visible}
 .kwcard a.kwlink{font-size:10.5px; font-weight:700; color:var(--acc); text-decoration:none; display:inline-block; margin-top:6px}
 .kwcard .volbar{height:5px; border-radius:3px; background:#f3ede3; overflow:hidden; margin:8px 0}
 .kwcard .volbar i{display:block; height:100%; border-radius:3px; background:var(--acc)}
@@ -322,7 +333,7 @@ a{color:var(--acc)}
 </head>
 <body>
 <header>
-  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260808-09</span></h1>
+  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260808-11</span></h1>
   <a href="index.html" id="backLink" style="font-size:11px;letter-spacing:.12em;font-weight:700;color:var(--acc);text-decoration:none;border:1px solid var(--acc);padding:6px 12px">← DASHBOARD</a>
   <div class="mrange">
     <label>기간</label>
@@ -374,7 +385,7 @@ a{color:var(--acc)}
 
 <script src="config.js"></script>
 <script type="module">
-console.log("TREND AGENT signal.html v260808-09");
+console.log("TREND AGENT signal.html v260808-11");
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ══ 설정 — 다른 파일들과 같은 값 ══ */
@@ -933,16 +944,16 @@ async function loadTrendSignals(){
       if(String(r.source || '').trim() === '사내 리포트') continue;
       if(r.source_type === 'news'){
         SB_NEWS.push({ id: r.id, url: r.url, note: r.keyword, category: REV_CAT_LABEL[r.category] || r.category || 'etc',
-          keywords: [r.keyword], summary: r.note || '', image_url: r.image_url, stage: 'early',
+          keywords: [r.keyword], summary: r.note || '', image_url: r.image_url, extra_images: r.extra_images || [], stage: 'early',
           source: r.source, region: r.region, author: r.author, tags: r.tags || [], ym: ymOf(r) });
       } else if(r.source_type === 'lifestyle'){
         SB_LIFESTYLE.push({ id: r.id, url: r.url, note: r.keyword, category: 'lifestyle',
-          keywords: [r.keyword], summary: r.note || '', image_url: r.image_url, stage: 'early',
+          keywords: [r.keyword], summary: r.note || '', image_url: r.image_url, extra_images: r.extra_images || [], stage: 'early',
           related: r.related || null, related_keyword: r.related_keyword || '', related_note: r.related_note || '',
           source: r.source, region: r.region, author: r.author, tags: r.tags || [], ym: ymOf(r) });
       } else if(r.source_type === 'sns'){
         SB_SNS.push({ id: r.id, category: REV_CAT_LABEL[r.category] || r.category || 'etc', keyword: r.keyword,
-          note: r.note || '', url: r.url, image_url: r.image_url, source: r.source, region: r.region,
+          note: r.note || '', url: r.url, image_url: r.image_url, extra_images: r.extra_images || [], source: r.source, region: r.region,
           author: r.author, tags: r.tags || [], ym: ymOf(r) });
       }
     }
@@ -1112,8 +1123,10 @@ function itemCardHTML(entry, it){
   const text = isSns ? (it.content || '') : (it.summary || it.note || '');
   const link = isSns ? it.post_url : it.url;
   const linkLabel = isSns ? '게시물 보기' : '원문 보기';
-  const snippet = text.length > 110 ? text.slice(0, 110) + '…' : text;
   const authorColor = it.author ? (AUTHOR_COLOR[it.author] || 'var(--acc)') : null;
+  /* 한 게시물에 여러 장 올린 경우 — 대표 외 나머지는 펼쳤을 때 보여준다 */
+  const extra = (it.extra_images || []).filter(Boolean);
+  const hasMore = extra.length > 0 || text.length > 90;
 
   /* 정방향: 라이프스타일 카드 → 연결된 패션 카테고리 키워드 */
   const fwd = scatF === 'lifestyle'
@@ -1141,7 +1154,7 @@ function itemCardHTML(entry, it){
         `<button class="tagchip${tagFilter === t ? ' on' : ''}" data-tag="${esc(t)}">#${esc(t)}</button>`).join('')}${editBtn}</div>`
     : '';
 
-  return `<div class="kwcard" data-kwlabel="${esc(entry.label)}">
+  return `<div class="kwcard${hasMore ? ' has-more' : ''}" data-kwlabel="${esc(entry.label)}">
     <div class="kwphotowrap">
       ${it.image_url
         ? `<img class="kwphoto" src="${esc(it.image_url)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="imgFail(this)">`
@@ -1149,12 +1162,16 @@ function itemCardHTML(entry, it){
       ${it.ym ? `<div class="kwdate">${esc(it.ym)}</div>` : ''}
       ${it.region ? `<div class="kwregion">${esc(it.region)}</div>` : ''}
       ${it.source ? `<div class="kwsrc">${esc(it.source)}</div>` : ''}
+      ${extra.length ? `<div class="morebadge">+${extra.length}장</div>` : ''}
       ${authorColor ? `<div class="authorline" style="background:${authorColor}"></div>` : ''}
     </div>
     <div class="kwname">${esc(entry.label)}</div>
-    ${text ? `<div class="kwex">${esc(snippet)}</div>` : ''}
+    ${text ? `<div class="kwex">${esc(text)}</div>` : ''}
+    ${extra.length ? `<div class="kwmore"><div class="kwmoreimgs">${extra.map(u =>
+        `<img src="${esc(u)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="imgFail(this)">`).join('')}</div></div>` : ''}
     ${link ? `<a class="kwlink" href="${esc(link)}" target="_blank" rel="noopener">${linkLabel} →</a>` : ''}
     ${tagRow}${rel}${back}
+    ${hasMore ? `<div class="kwmorehint"></div>` : ''}
   </div>`;
 }
 
@@ -1170,6 +1187,14 @@ function flatCardsHTML(ranked){
   cards.sort((a,b) => (b.ym || '0').localeCompare(a.ym || '0'));
   return cards.map(({entry, it}) => itemCardHTML(entry, it)).join('');
 }
+
+/* 카드(박스)를 누르면 펼쳐서 숨은 사진·전체 설명을 보여준다.
+   링크·태그·연결 배지 등에서 시작한 클릭은 각자 동작하도록 제외한다. */
+document.addEventListener('click', e => {
+  if(e.target.closest('a, button, .tagrow, .tagchip, .relbadge, .kwmoreimgs')) return;
+  const card = e.target.closest('.kwcard.has-more'); if(!card) return;
+  card.classList.toggle('expanded');
+});
 
 /* 언급 건수 기준 버블 요약 — 카드 위에 표시, 카테고리/섹션이 바뀔 때마다 새로 계산됨(정적 아님).
    1건 언급은 "겹침"이 아니라서 버블에서는 제외하고, 카드 목록에는 그대로 나옴 */
@@ -1289,15 +1314,6 @@ function tagScatterHTML(ranked, gridSel){
     const c = Math.ceil(name.length / 2);
     return [name.slice(0, c), name.slice(c)];
   };
-  const fitLabel = (name, r, target) => {
-    const one = Math.min(target, (2 * r * 0.84) / Math.max(name.length * 0.56, 1), 2 * r * 0.72);
-    if(one >= 5.4) return { lines: [name], fs: one };
-    const lines = wrapTag(name);
-    const maxLen = Math.max(...lines.map(l => l.length), 1);
-    const fs = Math.min(target, (2 * r * 0.88) / (maxLen * 0.56), (2 * r * 0.80) / 2.15);
-    return { lines, fs: Math.max(fs, 4.8) };
-  };
-
   /* 반지름은 언급량에 비례하되, 칸 폭 안에 들어오게 상한을 둔다 */
   const rMax = Math.max(28, Math.min(colW * 0.46, 84));
   const rMin = Math.min(15, rMax * 0.5);
@@ -1317,10 +1333,32 @@ function tagScatterHTML(ranked, gridSel){
     if(a > colArea) n.r *= Math.sqrt(colArea / a);
   }
 
-  /* 최종 반지름에 맞춰 라벨(줄·글씨) 확정 */
-  for(const n of nodes){
-    const lab = fitLabel('#' + n.p.tag, n.r, 14);
-    n.lines = lab.lines; n.fs = lab.fs;
+  /* 글씨 크기도 언급량(=원 크기)을 따르게 — 반지름에 비례한 목표에서 시작해 원 안에 맞춘다 */
+  {
+    const rs = nodes.map(n => n.r);
+    const rlo = Math.min(...rs), rhi = Math.max(...rs);
+    const fsLo = 7.5, fsHi = 19;
+    const fsTargetOf = r => rhi > rlo ? fsLo + (r - rlo) / (rhi - rlo) * (fsHi - fsLo) : (fsLo + fsHi) / 2;
+    /* signal 줄은 태그보다 작게(0.7배) 두므로 그 폭도 함께 고려해 태그 글씨 상한을 정한다 */
+    const fitFor = (r, tagLines, cntLen, target) => {
+      const maxTagLen = Math.max(...tagLines.map(l => l.length), 1);
+      const nL = tagLines.length;
+      const wTag = (2 * r * 0.84) / (maxTagLen * 0.56);
+      const wCnt = (2 * r * 0.84) / (cntLen * 0.56 * 0.7);
+      const hLim = (2 * r * 0.82) / (nL + 0.7);
+      return Math.min(target, wTag, wCnt, hLim);
+    };
+    for(const n of nodes){
+      const name = '#' + n.p.tag;
+      const cnt = 'signal ' + n.p.count;
+      const target = fsTargetOf(n.r);
+      const two = wrapTag(name);
+      const fsA = fitFor(n.r, [name], cnt.length, target);
+      const fsB = two.length === 2 ? fitFor(n.r, two, cnt.length, target) : -1;
+      if(fsB > fsA){ n.tagLines = two; n.tagfs = Math.max(fsB, 4.6); }
+      else { n.tagLines = [name]; n.tagfs = Math.max(fsA, 4.6); }
+      n.cnt = cnt;
+    }
   }
 
   /* 초기 배치 후 겹치지 않게 밀어내기 — 칸 안, 세로 범위 안으로 가둠 */
@@ -1366,17 +1404,21 @@ function tagScatterHTML(ranked, gridSel){
       data-tagbubble="${esc(p.tag)}" data-target="${gridSel}" style="cursor:pointer">
       <title>#${esc(p.tag)} · ${esc(p.ym)} · ${p.count}건 · 카테고리 ${p.cats.size}개</title></circle>`;
   }
-  /* 라벨은 항상 원 안에 (한 줄 또는 두 줄, 세로 중앙 정렬) */
+  /* 라벨은 항상 원 안에 — 태그명(1~2줄) + 그 아래 signal 건수, 세로 중앙 정렬 */
   for(const n of nodes){
-    const fill = n.r >= 22 ? '#273039' : '#3a4048';
-    const nL = n.lines.length;
-    const y0 = n.y - (nL - 1) * n.fs * 0.55 + n.fs * 0.34;
-    let tspan = '';
-    n.lines.forEach((ln, k) => {
-      tspan += `<tspan x="${n.x.toFixed(1)}" y="${(y0 + k * n.fs * 1.05).toFixed(1)}">${esc(ln)}</tspan>`;
-    });
-    svg += `<text font-size="${n.fs.toFixed(1)}" font-weight="700" fill="${fill}"
-      text-anchor="middle" pointer-events="none">${tspan}</text>`;
+    const mainFill = n.r >= 22 ? '#273039' : '#3a4048';
+    const lines = [
+      ...n.tagLines.map(t => ({ t, fs: n.tagfs, fill: mainFill, w: 700 })),
+      { t: n.cnt, fs: n.tagfs * 0.7, fill: '#5b6570', w: 600 },
+    ];
+    const lh = l => l.fs * 1.06;
+    const totalH = lines.reduce((s, l) => s + lh(l), 0);
+    let acc = n.y - totalH / 2, tspan = '';
+    for(const l of lines){
+      acc += lh(l);
+      tspan += `<tspan x="${n.x.toFixed(1)}" y="${(acc - l.fs * 0.28).toFixed(1)}" font-size="${l.fs.toFixed(1)}" font-weight="${l.w}" fill="${l.fill}">${esc(l.t)}</tspan>`;
+    }
+    svg += `<text text-anchor="middle" pointer-events="none">${tspan}</text>`;
   }
   svg += '</svg>';
 
