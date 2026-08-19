@@ -243,7 +243,7 @@ tbody tr:hover{background:#fdfcf9}
             border:1px solid var(--hair); border-radius:20px; padding:5px 13px; font-size:11px;
             font-weight:800; letter-spacing:.03em; margin-right:14px; background:#fff">← 대시보드</a>
   <h1>TREND <em>AGENT</em></h1>
-  <span class="mini" id="verStamp" style="margin-left:8px;opacity:.55">v260808-04</span>
+  <span class="mini" id="verStamp" style="margin-left:8px;opacity:.55">v260808-05</span>
   <div class="tabs" id="tabs">
     <button data-v="intake" class="on">업로드</button>
     <button data-v="manage">등록 관리</button>
@@ -4254,9 +4254,26 @@ function drawManage(){
   $('#mgDelete').disabled = MG_SEL.size === 0;
 }
 
+/* 수정 폼의 사진(대표+extra_images) 편집 상태 — id별 URL 배열 */
+const MG_PHOTOS = {};
+function mgPhotoStrip(id){
+  const arr = MG_PHOTOS[id] || [];
+  if(!arr.length) return '<span class="mini" style="align-self:center">사진 없음 — 오른쪽에서 추가하세요</span>';
+  return arr.map((u, i) => `
+    <div style="position:relative; width:64px; height:84px; border-radius:8px; overflow:hidden; background:#efeae1;${i===0 ? ' outline:2px solid #c8451f; outline-offset:-2px' : ''}">
+      <img src="${esc(u)}" referrerpolicy="no-referrer" style="width:100%; height:100%; object-fit:cover" onerror="this.style.visibility='hidden'">
+      ${i===0
+        ? '<span style="position:absolute; left:3px; bottom:3px; font-size:8px; font-weight:800; color:#fff; background:#c8451f; padding:1px 5px; border-radius:8px">대표</span>'
+        : `<button class="btn ghost" data-cover="${id}:${i}" style="position:absolute; left:3px; bottom:3px; font-size:8px; padding:1px 5px" title="대표로 설정">대표로</button>`}
+      <button class="btn ghost" data-del="${id}:${i}" style="position:absolute; top:2px; right:2px; width:18px; height:18px; padding:0; font-size:11px; line-height:1; border-radius:50%" title="이 사진 빼기">✕</button>
+    </div>`).join('');
+}
+
 /* 수정 폼 — 키워드·요약·카테고리·구분·귀속월·해시태그·브랜드·링크를 바로 고침 */
 function mgFormHTML(r){
   const cats = ['라이프스타일', ...CATEGORIES];
+  const rid = String(r.id);
+  if(!(rid in MG_PHOTOS)) MG_PHOTOS[rid] = [r.image_url, ...((r.extra_images) || [])].filter(Boolean);
   return `<div class="mgForm" data-form="${String(r.id)}">
     <div class="row">
       <div style="max-width:150px"><label class="f">구분</label>
@@ -4297,22 +4314,16 @@ function mgFormHTML(r){
     <div class="row">
       <div style="flex:1; min-width:260px"><label class="f">원문 URL</label>
         <input data-e="url" value="${esc(r.url || '')}"></div>
-      <div style="flex:1; min-width:260px"><label class="f">이미지 URL</label>
-        <input data-e="image_url" value="${esc(r.image_url || '')}"></div>
     </div>
-    <div class="row" style="align-items:center; gap:14px">
-      <div>
-        <label class="f">사진</label>
-        <div style="width:64px; height:84px; border-radius:8px; background:#efeae1; overflow:hidden; display:flex; align-items:center; justify-content:center">
-          <img data-preview="${r.id}" src="${esc(r.image_url || '')}" referrerpolicy="no-referrer"
-               style="width:100%; height:100%; object-fit:cover${r.image_url ? '' : '; visibility:hidden'}"
-               onerror="this.style.visibility='hidden'">
+    <div style="margin-top:8px">
+      <label class="f">사진 — 여러 장 가능 · 맨 앞이 대표(넘겨볼 때 첫 장)</label>
+      <div class="row" style="align-items:flex-end; gap:12px">
+        <div data-photos="${r.id}" style="display:flex; gap:8px; flex-wrap:wrap; min-height:84px">${mgPhotoStrip(String(r.id))}</div>
+        <div>
+          <input type="file" accept="image/*" multiple data-addfile="${r.id}" style="display:none">
+          <button class="btn ghost sm" data-addpick="${r.id}">＋ 사진 추가</button>
+          <div class="mini" data-imgstatus="${r.id}" style="margin-top:4px">추가·삭제·대표 변경 후 저장을 눌러야 반영돼요</div>
         </div>
-      </div>
-      <div style="align-self:flex-end; padding-bottom:2px">
-        <input type="file" accept="image/*" data-imgfile="${r.id}" style="display:none">
-        <button class="btn ghost sm" data-imgpick="${r.id}">사진 다시 올리기</button>
-        <div class="mini" data-imgstatus="${r.id}" style="margin-top:4px">사진이 안 보이면 새로 올린 뒤 저장하세요</div>
       </div>
     </div>
     <div class="btns">
@@ -4323,42 +4334,43 @@ function mgFormHTML(r){
   </div>`;
 }
 
-/* 수정 버튼 / 저장 / 취소 */
+/* 수정 버튼 / 저장 / 취소 + 사진 추가·삭제·대표지정 */
 $('#mgList')?.addEventListener('click', e => {
-  const pick = e.target.closest('[data-imgpick]');
-  if(pick){ e.stopPropagation(); const f = $(`input[data-imgfile="${pick.dataset.imgpick}"]`); if(f) f.click(); return; }
+  const addp = e.target.closest('[data-addpick]');
+  if(addp){ e.stopPropagation(); const f = $(`input[data-addfile="${addp.dataset.addpick}"]`); if(f) f.click(); return; }
+  const del = e.target.closest('[data-del]');
+  if(del){ e.stopPropagation(); const [id, i] = del.dataset.del.split(':'); (MG_PHOTOS[id] || []).splice(+i, 1); mgRedrawPhotos(id); return; }
+  const cov = e.target.closest('[data-cover]');
+  if(cov){ e.stopPropagation(); const [id, i] = cov.dataset.cover.split(':'); const arr = MG_PHOTOS[id] || []; const [m] = arr.splice(+i, 1); if(m) arr.unshift(m); mgRedrawPhotos(id); return; }
   const ed = e.target.closest('[data-edit]');
-  if(ed){ e.stopPropagation(); const eid = String(ed.dataset.edit); MG_EDIT = (MG_EDIT === eid) ? null : eid; drawManage(); return; }
+  if(ed){ e.stopPropagation(); const eid = String(ed.dataset.edit); if(MG_EDIT && MG_EDIT !== eid) delete MG_PHOTOS[MG_EDIT]; delete MG_PHOTOS[eid]; MG_EDIT = (MG_EDIT === eid) ? null : eid; drawManage(); return; }
   const cancel = e.target.closest('[data-cancel]');
-  if(cancel){ e.stopPropagation(); MG_EDIT = null; drawManage(); return; }
+  if(cancel){ e.stopPropagation(); if(MG_EDIT) delete MG_PHOTOS[MG_EDIT]; MG_EDIT = null; drawManage(); return; }
 });
+function mgRedrawPhotos(id){ const box = $(`[data-photos="${id}"]`); if(box) box.innerHTML = mgPhotoStrip(String(id)); }
 
-/* 사진 다시 올리기 — 파일을 스토리지에 올리고 이미지 URL 칸을 채운다 (저장을 눌러야 반영) */
+/* 사진 추가 — 여러 장 스토리지에 올리고 사진 목록에 붙인다 (저장을 눌러야 반영) */
 $('#mgList')?.addEventListener('change', async e => {
-  const inp = e.target.closest('input[data-imgfile]'); if(!inp) return;
-  const id = String(inp.dataset.imgfile);
-  const file = inp.files && inp.files[0]; if(!file) return;
-  const form = $(`.mgForm[data-form="${id}"]`);
+  const inp = e.target.closest('input[data-addfile]'); if(!inp) return;
+  const id = String(inp.dataset.addfile);
+  const files = [...(inp.files || [])]; if(!files.length) return;
   const status = $(`[data-imgstatus="${id}"]`);
-  const preview = $(`[data-preview="${id}"]`);
-  const urlInput = form && form.querySelector('[data-e="image_url"]');
-  try{
-    if(status) status.textContent = '업로드 중…';
-    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
-    const path = `edit/${id}/${Date.now()}.${ext}`;
-    const { error } = await sb.storage.from('trend-images').upload(path, file, { contentType: file.type || 'image/jpeg', upsert: true });
-    if(error) throw error;
-    const url = sb.storage.from('trend-images').getPublicUrl(path).data.publicUrl;
-    if(urlInput) urlInput.value = url;
-    if(preview){ preview.src = url; preview.style.visibility = 'visible'; }
-    if(status) status.textContent = '업로드 완료 · 저장을 눌러 반영하세요';
-  }catch(err){
-    console.error(err);
-    if(status) status.textContent = '업로드 실패';
-    alert('이미지 업로드 실패: ' + (err.message || err) + '\n\ntrend-images 스토리지 접근 권한을 확인해주세요.');
-  }finally{
-    inp.value = '';   // 같은 파일 다시 선택 가능하게
+  MG_PHOTOS[id] = MG_PHOTOS[id] || [];
+  let done = 0;
+  for(const file of files){
+    try{
+      if(status) status.textContent = `업로드 중… ${done+1}/${files.length}`;
+      const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
+      const path = `edit/${id}/${Date.now()}_${done}.${ext}`;
+      const { error } = await sb.storage.from('trend-images').upload(path, file, { contentType: file.type || 'image/jpeg', upsert: true });
+      if(error) throw error;
+      MG_PHOTOS[id].push(sb.storage.from('trend-images').getPublicUrl(path).data.publicUrl);
+      done++;
+      mgRedrawPhotos(id);
+    }catch(err){ console.error(err); alert('이미지 업로드 실패: ' + (err.message || err) + '\n\ntrend-images 스토리지 접근 권한을 확인해주세요.'); }
   }
+  if(status) status.textContent = done ? `${done}장 추가됨 · 저장을 눌러 반영하세요` : '업로드 실패';
+  inp.value = '';   // 같은 파일 다시 선택 가능하게
 });
 
 $('#mgList')?.addEventListener('click', async e => {
@@ -4383,7 +4395,8 @@ $('#mgList')?.addEventListener('click', async e => {
     sub_group:   val('sub_group') || null,
     account:     val('account') || null,
     url:         val('url') || null,
-    image_url:   val('image_url') || null,
+    image_url:   (MG_PHOTOS[id] || [])[0] || null,
+    extra_images: (MG_PHOTOS[id] || []).slice(1),
   };
   if(!patch.keyword){ toast('키워드는 비워둘 수 없습니다'); return; }
   busy(true, '저장 중…');
@@ -4395,6 +4408,7 @@ $('#mgList')?.addEventListener('click', async e => {
     return;
   }
   toast('저장했습니다');
+  delete MG_PHOTOS[id];
   MG_EDIT = null;
   await loadManage();
 });
