@@ -243,7 +243,7 @@ tbody tr:hover{background:#fdfcf9}
             border:1px solid var(--hair); border-radius:20px; padding:5px 13px; font-size:11px;
             font-weight:800; letter-spacing:.03em; margin-right:14px; background:#fff">← 대시보드</a>
   <h1>TREND <em>AGENT</em></h1>
-  <span class="mini" id="verStamp" style="margin-left:8px;opacity:.55">v260808-03</span>
+  <span class="mini" id="verStamp" style="margin-left:8px;opacity:.55">v260808-04</span>
   <div class="tabs" id="tabs">
     <button data-v="intake" class="on">업로드</button>
     <button data-v="manage">등록 관리</button>
@@ -1495,16 +1495,17 @@ $('#saveAsOnePost').onclick = async () => {
   const tgt = picked();
   if(tgt.length < 2) return toast('사진을 2장 이상 선택하세요');
 
-  const head = tgt[0];
-  if(!head.meta.keyword) return toast('첫 번째 사진에 키워드를 입력해주세요 (그 값이 게시물 제목이 됩니다)');
-  if(!confirm(`${tgt.length}장을 한 게시물로 등록합니다.\n\n제목: ${head.meta.keyword}\n\n첫 번째 사진의 입력값이 대표로 쓰이고, 나머지 사진은 같은 카드 안에서 넘겨보게 됩니다.`)) return;
+  const head = tgt.find(x => x.meta.keyword) || tgt[0];
+  if(!head.meta.keyword) return toast('선택한 사진 중 최소 한 장에 키워드(제목)를 입력해주세요');
+  if(!confirm(`${tgt.length}장을 한 게시물로 등록합니다.\n\n제목: ${head.meta.keyword}\n\n대표 사진(키워드가 있는 사진)이 먼저 보이고, 나머지 사진은 같은 카드 안에서 넘겨보게 됩니다.`)) return;
 
-  /* 사진 전부 업로드 */
+  /* 대표 사진을 맨 앞에 두고 사진 전부 업로드 */
+  const ordered = [head, ...tgt.filter(x => x !== head)];
   const urls = [];
-  for(let i = 0; i < tgt.length; i++){
-    const it = tgt[i];
+  for(let i = 0; i < ordered.length; i++){
+    const it = ordered[i];
     if(it.meta.image_url){ urls.push(it.meta.image_url); continue; }
-    busy(true, `이미지 업로드 중… ${i+1}/${tgt.length}`);
+    busy(true, `이미지 업로드 중… ${i+1}/${ordered.length}`);
     try{
       const path = `${$('#sigType').value}/${ymNow()}/${it.hash}.jpg`;
       const { error: upErr } = await sb.storage.from('trend-images')
@@ -1515,17 +1516,19 @@ $('#saveAsOnePost').onclick = async () => {
   }
   if(!urls.length){ busy(false); return toast('이미지 업로드에 모두 실패했습니다'); }
 
+  /* 대표 입력값이 비어 있으면 선택한 다른 사진에서 값을 빌려온다 */
+  const pick = f => { const h = tgt.find(x => x.meta[f]); return h ? h.meta[f] : null; };
   busy(true, '등록 중…');
   const row = {
     source_type: $('#sigType').value,
-    category:    head.meta.category || null,
+    category:    head.meta.category || pick('category') || null,
     keyword:     head.meta.keyword,
-    sub_group:   head.meta.sub_group || null,
-    account:     head.meta.account || null,
-    url:         head.meta.source_url || null,
+    sub_group:   head.meta.sub_group || pick('sub_group') || null,
+    account:     head.meta.account || pick('account') || null,
+    url:         head.meta.source_url || pick('source_url') || null,
     image_url:   urls[0],
     extra_images: urls.slice(1),
-    note:        head.meta.note || null,
+    note:        head.meta.note || pick('note') || null,
     source:      $('#source').value || null,
     region:      $('#region').value || null,
     author:      $('#author').value || null,
