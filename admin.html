@@ -243,7 +243,7 @@ tbody tr:hover{background:#fdfcf9}
             border:1px solid var(--hair); border-radius:20px; padding:5px 13px; font-size:11px;
             font-weight:800; letter-spacing:.03em; margin-right:14px; background:#fff">← 대시보드</a>
   <h1>TREND <em>AGENT</em></h1>
-  <span class="mini" id="verStamp" style="margin-left:8px;opacity:.55">v260808-05</span>
+  <span class="mini" id="verStamp" style="margin-left:8px;opacity:.55">v260808-06</span>
   <div class="tabs" id="tabs">
     <button data-v="intake" class="on">업로드</button>
     <button data-v="manage">등록 관리</button>
@@ -1337,8 +1337,7 @@ function renderImgCards(){
       <input type="checkbox" class="pick" ${it.sel?'checked':''} title="선택">
       <button class="x" title="빼기">×</button>
       <img class="thumb" src="${it.preview}" alt="">
-      <input data-k="source_url" type="url" placeholder="원문 URL (선택)">
-      <input data-k="image_url" type="url" placeholder="이미지 URL — 실제 링크 있으면 여기에 (비워두면 캡처 사진이 자동 업로드됨)">
+      <input data-k="source_url" type="url" placeholder="원문 URL (선택) — 게시물 링크만 연결, 사진은 올린 파일을 그대로 씀">
       <div class="row">
         <div style="max-width:160px"><label class="f">카테고리</label>
           <select data-k="category"><option value="">선택</option>
