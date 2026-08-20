@@ -204,6 +204,15 @@ tr.krow{cursor:pointer} tr.krow:hover{background:#faf6ec}
 .cmHead{font-family:'Cormorant Garamond', serif; font-size:38px; font-weight:600; color:var(--tx); margin-bottom:4px}
 .cmSub{font-size:12px; color:var(--sub); margin-bottom:14px}
 .cmChips{display:flex; flex-wrap:wrap; gap:6px; padding-bottom:18px; border-bottom:1px solid var(--hair); margin-bottom:20px}
+.cmMergeBar{display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin:0 0 18px; padding:10px 12px;
+  background:#faf6f2; border:1px solid var(--hair); border-radius:10px}
+.cmMergeBar .cmMergeLabel{font-size:11px; font-weight:800; color:var(--acc)}
+.cmMergeBar input{font:inherit; font-size:12px; border:1px solid var(--hair); border-radius:8px; padding:5px 9px; background:#fff}
+.cmMergeBar .cmMergeFrom{flex:1; min-width:220px}
+.cmMergeBar .cmMergeTo{width:150px}
+.cmMergeBar .cmMergeArrow{font-weight:800; color:var(--sub)}
+.cmMergeBar .go{border:0; background:var(--acc); color:#fff; font-weight:800; font-size:12px; border-radius:8px; padding:6px 14px; cursor:pointer}
+.cmMergeBar .cmMergeMsg{flex-basis:100%}
 .cmChip{cursor:pointer}
 .cmChip:hover{outline:2px solid var(--acc); outline-offset:1px}
 .cmEditBar{font-size:11px; color:var(--sub); margin:6px 0 14px}
@@ -284,6 +293,16 @@ circle.sc:hover{fill-opacity:.8}
 .snsCover{display:grid; grid-template-columns:repeat(3, 1fr); gap:10px}
 .snsRegion{display:inline-block; font-size:9.5px; font-weight:800; letter-spacing:.04em; color:#fff;
   background:#8d9aa8; padding:2px 8px; border-radius:20px; vertical-align:middle}
+/* 사진마다 표시하는 시장 뱃지 */
+.snsCoverCell{position:relative; margin:0}
+.snsCoverCap{font-size:10px; color:var(--sub); margin-top:5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.snsCoverCap a{color:var(--sub); text-decoration:none}
+.snsCoverCap a:hover{color:var(--acc); text-decoration:underline}
+.snsShotRegion{position:absolute; top:5px; left:5px; z-index:1; font-size:9px; font-weight:800; letter-spacing:.03em;
+  color:#fff; background:rgba(0,0,0,.6); padding:2px 6px; border-radius:6px}
+.snsShotSource{position:absolute; top:5px; right:5px; z-index:1; font-size:8.5px; font-weight:800; letter-spacing:.02em;
+  color:#fff; background:rgba(140,69,31,.72); padding:2px 6px; border-radius:6px; max-width:66%;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 .snsCoverImg{width:100%; aspect-ratio:3/4; object-fit:cover; border-radius:8px; background:#efeae1; display:block}
 .snsStyle.clickable{cursor:pointer}
 .snsNote{font-size:11.5px; color:var(--sub); line-height:1.5; margin:2px 0 8px;
@@ -300,13 +319,17 @@ circle.sc:hover{fill-opacity:.8}
 .snsModalX:hover{border-color:var(--acc); color:var(--acc)}
 .snsModalHead{display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin:0 34px 10px 0}
 .snsModalHead h3{font-size:19px; font-weight:800; margin:0}
+.snsModalTitleInput{font-size:19px; font-weight:800; color:var(--tx); border:1px solid transparent;
+  border-radius:8px; padding:3px 8px; margin:-3px -8px; background:transparent; min-width:200px; max-width:70%}
+.snsModalTitleInput:hover{border-color:var(--hair)}
+.snsModalTitleInput:focus{border-color:var(--acc); background:#fff; outline:none}
 .snsModalDesc{display:flex; gap:8px; align-items:flex-start; margin-bottom:16px}
 .snsModalDesc textarea{flex:1; font:inherit; font-size:12.5px; line-height:1.5; color:var(--tx);
   border:1px solid var(--hair); border-radius:10px; padding:8px 10px; resize:vertical; background:#fff}
 .snsModalGrid{display:grid; grid-template-columns:repeat(4, 1fr); gap:12px}
 @media(max-width:820px){ .snsModalGrid{grid-template-columns:repeat(3, 1fr)} }
 @media(max-width:520px){ .snsModalGrid{grid-template-columns:repeat(2, 1fr)} }
-.snsMShot{margin:0}
+.snsMShot{margin:0; position:relative}
 .snsMShot img{width:100%; aspect-ratio:3/4; object-fit:cover; border-radius:10px; background:#efeae1; display:block}
 .snsMShot figcaption{font-size:10.5px; color:var(--sub); margin-top:5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 .snsMShot figcaption a{color:var(--sub); text-decoration:none}
@@ -391,7 +414,7 @@ a{color:var(--acc)}
 </head>
 <body>
 <header>
-  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260808-18</span></h1>
+  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260808-23</span></h1>
   <a href="index.html" id="backLink" style="font-size:11px;letter-spacing:.12em;font-weight:700;color:var(--acc);text-decoration:none;border:1px solid var(--acc);padding:6px 12px">← DASHBOARD</a>
   <div class="mrange">
     <label>기간</label>
@@ -449,7 +472,7 @@ a{color:var(--acc)}
 
 <script src="config.js"></script>
 <script type="module">
-console.log("TREND AGENT signal.html v260808-18");
+console.log("TREND AGENT signal.html v260808-23");
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ══ 설정 — 다른 파일들과 같은 값 ══ */
@@ -1807,10 +1830,20 @@ function renderKwBlock(gridSel, moreBtnSel, moreListSel, cntSel, ranked, example
   moreList.innerHTML = '';
 }
 
+/* SNS 사진(행)의 태그를 버블 집계용 항목으로 만든다 — 기사 태그와 같은 풀에 합쳐 개수에 반영 */
+function snsTagEntry(pred){
+  const items = SB_SNS.filter(pred).filter(s => (s.tags || []).length)
+    .map(s => ({ tags: s.tags, ym: s.ym, category: 'SNS' }));
+  return items.length ? [{ items }] : [];
+}
+
 function drawNewsGrid(){
   const catItems = [...NEWS_SIG, ...SB_NEWS].filter(s => s.category === scatF && visible(s));
   const ranked = aggregateNewsKw(catItems);
-  TAG_POOL['#newsBubble'] = aggregateNewsKw([...NEWS_SIG, ...SB_NEWS].filter(s => s.category === scatF && inMonth(s)));
+  TAG_POOL['#newsBubble'] = [
+    ...aggregateNewsKw([...NEWS_SIG, ...SB_NEWS].filter(s => s.category === scatF && inMonth(s))),
+    ...snsTagEntry(s => s.category === scatF && inMonth(s)),
+  ];
   renderKwBlock('#newsKwGrid','#newsMoreBtn','#newsKwMore','#newsCnt', ranked, newsExampleHTML, false,
     '해당 카테고리의 뉴스레터 시그널이 아직 없습니다', 8, undefined, '#newsBubble', scatF);
 }
@@ -1835,10 +1868,10 @@ function expandShots(rows){
   const out = [];
   for(const it of rows){
     out.push({ image_url: it.image_url, url: it.url, account: it.account, sub_group: it.sub_group,
-      ym: it.ym, tags: it.tags, photo_order: it.photo_order, is_cover: it.is_cover, id: it.id });
+      ym: it.ym, region: it.region, source: it.source, tags: it.tags, photo_order: it.photo_order, is_cover: it.is_cover, id: it.id });
     for(const u of (it.extra_images || [])) if(u)
       out.push({ image_url: u, url: it.url, account: it.account, sub_group: it.sub_group,
-        ym: it.ym, tags: it.tags, photo_order: it.photo_order, is_cover: false, id: it.id });
+        ym: it.ym, region: it.region, source: it.source, tags: it.tags, photo_order: it.photo_order, is_cover: false, id: it.id });
   }
   return out;
 }
@@ -1929,7 +1962,14 @@ function snsStyleCardsHTML(items){
       ${tagRow}
       ${note ? `<div class="snsNote">${esc(note)}</div>` : ''}
       <div class="snsCover">${cover.map(x =>
-        `<img class="snsCoverImg" src="${esc(x.image_url || '')}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="imgFail(this)">`).join('')}</div>
+        `<figure class="snsCoverCell">
+          <img class="snsCoverImg" src="${esc(x.image_url || '')}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="imgFail(this)">
+          ${x.region ? `<span class="snsShotRegion">${esc(x.region)}</span>` : ''}
+          ${x.source ? `<span class="snsShotSource">${esc(x.source)}</span>` : ''}
+          <figcaption class="snsCoverCap">${x.account
+            ? `<a href="https://www.instagram.com/${esc(String(x.account).replace(/^@/, ''))}/" target="_blank" rel="noopener">${esc(x.account)}</a>`
+            : '<span class="mini">계정 미입력</span>'}${x.source ? ` · ${esc(x.source)}` : ''}</figcaption>
+        </figure>`).join('')}</div>
       <div class="snsExpandHint"></div>
     </article>`;
   }).join('');
@@ -1954,12 +1994,16 @@ function ensureSnsModal(){
     <div class="snsModalPanel" role="dialog" aria-modal="true">
       <button class="snsModalX" data-close="1" title="닫기">✕</button>
       <div class="snsModalHead">
-        <h3 id="snsModalTitle"></h3>
+        <input id="snsModalTitle" class="snsModalTitleInput" placeholder="스타일 제목" title="제목을 바꾸면 같은 제목으로 등록된 카드 전부에 반영됩니다">
         <span class="mini" id="snsModalMeta"></span>
+      </div>
+      <div class="snsModalTagsRow" style="margin-bottom:10px">
+        <input id="snsModalTags" placeholder="해시태그 — 쉼표로 구분 (예: Y2K, 벨트백) · 위 버블 집계에 함께 반영돼요"
+          style="width:100%; font:inherit; font-size:12.5px; color:var(--tx); border:1px solid var(--hair); border-radius:10px; padding:8px 10px; background:#fff">
       </div>
       <div class="snsModalDesc">
         <textarea id="snsModalNote" rows="2" placeholder="이 스타일에 대한 간단한 설명을 적어보세요 (모두에게 저장돼요)"></textarea>
-        <button class="snsToolBtn primary" id="snsModalNoteSave">설명 저장</button>
+        <button class="snsToolBtn primary" id="snsModalNoteSave">저장</button>
       </div>
       <div class="snsModalGrid" id="snsModalGrid"></div>
     </div>`;
@@ -1972,6 +2016,7 @@ function ensureSnsModal(){
 function closeSnsModal(){ const m = document.getElementById('snsModal'); if(m) m.style.display = 'none'; }
 
 let SNS_MODAL_LABEL = null;
+let SNS_MODAL_ROWS = [];
 function openSnsModal(label){
   if(!label) return;
   const m = ensureSnsModal();
@@ -1988,18 +2033,24 @@ function openSnsModal(label){
   const months = [...new Set(rows.map(x => x.ym).filter(Boolean))].sort().join(', ');
   const regions = [...new Set(rows.map(x => x.region).filter(Boolean))].join(' · ');
   SNS_MODAL_LABEL = label;
-  m.querySelector('#snsModalTitle').textContent = label;
+  SNS_MODAL_ROWS = rows;
+  m.querySelector('#snsModalTitle').value = label;
   m.querySelector('#snsModalMeta').textContent = `${regions ? regions + ' · ' : ''}사진 ${items.length}장${months ? ' · ' + months : ''}`;
   m.querySelector('#snsModalNote').value = SNS_STYLE_NOTE[styleKey(scatF, label)] || '';
+  /* 이 스타일에 이미 달린 태그들(사진 행들의 합집합) */
+  const curTags = [...new Set(rows.flatMap(r => r.tags || []))];
+  m.querySelector('#snsModalTags').value = curTags.join(', ');
 
   m.querySelector('#snsModalGrid').innerHTML = items.map(x => `
     <figure class="snsMShot">
+      ${x.region ? `<span class="snsShotRegion">${esc(x.region)}</span>` : ''}
+      ${x.source ? `<span class="snsShotSource">${esc(x.source)}</span>` : ''}
       ${x.url
         ? `<a href="${esc(x.url)}" target="_blank" rel="noopener"><img src="${esc(x.image_url || '')}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="imgFail(this)"></a>`
         : `<img src="${esc(x.image_url || '')}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="imgFail(this)">`}
       <figcaption>${x.account
         ? `<a href="https://www.instagram.com/${esc(String(x.account).replace(/^@/, ''))}/" target="_blank" rel="noopener">${esc(x.account)}</a>`
-        : '<span class="mini">계정 미입력</span>'}${x.sub_group ? ` · <span class="mini">#${esc(x.sub_group)}</span>` : ''}</figcaption>
+        : '<span class="mini">계정 미입력</span>'}${x.source ? ` · ${esc(x.source)}` : ''}${x.sub_group ? ` · <span class="mini">#${esc(x.sub_group)}</span>` : ''}</figcaption>
     </figure>`).join('');
 
   m.style.display = 'flex';
@@ -2009,22 +2060,55 @@ async function saveSnsModalNote(){
   if(!SNS_MODAL_LABEL) return;
   const btn = document.getElementById('snsModalNoteSave');
   const note = document.getElementById('snsModalNote').value.trim();
-  const key = styleKey(scatF, SNS_MODAL_LABEL);
-  const row = { category: scatF, keyword: SNS_MODAL_LABEL, note: note || null };
-  const existing = SNS_STYLE_ORDER[key];
-  if(existing != null) row.sort_order = existing;    /* 순서는 건드리지 않음 */
+  const oldName = SNS_MODAL_LABEL;
+  const newName = document.getElementById('snsModalTitle').value.trim();
+  if(!newName){ toast('제목을 비울 수 없어요'); return; }
+  const renaming = newName !== oldName;
+
+  /* 태그 파싱 — 쉼표 구분, # 제거, 중복 제거 */
+  const tags = [...new Set(document.getElementById('snsModalTags').value
+    .split(',').map(t => t.trim().replace(/^#/, '')).filter(Boolean))];
+
   btn.textContent = '저장 중…'; btn.disabled = true;
   try{
+    /* 1) 제목(keyword) 변경 — 같은 제목으로 등록된 모든 사진(행)에 반영 */
+    if(renaming){
+      const res = await Promise.all((SNS_MODAL_ROWS || []).map(r =>
+        sb.from('trend_signals').update({ keyword: newName }).eq('id', r.id).select('id')));
+      const failed = res.filter(r => r.error || !(r.data && r.data.length));
+      if(failed.length) throw new Error(`제목이 ${failed.length}건 반영되지 않았습니다 (권한/RLS 확인)`);
+      for(const r of (SNS_MODAL_ROWS || [])) r.keyword = newName;   // 로컬 반영
+    }
+
+    /* 2) 태그 — 이 스타일의 모든 행에 저장(버블 집계 반영) */
+    const res2 = await Promise.all((SNS_MODAL_ROWS || []).map(r =>
+      sb.from('trend_signals').update({ tags }).eq('id', r.id).select('id')));
+    const failed2 = res2.filter(r => r.error || !(r.data && r.data.length));
+    if(failed2.length) throw new Error(`태그가 ${failed2.length}건 저장되지 않았습니다 (권한/RLS 확인)`);
+    for(const r of (SNS_MODAL_ROWS || [])) r.tags = tags;
+
+    /* 3) 설명·순서 사전(sns_style_order) — 새 제목 키로 저장. 이름이 바뀌면 옛 키의 순서를 물려주고 옛 행 삭제 */
+    const oldKey = styleKey(scatF, oldName), newKey = styleKey(scatF, newName);
+    const carriedOrder = SNS_STYLE_ORDER[newKey] ?? SNS_STYLE_ORDER[oldKey];
+    const row = { category: scatF, keyword: newName, note: note || null };
+    if(carriedOrder != null) row.sort_order = carriedOrder;
     const { error } = await sb.from('sns_style_order').upsert(row, { onConflict: 'category,keyword' }).select('keyword');
     if(error) throw error;
-    if(note) SNS_STYLE_NOTE[key] = note; else delete SNS_STYLE_NOTE[key];
-    toast('설명을 저장했습니다');
-    drawSnsForCat();                                  /* 박스에도 설명 줄 반영 */
+    if(renaming){
+      await sb.from('sns_style_order').delete().eq('category', scatF).eq('keyword', oldName);
+      delete SNS_STYLE_ORDER[oldKey]; delete SNS_STYLE_NOTE[oldKey];
+    }
+    if(carriedOrder != null) SNS_STYLE_ORDER[newKey] = carriedOrder;
+    if(note) SNS_STYLE_NOTE[newKey] = note; else delete SNS_STYLE_NOTE[newKey];
+
+    toast('저장했습니다');
+    closeSnsModal();
+    renderStatic();                                   /* 박스 제목·칩 + 버블 갱신 */
   }catch(err){
     console.error(err);
-    alert('설명 저장 실패: ' + (err.message || err) + '\n\nsns_ordering.sql(note 칸 추가분)을 실행했는지 확인해주세요.');
+    alert('저장 실패: ' + (err.message || err) + '\n\nsns_ordering.sql(note 칸)과 trend_signals UPDATE 권한을 확인해주세요.');
   }finally{
-    btn.textContent = '설명 저장'; btn.disabled = false;
+    btn.textContent = '저장'; btn.disabled = false;
   }
 }
 
@@ -2181,7 +2265,10 @@ function lifeExampleHTML(entry){
 
 function drawLifeBlock(){
   const ranked = aggregateLifestyleThemes([...LIFESTYLE_SIG, ...SB_LIFESTYLE].filter(visible));
-  TAG_POOL['#lifeBubble'] = aggregateLifestyleThemes([...LIFESTYLE_SIG, ...SB_LIFESTYLE].filter(inMonth));
+  TAG_POOL['#lifeBubble'] = [
+    ...aggregateLifestyleThemes([...LIFESTYLE_SIG, ...SB_LIFESTYLE].filter(inMonth)),
+    ...snsTagEntry(s => inMonth(s)),
+  ];
   renderKwBlock('#lifeKwGrid','#lifeMoreBtn','#lifeKwMore','#lifeCnt', ranked, lifeExampleHTML, false,
     '아직 연동된 데이터가 없습니다', 8, undefined, '#lifeBubble', 'lifestyle');
 }
@@ -2480,6 +2567,14 @@ function openClusterModal(head){
       <div class="cmEditBar">
         태그를 눌러서 <b>이름 바꾸기</b>나 <b>삭제</b>를 할 수 있어요 — 그 태그가 달린 모든 카드에 적용됩니다
       </div>
+      <div class="cmMergeBar">
+        <span class="cmMergeLabel">여러 개 → 하나로 합치기</span>
+        <input class="cmMergeFrom" value="${esc([head, ...cluster].join(', '))}" placeholder="합칠 태그들 — 쉼표로 (예: hairband, headband)">
+        <span class="cmMergeArrow">→</span>
+        <input class="cmMergeTo" value="${esc(head)}" placeholder="대표 태그">
+        <button class="go" data-tagmerge="1">합치기</button>
+        <span class="cmMergeMsg mini"></span>
+      </div>
       <div class="cmGrid">${cardsHTML}</div>
       ${relatedHTML}
     </div>
@@ -2528,6 +2623,47 @@ document.addEventListener('click', async e => {
 
   const box = e.target.closest('.cmEditBox');
   const msg = () => box?.querySelector('.cmEditMsg');
+
+  /* 여러 개 → 하나로 합치기 (+ 사전에 기억해 다음부터 자동 통일) */
+  const mg = e.target.closest('[data-tagmerge]');
+  if(mg){
+    const bar = e.target.closest('.cmMergeBar');
+    const mmsg = () => bar?.querySelector('.cmMergeMsg');
+    const to = bar.querySelector('.cmMergeTo').value.trim().replace(/^#/, '');
+    const froms = bar.querySelector('.cmMergeFrom').value.split(',').map(s => s.trim().replace(/^#/, '')).filter(Boolean);
+    if(!to){ mmsg().textContent = '대표 태그를 입력해 주세요'; return; }
+    /* 사전에 기억할 변형: 대표와 "정확히 같은 문자열"만 제외 → 대소문자만 다른 것(Hair-accessory)도 포함 */
+    const variants = [...new Set(froms.filter(f => f !== to))];
+    if(!variants.length){ mmsg().textContent = '합칠 태그를 대표와 다르게 입력해 주세요'; return; }
+    const all = [...new Set([...froms, to])];
+    const { data: rows, error } = await sb.from('trend_signals').select('id, tags').overlaps('tags', all);
+    if(error){ alert('불러오기 실패: ' + error.message); return; }
+    if(!confirm(`${variants.map(v => '#' + v).join(', ')} → #${to}\n\n${(rows || []).length}개 항목에 적용되고, 앞으로 같은 표기는 자동으로 #${to}로 통일됩니다. 진행할까요?`)) return;
+    mmsg().textContent = '합치는 중…';
+    /* 행 치환 기준: 합칠 태그 + 대표의 대소문자 변형까지 모두 대표 문자열로 */
+    const matchLower = new Set([...froms, to].map(s => s.toLowerCase()));
+    for(const r of (rows || [])){
+      const next = [...new Set((r.tags || []).map(t => matchLower.has(String(t).toLowerCase()) ? to : t))];
+      await sb.from('trend_signals').update({ tags: next }).eq('id', r.id);
+    }
+    /* 사전(keyword_aliases)에 기억 — 다음 유입부터 자동 통일 */
+    try{
+      await sb.from('keyword_aliases').upsert(variants.map(v => ({ alias: v, canonical: to })), { onConflict: 'alias' });
+    }catch(err){ console.warn('keyword_aliases 저장 실패(테이블/유니크 확인):', err?.message || err); }
+    /* 클러스터 사전도 best-effort로 정리 */
+    try{
+      for(const v of variants){
+        const { data: cls } = await sb.from('tag_clusters').select('head, members').contains('members', [v]);
+        for(const c of (cls || [])) await sb.from('tag_clusters')
+          .update({ members: [...new Set((c.members || []).map(m => m === v ? to : m))] }).eq('head', c.head);
+        await sb.from('tag_clusters').update({ head: to }).eq('head', v);
+      }
+    }catch(_){}
+    document.querySelector('.cmOverlay')?.remove();
+    if(matchLower.has(String(tagFilter || '').toLowerCase())) tagFilter = to;
+    await loadAliases(); await loadTrendSignals();
+    return;
+  }
 
   /* 이름 바꾸기 */
   const rn = e.target.closest('[data-tagrename]');
