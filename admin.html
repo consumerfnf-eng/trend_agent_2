@@ -243,7 +243,7 @@ tbody tr:hover{background:#fdfcf9}
             border:1px solid var(--hair); border-radius:20px; padding:5px 13px; font-size:11px;
             font-weight:800; letter-spacing:.03em; margin-right:14px; background:#fff">← 대시보드</a>
   <h1>TREND <em>AGENT</em></h1>
-  <span class="mini" id="verStamp" style="margin-left:8px;opacity:.55">v260808-06</span>
+  <span class="mini" id="verStamp" style="margin-left:8px;opacity:.55">v260808-07</span>
   <div class="tabs" id="tabs">
     <button data-v="intake" class="on">업로드</button>
     <button data-v="manage">등록 관리</button>
@@ -4284,14 +4284,26 @@ function mgFormHTML(r){
       <div style="max-width:160px"><label class="f">카테고리</label>
         <select data-e="category"><option value="">선택</option>
           ${cats.map(c => `<option${r.category===c?' selected':''}>${esc(c)}</option>`).join('')}</select></div>
-      <div style="max-width:120px"><label class="f">귀속 월</label>
-        <input data-e="sheet_month" value="${esc(r.sheet_month || '')}" placeholder="2026-08"></div>
+      <div style="max-width:130px"><label class="f">귀속 월</label>
+        <input data-e="sheet_month" type="month" value="${esc(r.sheet_month || '')}"></div>
       <div style="max-width:120px"><label class="f">작성자</label>
-        <input data-e="author" value="${esc(r.author || '')}"></div>
+        <select data-e="author">
+          <option value=""${!r.author ? ' selected' : ''}>선택</option>
+          ${['jisoo','jin','sohee'].map(a => `<option${r.author===a ? ' selected' : ''}>${a}</option>`).join('')}
+        </select></div>
       <div style="max-width:150px"><label class="f">매체</label>
-        <input data-e="source" value="${esc(r.source || '')}"></div>
-      <div style="max-width:90px"><label class="f">시장</label>
-        <input data-e="region" value="${esc(r.region || '')}"></div>
+        <select data-e="source">
+          <option value=""${!r.source ? ' selected' : ''}>선택</option>
+          ${['런웨이 리포트','매거진','셀럽 착장','INSTAGRAM','TIKTOK','X','WEB'].map(s => `<option${r.source===s ? ' selected' : ''}>${esc(s)}</option>`).join('')}
+          ${r.source && !['런웨이 리포트','매거진','셀럽 착장','INSTAGRAM','TIKTOK','X','WEB'].includes(r.source) ? `<option selected>${esc(r.source)}</option>` : ''}
+        </select></div>
+      <div style="max-width:100px"><label class="f">시장</label>
+        <select data-e="region">
+          <option value=""${!r.region ? ' selected' : ''}>선택</option>
+          <option value="GL"${r.region==='GL' ? ' selected' : ''}>GLOBAL</option>
+          <option value="KR"${r.region==='KR' ? ' selected' : ''}>KR</option>
+          <option value="CN"${r.region==='CN' ? ' selected' : ''}>CN</option>
+        </select></div>
     </div>
     <div class="row">
       <div style="flex:1; min-width:220px"><label class="f">키워드 (카드 제목)</label>
