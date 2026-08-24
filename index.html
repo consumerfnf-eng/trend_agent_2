@@ -251,6 +251,27 @@ header h1{font-family:'Playfair Display',serif; font-size:22px}
 .qHead .qTools button:hover{border-color:var(--rising); color:var(--rising)}
 .lystTable{width:100%; border-collapse:collapse; font-size:12px}
 .lystTable td{padding:4px 8px; border-bottom:1px solid var(--hair)}
+/* LYST INDEX 표 — 가독성 강화(이 표에만 적용) */
+.lystIndexTable{border-collapse:separate; border-spacing:0}
+.lystIndexTable td{padding:8px 12px; border-bottom:1px solid #ece7de; font-size:13px; vertical-align:middle}
+.lystIndexTable tr:nth-child(even) td{background:#faf7f2}
+.lystIndexTable tr:hover td{background:#fff4ee}
+.lystIndexTable td.qHead, .lystIndexTable tr:hover td.qHead{background:#f4efe7}
+.lystIndexTable td:not(:first-child){border-left:1px solid #efe9df}
+.lystIndexTable .qName{font-size:15px}
+.lystIndexTable .lystRankCell{text-align:center}
+.lystRankNum{display:inline-flex; align-items:center; justify-content:center; min-width:23px; height:23px;
+  padding:0 5px; border-radius:7px; background:#eae4d9; color:#7a7266; font-weight:800; font-size:11.5px}
+.lystRankNum.top{background:var(--ink); color:#fff}
+.lystBrand{font-weight:700; letter-spacing:.01em}
+.lystIndexTable .lystUp, .lystIndexTable .lystDown{display:inline-block; margin-left:5px; padding:1px 7px;
+  border-radius:20px; font-size:9.5px; vertical-align:middle}
+.lystIndexTable .lystUp{background:#e3f3ea}
+.lystIndexTable .lystDown{background:#fbe7df}
+.lystTag{display:inline-block; margin-left:5px; padding:1px 7px; border-radius:20px; font-size:8.5px;
+  font-weight:800; letter-spacing:.05em; vertical-align:middle}
+.lystTag.new{background:var(--ink); color:#fff}
+.lystTag.re{background:#e7eef7; color:#2b5c9a}
 .bkws{display:flex; flex-wrap:wrap; gap:4px; margin-top:8px}
 .bkw{font-size:10px; font-weight:700; padding:3px 8px; border-radius:20px; background:#f2efe9;
   border:1px solid #e2ddd3; color:#6b6357}
@@ -294,7 +315,7 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
 <body>
 
 <header>
-  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260808-13</span></h1>
+  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260808-14</span></h1>
   <div class="tabs">
     <button data-v="signal" class="on">TREND SIGNAL</button>
     <button data-v="keywords">TREND KEYWORDS</button>
@@ -2169,9 +2190,9 @@ function drawLystSaved(){
       </div>
     </div>
     ${anyData ? `
-    <table class="lystTable" style="table-layout:fixed">
+    <table class="lystTable lystIndexTable" style="table-layout:fixed">
       <tr>
-        <td style="width:34px"></td>
+        <td style="width:40px"></td>
         ${qs.map(q => {
           const has = byQ[q].length, url = linkOf(q);
           return `<td class="qHead">
@@ -2185,16 +2206,18 @@ function drawLystSaved(){
       </tr>
       ${Array.from({ length: 20 }, (_, i) => i + 1).map(rank => `
         <tr>
-          <td style="text-align:right; font-weight:700; color:var(--sub); font-size:11px">${rank}</td>
+          <td class="lystRankCell"><span class="lystRankNum${rank <= 3 ? ' top' : ''}">${rank}</span></td>
           ${qs.map(q => {
             const hit = byQ[q].find(r => r.rank === rank);
             if(!hit) return '<td></td>';
             const c = String(hit.change || '').trim();
             const chg = !c || c === '-' ? ''
-              : /^\+/.test(c) ? `<span class="lystUp" style="font-size:10px">▲${c.replace('+','')}</span>`
-              : /^-\d/.test(c) ? `<span class="lystDown" style="font-size:10px">▼${c.replace('-','')}</span>`
+              : /^\+/.test(c) ? `<span class="lystUp">▲${c.replace('+','')}</span>`
+              : /^-\d/.test(c) ? `<span class="lystDown">▼${c.replace('-','')}</span>`
+              : /new/i.test(c) ? `<span class="lystTag new">NEW</span>`
+              : /re-?entry/i.test(c) ? `<span class="lystTag re">RE-ENTRY</span>`
               : `<span class="mini">${esc(c)}</span>`;
-            return `<td style="font-size:11.5px">${esc(hit.brand)} ${chg}</td>`;
+            return `<td><span class="lystBrand">${esc(hit.brand)}</span>${chg}</td>`;
           }).join('')}
         </tr>`).join('')}
     </table>
