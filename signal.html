@@ -1623,26 +1623,33 @@ function tagBubbleHTML(ranked, gridSel){
   const minD = 44, maxD = 156;
   return clusters.map((c, i) => {
     const d = Math.round(minD + (maxD-minD) * (c.count / maxVal));
-    const nameSize = d >= 100 ? 15 : d >= 72 ? 13 : d >= 55 ? 11.5 : 10;
     const on = tagFilter === c.label;
     /* 🔥 크기: 카드 수 비율로 3단계 */
     const ratio = c.count / maxVal;
     const fireSize = ratio >= 0.85 ? 16 : ratio >= 0.55 ? 13 : ratio >= 0.3 ? 11 : 0;
     const showFire = i < 3 && fireSize > 0 && c.count >= 2;
-    /* 흑백 그라데이션: 1위(ratio=1) → 검정, 마지막(ratio=최소) → 흰색.
-       비율을 살짝 눌러서 최상위 몇 개만 확실히 진하게 (밑은 다 옅게). */
-    const shade = Math.max(0.06, Math.pow(ratio, 1.6));   /* 0.06~1 */
-    const lightness = Math.round(96 - shade * 88);        /* 96(옅음) ~ 8(진함) */
+    /* 흑백 그라데이션 */
+    const shade = Math.max(0.06, Math.pow(ratio, 1.6));
+    const lightness = Math.round(96 - shade * 88);
     const textIsWhite = lightness < 55;
     const bg = `hsl(30, 4%, ${lightness}%)`;
     const bd = `hsl(30, 4%, ${Math.max(lightness - 8, 8)}%)`;
     const txC = textIsWhite ? '#fff' : 'var(--tx)';
     const sbC = textIsWhite ? 'rgba(255,255,255,.75)' : 'var(--sub)';
+    /* 폰트 크기를 원 지름 + 글자 수 둘 다 반영해서 한 줄에 다 들어가게.
+       #포함한 글자 수 기준, 원 내부 유효 폭(대략 지름의 85%)에 맞춤. */
+    const label = '#' + c.label;
+    const innerW = d * 0.86;                                /* 원 안쪽 실제 가용 폭 */
+    const charW = 0.58;                                     /* 대문자·소문자 평균 폭 계수 (실측 기준) */
+    const maxByW = innerW / (label.length * charW);         /* 한 줄에 다 들어가는 최대 폰트 크기 */
+    const maxByD = d >= 100 ? 16 : d >= 72 ? 14 : d >= 55 ? 12 : 10.5;
+    const nameSize = Math.max(8.5, Math.min(maxByW, maxByD));
+    const countSize = Math.max(8, nameSize - 3);
     return `<div class="bubble${on ? ' on' : ''}" style="width:${d}px; height:${d}px; background:${bg}; border-color:${bd}"
       data-tagbubble="${esc(c.label)}" data-target="${gridSel}" title="${c.count}건 (매칭 태그 ${c.members.size}종)">
       ${showFire ? `<span class="fire" style="font-size:${fireSize}px" title="카드가 많은 클러스터">🔥</span>` : ''}
-      <span class="bn" style="font-size:${nameSize}px; color:${txC}">#${esc(c.label)}</span>
-      <span class="bc" style="font-size:${nameSize-2}px; color:${sbC}">${c.count}건</span>
+      <span class="bn" style="font-size:${nameSize.toFixed(1)}px; color:${txC}; white-space:nowrap">${esc(label)}</span>
+      <span class="bc" style="font-size:${countSize.toFixed(1)}px; color:${sbC}">${c.count}건</span>
       <button class="bubbleMore" data-cluster="${esc(c.label)}" title="${esc(c.label)} 상세 보기">⋯</button>
     </div>`;
   }).join('');
@@ -1658,13 +1665,11 @@ function bubbleHTML(ranked, gridSel, catCtx){
   return top.map((e,i) => {
     const d = Math.round(minD + (maxD-minD) * (e.count / maxVal));
     const multiAuthor = authorCount(e.items) >= 2;
-    const nameSize = d >= 100 ? 15 : d >= 72 ? 13 : d >= 55 ? 11.5 : 10;
-    const countSize = nameSize - 2;
     const hasFwd = catCtx === 'lifestyle' && LIFESTYLE_LINKS.some(l => normKw(l.life) === normKw(e.label));
     const hasRev = catCtx && catCtx !== 'lifestyle'
       && LIFESTYLE_LINKS.some(l => l.cat === catCtx && normKw(l.kw) === normKw(e.label));
     const linked = hasFwd || hasRev;
-    /* 흑백 그라데이션 — 언급 많은 것일수록 진함 */
+    /* 흑백 그라데이션 */
     const ratio = e.count / maxVal;
     const shade = Math.max(0.06, Math.pow(ratio, 1.6));
     const lightness = Math.round(96 - shade * 88);
@@ -1673,11 +1678,20 @@ function bubbleHTML(ranked, gridSel, catCtx){
     const bd = `hsl(30, 4%, ${Math.max(lightness - 8, 8)}%)`;
     const txC = textIsWhite ? '#fff' : 'var(--tx)';
     const sbC = textIsWhite ? 'rgba(255,255,255,.75)' : 'var(--sub)';
+    /* 폰트 크기 자동 — 태그명 길이 반영해서 한 줄에 다 들어가도록 (한글은 좀 넓으니 계수 다르게) */
+    const label = String(e.label || '');
+    const hasKorean = /[가-힣]/.test(label);
+    const charW = hasKorean ? 0.95 : 0.58;
+    const innerW = d * 0.86;
+    const maxByW = innerW / (Math.max(label.length, 1) * charW);
+    const maxByD = d >= 100 ? 16 : d >= 72 ? 14 : d >= 55 ? 12 : 10.5;
+    const nameSize = Math.max(8.5, Math.min(maxByW, maxByD));
+    const countSize = Math.max(8, nameSize - 3);
     return `<div class="bubble" style="width:${d}px; height:${d}px; background:${bg}; border-color:${bd}" data-kw="${esc(e.label)}" data-target="${gridSel}">
       ${linked ? '<span class="linkdot" title="다른 카테고리와 연결됨">🔗</span>' : ''}
       ${multiAuthor ? '<span class="fire" title="여러 사람이 같은 키워드를 등록했습니다">🔥</span>' : ''}
-      <span class="bn" style="font-size:${nameSize}px; color:${txC}">${esc(e.label)}</span>
-      <span class="bc" style="font-size:${countSize}px; color:${sbC}">${e.count}건</span>
+      <span class="bn" style="font-size:${nameSize.toFixed(1)}px; color:${txC}; white-space:nowrap">${esc(label)}</span>
+      <span class="bc" style="font-size:${countSize.toFixed(1)}px; color:${sbC}">${e.count}건</span>
     </div>`;
   }).join('');
 }
