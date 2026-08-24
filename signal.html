@@ -246,6 +246,10 @@ tr.krow{cursor:pointer} tr.krow:hover{background:#faf6ec}
 .aliasSelBar .aliasSelNew{width:150px}
 .aliasSelBar .go{border:0; background:var(--acc); color:#fff; font-weight:800; border-radius:8px; padding:6px 15px; cursor:pointer}
 .aliasSelBar .aliasSelClear{border:1px solid var(--hair); background:#fff; color:var(--sub); border-radius:8px; padding:5px 11px; cursor:pointer}
+.aliasModalPanel{display:flex; flex-direction:column; max-height:88vh; overflow:hidden}
+.aliasModalPanel .aliasFixed{flex:0 0 auto}
+.aliasModalPanel .aliasGroupsWrap{flex:1 1 auto; overflow-y:auto; min-height:120px; padding-right:4px}
+.aliasModalPanel .aliasGroupsHead{position:sticky; top:0; background:var(--card,#fbf8f2); padding-top:4px; z-index:1}
 .aliasTagList{display:flex; flex-wrap:wrap; gap:6px; max-height:230px; overflow:auto;
   border:1px solid var(--hair); border-radius:10px; padding:10px; background:#fdfcfa}
 .aliasTag{display:inline-flex; align-items:center; gap:6px; font-size:12px; cursor:pointer;
@@ -468,7 +472,7 @@ a{color:var(--acc)}
 </head>
 <body>
 <header>
-  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260808-27</span></h1>
+  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260808-29</span></h1>
   <a href="index.html" id="backLink" style="font-size:11px;letter-spacing:.12em;font-weight:700;color:var(--acc);text-decoration:none;border:1px solid var(--acc);padding:6px 12px">← DASHBOARD</a>
   <div class="mrange">
     <label>기간</label>
@@ -526,7 +530,7 @@ a{color:var(--acc)}
 
 <script src="config.js"></script>
 <script type="module">
-console.log("TREND AGENT signal.html v260808-27");
+console.log("TREND AGENT signal.html v260808-29");
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ══ 설정 — 다른 파일들과 같은 값 ══ */
@@ -1475,79 +1479,140 @@ function tagScatterHTML(ranked, gridSel){
   if(!months.length) months.push(...[...new Set(pts.map(p => p.ym))].sort());
   const mIdx = new Map(months.map((m, i) => [m, i]));
 
-  /* 태그별로 월→건수 묶기, 총합 큰 순으로 상위 N개 태그만 (레인 = 한 줄) */
-  const tagMap = new Map();   /* tag → { total, cats, byMonth: Map(ym→count) } */
+  /* 태그별 월→건수 */
+  const tagMap = new Map();
   for(const p of pts){
     if(!mIdx.has(p.ym)) continue;
-    if(!tagMap.has(p.tag)) tagMap.set(p.tag, { tag: p.tag, total: 0, cats: new Set(), byMonth: new Map() });
+    if(!tagMap.has(p.tag)) tagMap.set(p.tag, { tag: p.tag, total: 0, cats: new Set(), byIdx: new Map() });
     const e = tagMap.get(p.tag);
     e.total += p.count;
-    e.byMonth.set(p.ym, (e.byMonth.get(p.ym) || 0) + p.count);
+    e.byIdx.set(mIdx.get(p.ym), (e.byIdx.get(mIdx.get(p.ym)) || 0) + p.count);
     for(const c of p.cats) e.cats.add(c);
   }
-  const ROWS_MAX = 16;
-  const allTags = [...tagMap.values()].sort((a, b) => b.total - a.total || a.tag.localeCompare(b.tag));
-  const rows = allTags.slice(0, ROWS_MAX);
-  if(!rows.length) return '<div class="empty" style="padding:10px 0">이 섹션에는 아직 해시태그가 없습니다</div>';
+  /* 언급량 상위 태그만 (너무 많으면 화면이 넘침) */
+  const TOPN_TAG = 22;
+  const topTags = [...tagMap.values()].sort((a, b) => b.total - a.total || a.tag.localeCompare(b.tag)).slice(0, TOPN_TAG);
 
-  const maxC = Math.max(...pts.map(p => p.count), 1);
+  /* 각 태그를 '연속된 달'끼리 묶어 아이템으로 — 연속 2달 이상이면 알약(가로로 길게), 아니면 원 */
+  const items = [];
+  for(const tg of topTags){
+    const idxs = [...tg.byIdx.keys()].sort((a, b) => a - b);
+    let run = [];
+    const flush = () => {
+      if(!run.length) return;
+      const a = run[0], b = run[run.length - 1];
+      let peak = 0, sum = 0;
+      for(const i of run){ const c = tg.byIdx.get(i); peak = Math.max(peak, c); sum += c; }
+      items.push({ tag: tg.tag, a, b, peak, sum, cats: tg.cats, span: b - a + 1 });
+      run = [];
+    };
+    for(const i of idxs){
+      if(run.length && i === run[run.length - 1] + 1) run.push(i);
+      else { flush(); run = [i]; }
+    }
+    flush();
+  }
+  if(!items.length) return '<div class="empty" style="padding:10px 0">이 섹션에는 아직 해시태그가 없습니다</div>';
 
-  /* 캔버스 — 왼쪽 라벨 거터 + 월 컬럼, 세로는 태그 줄 수 */
-  const gutterL = 148, padR = 26, padT = 30, padB = 26, rowH = 32;
-  const W = 1040;
-  const H = padT + rowH * rows.length + padB;
-  const plotW = W - gutterL - padR;
+  const maxC = Math.max(...items.map(it => it.peak), 1);
+
+  /* 캔버스 — 흩뿌리는 버블(가로 년월), 겹치지 않게 레인 패킹 */
+  const padL = 22, padR = 22, padT = 18, padB = 34;
+  const W = 1100;
+  const plotW = W - padL - padR;
   const colW = plotW / months.length;
-  const xAt = i => gutterL + colW * (i + 0.5);
-  const rowY = k => padT + rowH * (k + 0.5);
-  const rMax = Math.max(7, Math.min(rowH * 0.42, colW * 0.40, 15));
-  const rMin = 4.5;
-  const rOf = c => rMin + (rMax - rMin) * Math.sqrt(c / maxC);
+  const xAt = i => padL + colW * (i + 0.5);
+  const rMax = Math.max(18, Math.min(colW * 0.42, 58));
+  const rMin = 14;
+  const rOf = c => rMin + (rMax - rMin) * (c / maxC);
+
+  const wrapTag = (name) => {
+    if(name.length <= 9) return [name];
+    let cut = -1, best = 1e9, mid = name.length / 2;
+    for(let i = 1; i < name.length - 1; i++)
+      if(name[i] === '-'){ const d = Math.abs(i - mid); if(d < best){ best = d; cut = i; } }
+    if(cut > 0) return [name.slice(0, cut + 1), name.slice(cut + 1)];
+    const c = Math.ceil(name.length / 2);
+    return [name.slice(0, c), name.slice(c)];
+  };
+
+  /* 노드 기하 — 원(단일 달) 또는 알약(연속 달) */
+  const nodes = items.map(it => {
+    const hh = rOf(it.peak);
+    const xL = xAt(it.a), xR = xAt(it.b);
+    const cx = (xL + xR) / 2, hw = (xR - xL) / 2 + hh;
+    return { it, hh, hw, cx, left: cx - hw, right: cx + hw, cy: 0, lane: 0, pill: it.b > it.a };
+  });
+
+  /* 레인 패킹 — 가로로 겹치는 것끼리는 서로 다른 세로 줄에 → 절대 안 겹침 */
+  nodes.sort((a, b) => a.left - b.left || b.hh - a.hh);
+  const gapX = 10, gapY = 12;
+  const lanes = [];
+  for(const n of nodes){
+    let placed = -1;
+    for(let k = 0; k < lanes.length; k++){ if(lanes[k].right + gapX <= n.left){ placed = k; break; } }
+    if(placed < 0){ placed = lanes.length; lanes.push({ right: -1e9, maxH: 0 }); }
+    const L = lanes[placed]; L.right = n.right; L.maxH = Math.max(L.maxH, 2 * n.hh); n.lane = placed;
+  }
+  const laneTop = []; let accY = padT;
+  for(let k = 0; k < lanes.length; k++){ laneTop[k] = accY; accY += lanes[k].maxH + gapY; }
+  const plotBottom = accY - gapY;
+  for(const n of nodes) n.cy = laneTop[n.lane] + lanes[n.lane].maxH / 2;
+  const H = plotBottom + padB;
 
   let svg = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet"
-    style="display:block; width:100%; height:auto; max-height:78vh; margin:0 auto" role="img">`;
-
-  /* 월 헤더 + 세로 가이드선 */
+    style="display:block; width:100%; height:auto; margin:0 auto" role="img">`;
   months.forEach((m, i) => {
-    const x0 = gutterL + colW * i;
-    svg += `<line x1="${x0}" y1="${padT}" x2="${x0}" y2="${padT + rowH * rows.length}" stroke="#f2ede4" stroke-width="1"/>`;
-    svg += `<text x="${xAt(i)}" y="${padT - 12}" font-size="12.5" font-weight="700" fill="#8a8578" text-anchor="middle">${esc(m.replace('-', '.').slice(2))}</text>`;
+    const x0 = padL + colW * i;
+    if(i > 0) svg += `<line x1="${x0}" y1="${padT}" x2="${x0}" y2="${plotBottom}" stroke="#f2ede4" stroke-width="1"/>`;
+    svg += `<text x="${xAt(i)}" y="${H - 12}" font-size="13" fill="#8a8578" text-anchor="middle">${esc(m.replace('-', '.'))}</text>`;
   });
-  svg += `<line x1="${gutterL}" y1="${padT}" x2="${gutterL}" y2="${padT + rowH * rows.length}" stroke="#e4ded2" stroke-width="1"/>`;
+  svg += `<line x1="${padL}" y1="${plotBottom + 6}" x2="${W - padR}" y2="${plotBottom + 6}" stroke="#e4ded2" stroke-width="1"/>`;
 
-  /* 각 태그 = 한 줄 */
-  rows.forEach((row, k) => {
-    const y = rowY(k), on = tagFilter === row.tag;
-    /* 지브라 배경 */
-    if(k % 2 === 1) svg += `<rect x="${gutterL}" y="${padT + rowH * k}" width="${plotW}" height="${rowH}" fill="#faf7f2"/>`;
-    if(on) svg += `<rect x="0" y="${padT + rowH * k}" width="${W}" height="${rowH}" fill="#fbeee7"/>`;
-    /* 왼쪽 라벨 — 한 줄, 안 잘림 */
-    svg += `<text x="${gutterL - 12}" y="${y + 4}" font-size="12" font-weight="${on ? 800 : 600}" fill="${on ? '#c8451f' : '#3a4048'}" text-anchor="end">#${esc(row.tag)}</text>`;
-    /* 이 태그가 나온 달들의 점 좌표 (월 순서대로) */
-    const dots = months.map((m, i) => ({ i, x: xAt(i), c: row.byMonth.get(m) || 0 })).filter(d => d.c > 0);
-    /* 연속/비연속 관계없이 나온 달끼리 옅은 선으로 이어 추세 표시 */
-    if(dots.length >= 2){
-      const d0 = dots[0], dN = dots[dots.length - 1];
-      svg += `<line x1="${d0.x.toFixed(1)}" y1="${y}" x2="${dN.x.toFixed(1)}" y2="${y}" stroke="${on ? '#e0a892' : '#d9d2c6'}" stroke-width="2" stroke-linecap="round" opacity="0.65"/>`;
+  for(const n of [...nodes].sort((a, b) => (b.hw * b.hh) - (a.hw * a.hh))){
+    const it = n.it, on = tagFilter === it.tag;
+    const fill = on ? '#c8451f' : '#8d9aa8';
+    const op = on ? 0.9 : (0.22 + 0.6 * (it.peak / maxC));
+    const monLabel = it.pill ? `${months[it.a].replace('-', '.')}~${months[it.b].replace('-', '.').slice(5)}` : months[it.a].replace('-', '.');
+    const tip = `<title>#${esc(it.tag)} · ${monLabel} · ${it.sum}건${it.pill ? ' (연속 ' + it.span + '개월)' : ''}</title>`;
+    if(n.pill){
+      svg += `<rect class="sc" x="${(n.cx - n.hw).toFixed(1)}" y="${(n.cy - n.hh).toFixed(1)}" width="${(2 * n.hw).toFixed(1)}" height="${(2 * n.hh).toFixed(1)}" rx="${n.hh.toFixed(1)}" ry="${n.hh.toFixed(1)}"
+        fill="${fill}" fill-opacity="${op.toFixed(2)}" stroke="${on ? '#c8451f' : '#6f7c8a'}" stroke-width="${on ? 2 : 1}" stroke-opacity="0.5"
+        data-tagbubble="${esc(it.tag)}" data-target="${gridSel}" style="cursor:pointer">${tip}</rect>`;
+    } else {
+      svg += `<circle class="sc" cx="${n.cx.toFixed(1)}" cy="${n.cy.toFixed(1)}" r="${n.hh.toFixed(1)}"
+        fill="${fill}" fill-opacity="${op.toFixed(2)}" stroke="${on ? '#c8451f' : '#6f7c8a'}" stroke-width="${on ? 2 : 1}" stroke-opacity="0.5"
+        data-tagbubble="${esc(it.tag)}" data-target="${gridSel}" style="cursor:pointer">${tip}</circle>`;
     }
-    /* 점(원) */
-    for(const d of dots){
-      const r = rOf(d.c);
-      svg += `<circle class="sc" cx="${d.x.toFixed(1)}" cy="${y}" r="${r.toFixed(1)}"
-        fill="${on ? '#c8451f' : '#8d9aa8'}" fill-opacity="${on ? 0.92 : (0.28 + 0.55 * (d.c / maxC)).toFixed(2)}"
-        stroke="${on ? '#c8451f' : '#6f7c8a'}" stroke-width="1" stroke-opacity="0.5"
-        data-tagbubble="${esc(row.tag)}" data-target="${gridSel}" style="cursor:pointer">
-        <title>#${esc(row.tag)} · ${esc(months[d.i])} · ${d.c}건</title></circle>`;
-      if(r >= 9) svg += `<text x="${d.x.toFixed(1)}" y="${(y + 3).toFixed(1)}" font-size="9" font-weight="800" fill="#fff" text-anchor="middle" pointer-events="none">${d.c}</text>`;
+  }
+  for(const n of nodes){
+    const it = n.it, name = '#' + it.tag;
+    const availW = 2 * n.hw * 0.86, availH = 2 * n.hh * 0.82;
+    let tagLines = [name];
+    if(!n.pill && name.length > 9){ const two = wrapTag(name); if(two.length === 2) tagLines = two; }
+    const cntStr = 'signal ' + it.sum;
+    const maxLen = Math.max(...tagLines.map(l => l.length), cntStr.length * 0.7);
+    let fs = Math.min(availW / (maxLen * 0.56), availH / (tagLines.length + 0.7), n.hh * 0.62, 18);
+    fs = Math.max(fs, 5);
+    const lines = [...tagLines.map(t => ({ t, fs, w: 700, fill: n.hh >= 22 ? '#273039' : '#3a4048' })),
+                   { t: cntStr, fs: fs * 0.72, w: 600, fill: '#5b6570' }];
+    const lh = l => l.fs * 1.06;
+    const totalH = lines.reduce((s, l) => s + lh(l), 0);
+    let acc = n.cy - totalH / 2, tspan = '';
+    for(const l of lines){
+      acc += lh(l);
+      tspan += `<tspan x="${n.cx.toFixed(1)}" y="${(acc - l.fs * 0.28).toFixed(1)}" font-size="${l.fs.toFixed(1)}" font-weight="${l.w}" fill="${l.fill}">${esc(l.t)}</tspan>`;
     }
-  });
+    svg += `<text text-anchor="middle" pointer-events="none">${tspan}</text>`;
+  }
   svg += '</svg>';
 
+  const shownTags = new Set(items.map(i => i.tag)).size;
   return `<div class="scatterWrap">
-    <div class="scatterTop"><span class="mini">태그마다 한 줄 · 가로 년월 · 원 크기=언급량 · 선은 여러 달에 걸친 트렌드</span></div>
+    <div class="scatterTop"><span class="mini">가로 년월 · 원 크기=언급량 · 연속된 달에 이어 나오면 가로로 길게(알약)</span></div>
     ${svg}
     <div class="mini" style="margin-top:4px">원을 누르면 그 태그가 달린 카드만 볼 수 있어요${
-      allTags.length > rows.length ? ` · 언급량 상위 ${rows.length}개 태그 표시 (전체 ${allTags.length})` : ''}</div>
+      tagMap.size > shownTags ? ` · 언급량 상위 ${shownTags}개 태그 (전체 ${tagMap.size})` : ''}</div>
   </div>`;
 }
 
@@ -2773,8 +2838,9 @@ function ensureAliasModal(){
   m.id = 'aliasModal'; m.className = 'snsModal'; m.style.display = 'none';
   m.innerHTML = `
     <div class="snsModalBack" data-aclose="1"></div>
-    <div class="snsModalPanel" role="dialog" aria-modal="true" style="max-width:720px">
+    <div class="snsModalPanel aliasModalPanel" role="dialog" aria-modal="true" style="max-width:720px">
       <button class="snsModalX" data-aclose="1" title="닫기">✕</button>
+      <div class="aliasFixed">
       <div class="snsModalHead"><h3 style="margin:0">해시태그 관리 · 대표어 묶기</h3></div>
       <div class="mini" style="margin:-4px 0 12px">아래는 지금 카드들에 달린 <b>전체 해시태그</b>예요. 유사한 태그를 골라 <b>묶기</b>하고 그중 하나를 <b>대표</b>로 정하면, 버블 차트가 그 대표어로 합산됩니다. (원본 카드는 안 바뀌어요)</div>
       <input class="aliasSearch" placeholder="해시태그 검색…" style="width:100%; font:inherit; font-size:12.5px; border:1px solid var(--hair); border-radius:9px; padding:8px 11px; background:#fff; margin-bottom:10px">
@@ -2791,8 +2857,9 @@ function ensureAliasModal(){
         <button class="aliasSelClear" data-selclear="1">해제</button>
       </div>
       <div class="aliasTagList" id="aliasTagList"></div>
+      </div>
       <div class="aliasGroupsWrap">
-        <div class="mini" style="font-weight:800; margin:16px 0 8px; color:var(--tx)">묶어둔 대표어</div>
+        <div class="mini aliasGroupsHead" style="font-weight:800; margin:16px 0 8px; color:var(--tx)">묶어둔 대표어</div>
         <div id="aliasBody"></div>
       </div>
     </div>`;
