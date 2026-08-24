@@ -216,10 +216,8 @@ tr.krow{cursor:pointer} tr.krow:hover{background:#faf6ec}
 .aliasManageBtn{margin-left:auto; border:1px solid var(--hair)!important; background:#fff!important;
   color:var(--sub)!important; border-radius:20px; padding:4px 12px; font-size:11px; font-weight:700; cursor:pointer}
 .aliasManageBtn:hover{border-color:var(--acc)!important; color:var(--acc)!important}
-.aliasNew{display:flex; gap:8px; flex-wrap:wrap; align-items:center}
-.aliasNew input{flex:1; min-width:160px; font:inherit; font-size:12.5px; border:1px solid var(--hair);
+.aliasNew{display:flex; gap:8px; flex-wrap:wrap; align-items:center}.aliasNew input{flex:1; min-width:160px; font:inherit; font-size:12.5px; border:1px solid var(--hair);
   border-radius:9px; padding:7px 10px; background:#fff}
-.aliasNew .aNewCanon{max-width:190px}
 .aliasNew .go{border:0; background:var(--acc); color:#fff; font-weight:800; font-size:12px;
   border-radius:9px; padding:8px 16px; cursor:pointer}
 .aliasGroup{border:1px solid var(--hair); border-radius:12px; padding:11px 13px; margin-bottom:10px; background:#fff}
@@ -240,6 +238,25 @@ tr.krow{cursor:pointer} tr.krow:hover{background:#faf6ec}
 .aliasAddVar button{border:1px solid var(--hair); background:#fff; color:var(--acc); font-weight:800;
   width:24px; height:24px; border-radius:50%; cursor:pointer}
 .aliasAddVar button:hover{border-color:var(--acc)}
+/* 전체 태그 목록 + 선택 묶기 */
+.aliasSelBar{display:flex; align-items:center; flex-wrap:wrap; gap:8px; padding:9px 12px; margin-bottom:10px;
+  background:#fbeee7; border:1px solid #f1d9cf; border-radius:10px; font-size:12px}
+.aliasSelBar .aliasSelArrow{color:var(--sub); font-weight:700}
+.aliasSelBar select, .aliasSelBar input{font:inherit; font-size:12px; border:1px solid var(--hair); border-radius:8px; padding:5px 9px; background:#fff}
+.aliasSelBar .aliasSelNew{width:150px}
+.aliasSelBar .go{border:0; background:var(--acc); color:#fff; font-weight:800; border-radius:8px; padding:6px 15px; cursor:pointer}
+.aliasSelBar .aliasSelClear{border:1px solid var(--hair); background:#fff; color:var(--sub); border-radius:8px; padding:5px 11px; cursor:pointer}
+.aliasTagList{display:flex; flex-wrap:wrap; gap:6px; max-height:230px; overflow:auto;
+  border:1px solid var(--hair); border-radius:10px; padding:10px; background:#fdfcfa}
+.aliasTag{display:inline-flex; align-items:center; gap:6px; font-size:12px; cursor:pointer;
+  background:#fff; border:1px solid var(--hair); border-radius:20px; padding:4px 10px 4px 8px; user-select:none}
+.aliasTag:hover{border-color:var(--acc)}
+.aliasTag.on{background:#fbeee7; border-color:var(--acc)}
+.aliasTag input{margin:0; accent-color:var(--acc)}
+.aliasTagName{font-weight:600; color:var(--tx)}
+.aliasTagCnt{font-size:10px; font-weight:700; color:#fff; background:#c3bbae; border-radius:20px; padding:1px 7px}
+.aliasTag.on .aliasTagCnt{background:var(--acc)}
+.aliasTagBadge.rep{font-size:8.5px; font-weight:800; color:#fff; background:var(--acc); border-radius:20px; padding:1px 6px; letter-spacing:.03em}
 .cmChip{cursor:pointer}
 .cmChip:hover{outline:2px solid var(--acc); outline-offset:1px}
 .cmEditBar{font-size:11px; color:var(--sub); margin:6px 0 14px}
@@ -445,7 +462,7 @@ a{color:var(--acc)}
 </head>
 <body>
 <header>
-  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260808-25</span></h1>
+  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260808-26</span></h1>
   <a href="index.html" id="backLink" style="font-size:11px;letter-spacing:.12em;font-weight:700;color:var(--acc);text-decoration:none;border:1px solid var(--acc);padding:6px 12px">← DASHBOARD</a>
   <div class="mrange">
     <label>기간</label>
@@ -503,7 +520,7 @@ a{color:var(--acc)}
 
 <script src="config.js"></script>
 <script type="module">
-console.log("TREND AGENT signal.html v260808-25");
+console.log("TREND AGENT signal.html v260808-26");
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ══ 설정 — 다른 파일들과 같은 값 ══ */
@@ -2823,27 +2840,78 @@ function ensureAliasModal(){
   m.id = 'aliasModal'; m.className = 'snsModal'; m.style.display = 'none';
   m.innerHTML = `
     <div class="snsModalBack" data-aclose="1"></div>
-    <div class="snsModalPanel" role="dialog" aria-modal="true" style="max-width:640px">
+    <div class="snsModalPanel" role="dialog" aria-modal="true" style="max-width:720px">
       <button class="snsModalX" data-aclose="1" title="닫기">✕</button>
-      <div class="snsModalHead"><h3 style="margin:0">대표 해시태그 관리</h3></div>
-      <div class="mini" style="margin:-4px 0 12px">유사 해시태그를 하나의 <b>대표어</b>로 묶어두면, 이후 들어오는 자료도 자동으로 대표어로 합산돼 버블에 표시됩니다. (원본 카드는 바뀌지 않아요)</div>
-      <div class="aliasNew">
-        <input class="aNewCanon" placeholder="대표어 (예: flip-flop)">
-        <input class="aNewVars" placeholder="유사어 — 쉼표로 (예: flipflop, flip flop)">
-        <button class="go" data-aliasadd="1">묶음 추가</button>
+      <div class="snsModalHead"><h3 style="margin:0">해시태그 관리 · 대표어 묶기</h3></div>
+      <div class="mini" style="margin:-4px 0 12px">아래는 지금 카드들에 달린 <b>전체 해시태그</b>예요. 유사한 태그를 골라 <b>묶기</b>하고 그중 하나를 <b>대표</b>로 정하면, 버블 차트가 그 대표어로 합산됩니다. (원본 카드는 안 바뀌어요)</div>
+      <input class="aliasSearch" placeholder="해시태그 검색…" style="width:100%; font:inherit; font-size:12.5px; border:1px solid var(--hair); border-radius:9px; padding:8px 11px; background:#fff; margin-bottom:10px">
+      <div class="aliasSelBar" style="display:none">
+        <span><b class="aliasSelCount">0</b>개 선택</span>
+        <span class="aliasSelArrow">→ 대표</span>
+        <select class="aliasSelRep"></select>
+        <input class="aliasSelNew" placeholder="또는 새 대표어 입력">
+        <button class="go" data-groupsel="1">묶기</button>
+        <button class="aliasSelClear" data-selclear="1">해제</button>
       </div>
-      <div id="aliasBody" style="margin-top:14px"></div>
+      <div class="aliasTagList" id="aliasTagList"></div>
+      <div class="aliasGroupsWrap">
+        <div class="mini" style="font-weight:800; margin:16px 0 8px; color:var(--tx)">묶어둔 대표어</div>
+        <div id="aliasBody"></div>
+      </div>
     </div>`;
   document.body.appendChild(m);
   m.addEventListener('click', ev => { if(ev.target.dataset.aclose) closeAliasModal(); });
+  m.querySelector('.aliasSearch').addEventListener('input', e => renderAliasTagList(e.target.value));
   return m;
 }
 function closeAliasModal(){ const m = document.getElementById('aliasModal'); if(m) m.style.display = 'none'; }
+
+let ALIAS_SEL = new Set();   /* 묶기용으로 체크한 태그들 */
 async function openAliasModal(){
   const m = ensureAliasModal();
+  ALIAS_SEL = new Set();
   await loadTagAliases();
+  renderAliasTagList('');
   renderAliasBody();
   m.style.display = 'flex';
+}
+
+/* 현재 카드 전체의 (대표어 적용된) 태그 → 건수 */
+function allTagCounts(){
+  const m = new Map();
+  for(const s of [...SB_NEWS, ...SB_LIFESTYLE, ...SB_SNS])
+    for(const t of (s.tags || [])) m.set(t, (m.get(t) || 0) + 1);
+  return [...m.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+}
+function renderAliasTagList(filter){
+  const box = document.getElementById('aliasTagList'); if(!box) return;
+  const canonSet = new Set(Object.values(TAG_ALIAS).map(v => normKw(v)));
+  const q = normKw(filter || '');
+  const rows = allTagCounts().filter(([t]) => !q || normKw(t).includes(q));
+  if(!rows.length){ box.innerHTML = '<div class="mini" style="padding:12px 0">해당하는 해시태그가 없어요.</div>'; return; }
+  box.innerHTML = rows.map(([t, n]) => {
+    const isRep = canonSet.has(normKw(t));
+    const sel = ALIAS_SEL.has(t) ? ' on' : '';
+    return `<label class="aliasTag${sel}" data-tagpick="${esc(t)}">
+      <input type="checkbox" ${ALIAS_SEL.has(t) ? 'checked' : ''}>
+      <span class="aliasTagName">#${esc(t)}</span>
+      <span class="aliasTagCnt">${n}</span>
+      ${isRep ? '<span class="aliasTagBadge rep">대표</span>' : ''}
+    </label>`;
+  }).join('');
+  updateAliasSelBar();
+}
+function updateAliasSelBar(){
+  const m = document.getElementById('aliasModal'); if(!m) return;
+  const bar = m.querySelector('.aliasSelBar');
+  const picked = [...ALIAS_SEL];
+  if(!picked.length){ bar.style.display = 'none'; return; }
+  bar.style.display = 'flex';
+  m.querySelector('.aliasSelCount').textContent = picked.length;
+  const rep = m.querySelector('.aliasSelRep');
+  const cur = rep.value;
+  rep.innerHTML = picked.map(t => `<option value="${esc(t)}">${esc(t)}</option>`).join('');
+  if(picked.includes(cur)) rep.value = cur;
 }
 function renderAliasBody(){
   const body = document.getElementById('aliasBody'); if(!body) return;
@@ -2853,7 +2921,7 @@ function renderAliasBody(){
     groups.get(canon).push(alias);
   }
   if(!groups.size){
-    body.innerHTML = '<div class="mini" style="padding:8px 0">아직 등록된 대표어가 없어요. 위에서 첫 묶음을 추가해 보세요.</div>';
+    body.innerHTML = '<div class="mini" style="padding:8px 0">아직 묶어둔 대표어가 없어요. 위 목록에서 유사어를 골라 묶어 보세요.</div>';
     return;
   }
   const rows = [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0]));
@@ -2878,28 +2946,51 @@ document.addEventListener('click', e => {
   if(e.target.closest('[data-openaliases]')){ openAliasModal(); }
 });
 
+/* 태그 체크 토글 */
+document.addEventListener('change', e => {
+  const lab = e.target.closest('[data-tagpick]'); if(!lab) return;
+  const t = lab.dataset.tagpick;
+  if(e.target.checked) ALIAS_SEL.add(t); else ALIAS_SEL.delete(t);
+  lab.classList.toggle('on', e.target.checked);
+  updateAliasSelBar();
+});
+
 async function afterAliasChange(){
   await loadTagAliases();
-  renderAliasBody();
   await loadTrendSignals();   /* 태그 자동 적용된 상태로 버블/카드 다시 그림 */
+  renderAliasTagList(document.querySelector('#aliasModal .aliasSearch')?.value || '');
+  renderAliasBody();
 }
 
+/* 선택한 태그들을 하나의 대표어로 묶기 */
 document.addEventListener('click', async e => {
-  const add = e.target.closest('[data-aliasadd]');
-  if(add){
-    const wrap = document.getElementById('aliasModal');
-    const canon = wrap.querySelector('.aNewCanon').value.trim().replace(/^#/, '');
-    const vars = wrap.querySelector('.aNewVars').value.split(',').map(s => s.trim().replace(/^#/, '')).filter(Boolean);
-    if(!canon){ toast('대표어를 입력해 주세요'); return; }
-    const rows = [...new Set(vars.filter(v => v.toLowerCase() !== canon.toLowerCase()))]
-      .map(v => ({ alias: v, canonical: canon }));
-    if(!rows.length){ toast('대표어와 다른 유사어를 하나 이상 입력해 주세요'); return; }
-    const { error } = await sb.from('tag_aliases').upsert(rows, { onConflict: 'alias' });
+  const g = e.target.closest('[data-groupsel]');
+  if(g){
+    const m = document.getElementById('aliasModal');
+    const picked = [...ALIAS_SEL];
+    if(picked.length < 1){ toast('묶을 태그를 선택해 주세요'); return; }
+    const newRep = m.querySelector('.aliasSelNew').value.trim().replace(/^#/, '');
+    const rep = newRep || m.querySelector('.aliasSelRep').value;
+    if(!rep){ toast('대표어를 정해 주세요'); return; }
+    const members = [...new Set(picked.filter(t => normKw(t) !== normKw(rep)))];
+    if(!members.length){ toast('대표어와 다른 태그를 하나 이상 선택해 주세요'); return; }
+    /* 이미 대표였던 태그를 유사어로 넣는 경우, 그 밑 유사어들도 새 대표로 재지정 */
+    for(const mtag of members){
+      await sb.from('tag_aliases').update({ canonical: rep }).eq('canonical', mtag);
+    }
+    const { error } = await sb.from('tag_aliases').upsert(members.map(v => ({ alias: v, canonical: rep })), { onConflict: 'alias' });
     if(error){ alert('저장 실패: ' + error.message + '\n\ntag_aliases.sql을 실행했는지 확인해 주세요.'); return; }
-    wrap.querySelector('.aNewCanon').value = ''; wrap.querySelector('.aNewVars').value = '';
-    toast('묶음을 추가했어요'); afterAliasChange();
+    ALIAS_SEL = new Set();
+    m.querySelector('.aliasSelNew').value = '';
+    toast(`#${rep}로 묶었어요`);
+    afterAliasChange();
     return;
   }
+  const clr = e.target.closest('[data-selclear]');
+  if(clr){ ALIAS_SEL = new Set(); renderAliasTagList(document.querySelector('#aliasModal .aliasSearch')?.value || ''); return; }
+});
+
+document.addEventListener('click', async e => {
   const av = e.target.closest('[data-addvar]');
   if(av){
     const canon = av.dataset.addvar;
