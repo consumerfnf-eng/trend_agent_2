@@ -478,7 +478,7 @@ a{color:var(--acc)}
 </head>
 <body>
 <header>
-  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260808-30</span></h1>
+  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260808-31</span></h1>
   <a href="index.html" id="backLink" style="font-size:11px;letter-spacing:.12em;font-weight:700;color:var(--acc);text-decoration:none;border:1px solid var(--acc);padding:6px 12px">← DASHBOARD</a>
   <div class="mrange">
     <label>기간</label>
@@ -536,7 +536,7 @@ a{color:var(--acc)}
 
 <script src="config.js"></script>
 <script type="module">
-console.log("TREND AGENT signal.html v260808-30");
+console.log("TREND AGENT signal.html v260808-31");
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ══ 설정 — 다른 파일들과 같은 값 ══ */
@@ -1488,49 +1488,68 @@ function tagScatterHTML(ranked, gridSel){
   const pts = pts0.filter(p => mIdx.has(p.ym));
   if(!pts.length) return '<div class="empty" style="padding:10px 0">이 기간에는 해시태그가 없습니다</div>';
 
-  /* 달마다 언급량 상위 N개만 (너무 많으면 세로가 길어짐) */
+  /* 달마다 언급량 상위 N개 */
   const PER_MONTH = 12;
-  const byColAll = new Map();
-  for(const p of pts){ const c = mIdx.get(p.ym); if(!byColAll.has(c)) byColAll.set(c, []); byColAll.get(c).push(p); }
+  const byCol = new Map();
+  for(const p of pts){ const c = mIdx.get(p.ym); if(!byCol.has(c)) byCol.set(c, []); byCol.get(c).push(p); }
+  for(const [, arr] of byCol) arr.sort((a, b) => b.count - a.count);
   const keep = [];
-  for(const [, arr] of byColAll){ arr.sort((a, b) => b.count - a.count); keep.push(...arr.slice(0, PER_MONTH)); }
+  for(const [c, arr] of byCol){ byCol.set(c, arr.slice(0, PER_MONTH)); keep.push(...byCol.get(c)); }
   const maxC = Math.max(...keep.map(p => p.count), 1);
 
-  const padL = 16, padR = 16, padT = 20, padB = 36;
-  const W = 1120;
+  const padL = 14, padR = 14, padT = 22, padB = 38, W = 1120;
   const plotW = W - padL - padR, colW = plotW / months.length;
   const xAt = i => padL + colW * (i + 0.5);
-  const rMin = 15, rMax = Math.max(26, Math.min(colW * 0.46, 64));
+  const rMin = 16, rMax = Math.max(28, Math.min(colW * 0.44, 72));
   const rOf = c => rMin + (rMax - rMin) * Math.sqrt(c / maxC);
-  const fsOf = c => 9.5 + 9.5 * Math.sqrt(c / maxC);
 
-  const nodes = keep.map(p => {
-    const col = mIdx.get(p.ym), r = rOf(p.count), fs = fsOf(p.count);
-    const name = '#' + p.tag;
-    const nameW = name.length * fs * 0.56;
-    const inside = nameW <= 2 * r * 0.9;
-    const capH = inside ? 0 : fs * 1.2 + 3;
-    return { p, col, r, fs, name, inside, capH, boxH: 2 * r + capH, cx: xAt(col), cy: 0 };
-  });
+  const wrapTag = (name) => {
+    if(name.length <= 8) return [name];
+    let cut = -1, best = 1e9, mid = name.length / 2;
+    for(let i = 1; i < name.length - 1; i++) if(name[i] === '-'){ const d = Math.abs(i - mid); if(d < best){ best = d; cut = i; } }
+    if(cut > 0) return [name.slice(0, cut + 1), name.slice(cut + 1)];
+    const c = Math.ceil(name.length / 2); return [name.slice(0, c), name.slice(c)];
+  };
 
-  /* 달(열)마다 세로로 쌓기 — 열 안에서 절대 안 겹침 */
-  const gap = 9;
-  const byCol = new Map();
-  for(const n of nodes){ if(!byCol.has(n.col)) byCol.set(n.col, []); byCol.get(n.col).push(n); }
-  let maxStackH = 0;
-  for(const [, arr] of byCol){
-    arr.sort((a, b) => b.p.count - a.p.count);
-    let h = 0; for(const n of arr) h += n.boxH + gap; h -= gap;
-    maxStackH = Math.max(maxStackH, h);
+  /* 노드 만들고, 달(열)마다 큰 원을 중심으로 둥글게 뭉치기(circle packing) */
+  const nodes = [];
+  const colHalf = colW / 2 - 4;
+  for(const [c, arr] of byCol){
+    const ns = arr.map(p => ({ p, r: rOf(p.count), ox: (Math.random() - 0.5) * 6, oy: (Math.random() - 0.5) * 6 }));
+    ns.sort((a, b) => b.r - a.r);
+    if(ns.length) { ns[0].ox = 0; ns[0].oy = 0; }
+    for(let step = 0; step < 480; step++){
+      const g = step < 380 ? 0.94 : 1;              // 중심으로 끌어당김(뭉치기)
+      for(const n of ns){ n.ox *= g; n.oy *= g; }
+      for(let i = 0; i < ns.length; i++){
+        for(let j = i + 1; j < ns.length; j++){
+          const a = ns[i], b = ns[j];
+          let dx = b.ox - a.ox, dy = b.oy - a.oy, d = Math.hypot(dx, dy), need = a.r + b.r + 3;
+          if(d >= need) continue;
+          if(d < 0.01){ dx = Math.random() - 0.5; dy = Math.random() - 0.5; d = Math.hypot(dx, dy) || 1; }
+          const push = (need - d) / 2 + 0.1;
+          a.ox -= dx / d * push; a.oy -= dy / d * push;
+          b.ox += dx / d * push; b.oy += dy / d * push;
+        }
+      }
+      for(const n of ns){ const lim = Math.max(0, colHalf - n.r); n.ox = Math.min(lim, Math.max(-lim, n.ox)); }
+    }
+    let minY = 1e9, maxY = -1e9;
+    for(const n of ns){ minY = Math.min(minY, n.oy - n.r); maxY = Math.max(maxY, n.oy + n.r); }
+    for(const n of ns){ n.col = c; n.midShift = (minY + maxY) / 2; nodes.push(n); }
+    byCol.set(c, ns);
   }
-  const plotTop = padT + 6;
-  for(const [, arr] of byCol){
-    let h = 0; for(const n of arr) h += n.boxH + gap; h -= gap;
-    let y = plotTop + (maxStackH - h) / 2;
-    for(const n of arr){ n.cy = y + n.r; y += n.boxH + gap; }
+  /* 전체 높이 = 가장 큰 달 뭉치의 높이, 각 달 뭉치를 세로 중앙 정렬 */
+  let maxColH = 0;
+  for(const [, ns] of byCol){
+    let mn = 1e9, mx = -1e9;
+    for(const n of ns){ mn = Math.min(mn, n.oy - n.r); mx = Math.max(mx, n.oy + n.r); }
+    if(ns.length) maxColH = Math.max(maxColH, mx - mn);
   }
-  const plotBottom = plotTop + maxStackH;
-  const H = plotBottom + padB;
+  const midY = padT + maxColH / 2 + 4;
+  const H = padT + maxColH + padB + 8;
+  const plotBottom = padT + maxColH + 8;
+  for(const [c, ns] of byCol) for(const n of ns){ n.cx = xAt(c) + n.ox; n.cy = midY + (n.oy - n.midShift); }
 
   let svg = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" style="display:block; width:100%; height:auto; margin:0 auto" role="img">`;
   months.forEach((m, i) => {
@@ -1540,30 +1559,37 @@ function tagScatterHTML(ranked, gridSel){
   });
   svg += `<line x1="${padL}" y1="${(plotBottom + 6).toFixed(1)}" x2="${W - padR}" y2="${(plotBottom + 6).toFixed(1)}" stroke="#e4ded2" stroke-width="1"/>`;
 
-  /* 버블 */
   for(const n of nodes){
-    const on = tagFilter === n.p.tag;
-    const col = tagHue(n.p.tag);
+    const on = tagFilter === n.p.tag, col = tagHue(n.p.tag);
     svg += `<circle class="sc" cx="${n.cx.toFixed(1)}" cy="${n.cy.toFixed(1)}" r="${n.r.toFixed(1)}"
-      fill="${col}" fill-opacity="${on ? 1 : 0.82}" stroke="${on ? '#c8451f' : '#ffffff'}" stroke-width="${on ? 3 : 1.5}"
+      fill="${col}" fill-opacity="${on ? 1 : 0.85}" stroke="${on ? '#c8451f' : '#ffffff'}" stroke-width="${on ? 3 : 1.5}"
       data-tagbubble="${esc(n.p.tag)}" data-target="${gridSel}" style="cursor:pointer">
       <title>#${esc(n.p.tag)} · ${esc(n.p.ym)} · ${n.p.count}건</title></circle>`;
   }
-  /* 라벨 — 한 줄, 안 잘림: 들어가면 원 안, 아니면 원 아래 */
+  /* 라벨 — 항상 원 안: 태그(1~2줄) + 건수, 원 크기에 맞춰 글씨 크기 자동 */
   for(const n of nodes){
-    const on = tagFilter === n.p.tag;
-    if(n.inside){
-      svg += `<text x="${n.cx.toFixed(1)}" y="${(n.cy - 1).toFixed(1)}" font-size="${n.fs.toFixed(1)}" font-weight="800" fill="#33404a" text-anchor="middle" pointer-events="none">${esc(n.name)}</text>`;
-      svg += `<text x="${n.cx.toFixed(1)}" y="${(n.cy + n.fs * 0.95).toFixed(1)}" font-size="${(n.fs * 0.66).toFixed(1)}" font-weight="700" fill="#6b7681" text-anchor="middle" pointer-events="none">${n.p.count}건</text>`;
-    } else {
-      svg += `<text x="${n.cx.toFixed(1)}" y="${(n.cy + 3).toFixed(1)}" font-size="${(n.fs * 0.72).toFixed(1)}" font-weight="800" fill="#4a5560" text-anchor="middle" pointer-events="none">${n.p.count}</text>`;
-      svg += `<text x="${n.cx.toFixed(1)}" y="${(n.cy + n.r + n.fs * 0.95).toFixed(1)}" font-size="${n.fs.toFixed(1)}" font-weight="${on ? 800 : 700}" fill="${on ? '#c8451f' : '#40484f'}" text-anchor="middle" pointer-events="none">${esc(n.name)}</text>`;
-    }
+    const name = '#' + n.p.tag;
+    const two = wrapTag(name);
+    const availW = 2 * n.r * 0.82, availH = 2 * n.r * 0.8;
+    const fitFor = (tagLines) => {
+      const maxLen = Math.max(...tagLines.map(l => l.length), 1);
+      const nL = tagLines.length + 0.72;                 // + 건수줄(0.72배)
+      return Math.min(availW / (maxLen * 0.56), availH / nL / 1.05, n.r * 0.62, 17);
+    };
+    const one = [name], fsOne = fitFor(one), fsTwo = two.length === 2 ? fitFor(two) : -1;
+    const tagLines = fsTwo > fsOne ? two : one;
+    const fs = Math.max(fsTwo > fsOne ? fsTwo : fsOne, 5);
+    const lines = [...tagLines.map(t => ({ t, fs, w: 800, fill: '#33404a' })),
+                   { t: n.p.count + '건', fs: fs * 0.72, w: 700, fill: '#6b7681' }];
+    const lh = l => l.fs * 1.05;
+    const totalH = lines.reduce((s, l) => s + lh(l), 0);
+    let acc = n.cy - totalH / 2, tspan = '';
+    for(const l of lines){ acc += lh(l); tspan += `<tspan x="${n.cx.toFixed(1)}" y="${(acc - l.fs * 0.26).toFixed(1)}" font-size="${l.fs.toFixed(1)}" font-weight="${l.w}" fill="${l.fill}">${esc(l.t)}</tspan>`; }
+    svg += `<text text-anchor="middle" pointer-events="none">${tspan}</text>`;
   }
   svg += '</svg>';
 
-  const shown = new Set(keep.map(p => p.tag)).size;
-  const totalTags = new Set(pts.map(p => p.tag)).size;
+  const shown = new Set(keep.map(p => p.tag)).size, totalTags = new Set(pts.map(p => p.tag)).size;
   return `<div class="scatterWrap">
     <div class="scatterTop"><span class="mini">가로 년월 · 버블 클수록 많이 언급 · 누르면 그 태그 카드만</span></div>
     ${svg}
@@ -1571,8 +1597,6 @@ function tagScatterHTML(ranked, gridSel){
   </div>`;
 }
 
-/* ── 흐름 보기: 2개월 이상 이어서 언급된 상위 N개 키워드를 레인(알약)으로 ── */
-let FLOW_TOPN = 7;
 function tagFlowHTML(ranked, gridSel){
   const pts0 = tagCellAgg(ranked);
   if(!pts0.length) return '<div class="empty" style="padding:10px 0">이 섹션에는 아직 해시태그가 없습니다</div>';
