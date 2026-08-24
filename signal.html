@@ -1905,7 +1905,7 @@ function renderKwBlock(gridSel, moreBtnSel, moreListSel, cntSel, ranked, example
     </div>`;
     /* 키워드 탭에서는 버블 대신 위쪽 HOT TREND KEYWORD 리포트가 그 역할을 하므로 버블은 그리지 않는다.
        해시태그 탭에서는 기존대로 태그 버블을 모두 표시한다. */
-    const body = mode === 'tag' ? tagScatterHTML(TAG_POOL[bubbleSel] || ranked, gridSel) : '';
+    const body = mode === 'tag' ? tagBubbleHTML(TAG_POOL[bubbleSel] || ranked, gridSel) : '';
     $(bubbleSel).innerHTML = tabs + `<div class="bubbleRow">${body}</div>`;
   }
   const moreBtn = $(moreBtnSel), moreList = $(moreListSel);
