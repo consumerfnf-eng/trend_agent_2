@@ -420,6 +420,9 @@ circle.sc:hover{fill-opacity:.8}
 .bubbleTabs button{font-size:10px; font-weight:800; letter-spacing:.03em; padding:4px 11px; border-radius:20px;
   background:#f2efe9; border:1px solid #e2ddd3; color:#6b6357; cursor:pointer; font-family:inherit}
 .bubbleTabs button.on{background:var(--tx); border-color:var(--tx); color:#fff}
+.scg{transition:transform .13s ease}
+.scg:hover{transform:scale(1.09)}
+.sc{transition:fill-opacity .13s ease}
 .flowToggle{margin-left:6px; border:1px solid var(--acc)!important; background:#fff!important; color:var(--acc)!important}
 .flowToggle.on{background:var(--acc)!important; color:#fff!important}
 .scatterTop{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:4px}
@@ -478,7 +481,7 @@ a{color:var(--acc)}
 </head>
 <body>
 <header>
-  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260808-31</span></h1>
+  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260808-32</span></h1>
   <a href="index.html" id="backLink" style="font-size:11px;letter-spacing:.12em;font-weight:700;color:var(--acc);text-decoration:none;border:1px solid var(--acc);padding:6px 12px">← DASHBOARD</a>
   <div class="mrange">
     <label>기간</label>
@@ -536,7 +539,7 @@ a{color:var(--acc)}
 
 <script src="config.js"></script>
 <script type="module">
-console.log("TREND AGENT signal.html v260808-31");
+console.log("TREND AGENT signal.html v260808-32");
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ══ 설정 — 다른 파일들과 같은 값 ══ */
@@ -1452,6 +1455,7 @@ function aggregateClusters(ranked){
 
 /* ── 파스텔 팔레트 (태그별 고정 색) ───────────────────────── */
 const TAG_PASTEL = ['#BFE3D6','#FBD5CE','#CFE6F2','#E6DAF3','#FBECBB','#F8D9E4','#D3EAC2','#DAE3F2','#FBE0C8','#CDECE6','#EAD9C6','#D9E9CE'];
+const BUBBLE_HUE = '#8FB6D9';   /* 해시태그 버블 단일 파스텔 색(진하기는 언급량으로) */
 function tagHue(name){ let h = 0; for(let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0; return TAG_PASTEL[h % TAG_PASTEL.length]; }
 
 /* 선택 기간의 월 목록(YYYY-MM) */
@@ -1560,32 +1564,20 @@ function tagScatterHTML(ranked, gridSel){
   svg += `<line x1="${padL}" y1="${(plotBottom + 6).toFixed(1)}" x2="${W - padR}" y2="${(plotBottom + 6).toFixed(1)}" stroke="#e4ded2" stroke-width="1"/>`;
 
   for(const n of nodes){
-    const on = tagFilter === n.p.tag, col = tagHue(n.p.tag);
-    svg += `<circle class="sc" cx="${n.cx.toFixed(1)}" cy="${n.cy.toFixed(1)}" r="${n.r.toFixed(1)}"
-      fill="${col}" fill-opacity="${on ? 1 : 0.85}" stroke="${on ? '#c8451f' : '#ffffff'}" stroke-width="${on ? 3 : 1.5}"
-      data-tagbubble="${esc(n.p.tag)}" data-target="${gridSel}" style="cursor:pointer">
-      <title>#${esc(n.p.tag)} · ${esc(n.p.ym)} · ${n.p.count}건</title></circle>`;
-  }
-  /* 라벨 — 항상 원 안: 태그(1~2줄) + 건수, 원 크기에 맞춰 글씨 크기 자동 */
-  for(const n of nodes){
+    const on = tagFilter === n.p.tag;
+    const op = on ? 1 : (0.32 + 0.6 * (n.p.count / maxC));   /* 많이 나올수록 진하게, 적으면 투명 */
     const name = '#' + n.p.tag;
-    const two = wrapTag(name);
-    const availW = 2 * n.r * 0.82, availH = 2 * n.r * 0.8;
-    const fitFor = (tagLines) => {
-      const maxLen = Math.max(...tagLines.map(l => l.length), 1);
-      const nL = tagLines.length + 0.72;                 // + 건수줄(0.72배)
-      return Math.min(availW / (maxLen * 0.56), availH / nL / 1.05, n.r * 0.62, 17);
-    };
-    const one = [name], fsOne = fitFor(one), fsTwo = two.length === 2 ? fitFor(two) : -1;
-    const tagLines = fsTwo > fsOne ? two : one;
-    const fs = Math.max(fsTwo > fsOne ? fsTwo : fsOne, 5);
-    const lines = [...tagLines.map(t => ({ t, fs, w: 800, fill: '#33404a' })),
-                   { t: n.p.count + '건', fs: fs * 0.72, w: 700, fill: '#6b7681' }];
-    const lh = l => l.fs * 1.05;
-    const totalH = lines.reduce((s, l) => s + lh(l), 0);
-    let acc = n.cy - totalH / 2, tspan = '';
-    for(const l of lines){ acc += lh(l); tspan += `<tspan x="${n.cx.toFixed(1)}" y="${(acc - l.fs * 0.26).toFixed(1)}" font-size="${l.fs.toFixed(1)}" font-weight="${l.w}" fill="${l.fill}">${esc(l.t)}</tspan>`; }
-    svg += `<text text-anchor="middle" pointer-events="none">${tspan}</text>`;
+    const availW = 2 * n.r * 0.86;
+    const fs = Math.max(Math.min(availW / (name.length * 0.56), n.r * 0.66, 17), 4.5);
+    const fsc = fs * 0.72;
+    const tcol = on ? '#ffffff' : '#33404a', ccol = on ? '#ffe4d8' : '#5c6771';
+    svg += `<g class="scg" style="transform-box:fill-box; transform-origin:center">
+      <circle class="sc" cx="${n.cx.toFixed(1)}" cy="${n.cy.toFixed(1)}" r="${n.r.toFixed(1)}"
+        fill="${on ? '#c8451f' : BUBBLE_HUE}" fill-opacity="${op.toFixed(2)}" stroke="${on ? '#c8451f' : '#ffffff'}" stroke-width="${on ? 3 : 1.5}"
+        data-tagbubble="${esc(n.p.tag)}" data-target="${gridSel}" style="cursor:pointer"><title>#${esc(n.p.tag)} · ${esc(n.p.ym)} · ${n.p.count}건</title></circle>
+      <text x="${n.cx.toFixed(1)}" y="${(n.cy - fs * 0.16).toFixed(1)}" font-size="${fs.toFixed(1)}" font-weight="800" fill="${tcol}" text-anchor="middle" pointer-events="none">${esc(name)}</text>
+      <text x="${n.cx.toFixed(1)}" y="${(n.cy + fs * 0.9).toFixed(1)}" font-size="${fsc.toFixed(1)}" font-weight="700" fill="${ccol}" text-anchor="middle" pointer-events="none">${n.p.count}건</text>
+    </g>`;
   }
   svg += '</svg>';
 
@@ -1675,25 +1667,26 @@ function tagFlowHTML(ranked, gridSel){
   svg += `<line x1="${padL}" y1="${(plotBottom + 6).toFixed(1)}" x2="${W - padR}" y2="${(plotBottom + 6).toFixed(1)}" stroke="#e4ded2" stroke-width="1"/>`;
 
   for(const n of nodes){
-    const it = n.it, on = tagFilter === it.tag, col = tagHue(it.tag);
+    const it = n.it, on = tagFilter === it.tag;
+    const op = on ? 1 : (0.32 + 0.6 * (it.peak / maxC));
     const monLabel = it.pill ? `${months[it.a]}~${months[it.b].slice(5)}` : months[it.a];
     const tip = `<title>#${esc(it.tag)} · ${monLabel} · ${it.sum}건${it.pill ? ' (연속 ' + it.span + '개월)' : ''}</title>`;
     if(n.pill){
       svg += `<rect class="sc" x="${(n.cx - n.hw).toFixed(1)}" y="${(n.cy - n.hh).toFixed(1)}" width="${(2 * n.hw).toFixed(1)}" height="${(2 * n.hh).toFixed(1)}" rx="${n.hh.toFixed(1)}" ry="${n.hh.toFixed(1)}"
-        fill="${col}" fill-opacity="${on ? 1 : 0.85}" stroke="${on ? '#c8451f' : '#ffffff'}" stroke-width="${on ? 3 : 1.5}"
+        fill="${on ? '#c8451f' : BUBBLE_HUE}" fill-opacity="${op.toFixed(2)}" stroke="${on ? '#c8451f' : '#ffffff'}" stroke-width="${on ? 3 : 1.5}"
         data-tagbubble="${esc(it.tag)}" data-target="${gridSel}" style="cursor:pointer">${tip}</rect>`;
     } else {
       svg += `<circle class="sc" cx="${n.cx.toFixed(1)}" cy="${n.cy.toFixed(1)}" r="${n.hh.toFixed(1)}"
-        fill="${col}" fill-opacity="${on ? 1 : 0.85}" stroke="${on ? '#c8451f' : '#ffffff'}" stroke-width="${on ? 3 : 1.5}"
+        fill="${on ? '#c8451f' : BUBBLE_HUE}" fill-opacity="${op.toFixed(2)}" stroke="${on ? '#c8451f' : '#ffffff'}" stroke-width="${on ? 3 : 1.5}"
         data-tagbubble="${esc(it.tag)}" data-target="${gridSel}" style="cursor:pointer">${tip}</circle>`;
     }
   }
   for(const n of nodes){
-    const it = n.it, name = '#' + it.tag;
+    const it = n.it, name = '#' + it.tag, on = tagFilter === it.tag;
     const availW = 2 * n.hw * 0.88;
     let fs = Math.min(availW / (name.length * 0.56), n.hh * 0.82, 18); fs = Math.max(fs, 7);
-    svg += `<text x="${n.cx.toFixed(1)}" y="${(n.cy - n.hh * 0.06).toFixed(1)}" font-size="${fs.toFixed(1)}" font-weight="800" fill="#33404a" text-anchor="middle" pointer-events="none">${esc(name)}</text>`;
-    svg += `<text x="${n.cx.toFixed(1)}" y="${(n.cy + fs * 0.92).toFixed(1)}" font-size="${(fs * 0.66).toFixed(1)}" font-weight="700" fill="#6b7681" text-anchor="middle" pointer-events="none">${it.sum}건</text>`;
+    svg += `<text x="${n.cx.toFixed(1)}" y="${(n.cy - n.hh * 0.06).toFixed(1)}" font-size="${fs.toFixed(1)}" font-weight="800" fill="${on ? '#fff' : '#33404a'}" text-anchor="middle" pointer-events="none">${esc(name)}</text>`;
+    svg += `<text x="${n.cx.toFixed(1)}" y="${(n.cy + fs * 0.92).toFixed(1)}" font-size="${(fs * 0.66).toFixed(1)}" font-weight="700" fill="${on ? '#ffe4d8' : '#6b7681'}" text-anchor="middle" pointer-events="none">${it.sum}건</text>`;
   }
   svg += '</svg>';
 
