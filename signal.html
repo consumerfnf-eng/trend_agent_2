@@ -513,11 +513,21 @@ a{color:var(--acc)}
 .releaseToggle .rlN{font-size:10px; font-weight:700; background:rgba(0,0,0,.12); border-radius:10px; padding:0 6px; margin-left:2px}
 .releaseToggle.on .rlN{background:rgba(255,255,255,.25)}
 .kwcard .kwshared{margin-top:8px}
+.kwcard .kwphoto.zoomable{cursor:zoom-in}
+.kwcard .kwmoreimgs img{cursor:zoom-in}
+#imgLight{position:fixed; inset:0; z-index:10000; display:none; align-items:center; justify-content:center}
+#imgLight.on{display:flex}
+#imgLight .imgLightBg{position:absolute; inset:0; background:rgba(20,16,12,.86)}
+#imgLight .imgLightFig{position:relative; margin:0; max-width:92vw; max-height:92vh; display:flex; flex-direction:column; align-items:center; gap:10px; z-index:1}
+#imgLight .imgLightFig img{max-width:92vw; max-height:84vh; object-fit:contain; border-radius:10px; box-shadow:0 20px 60px rgba(0,0,0,.5)}
+#imgLight figcaption{color:#f4efe7; font-size:13px; font-weight:600; text-align:center}
+#imgLight .imgLightX{position:absolute; top:18px; right:20px; z-index:2; width:40px; height:40px; border-radius:50%; border:none; background:rgba(255,255,255,.15); color:#fff; font-size:18px; cursor:pointer}
+#imgLight .imgLightX:hover{background:rgba(255,255,255,.3)}
 </style>
 </head>
 <body>
 <header>
-  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260808-38</span></h1>
+  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260808-39</span></h1>
   <a href="index.html" id="backLink" style="font-size:11px;letter-spacing:.12em;font-weight:700;color:var(--acc);text-decoration:none;border:1px solid var(--acc);padding:6px 12px">← DASHBOARD</a>
   <div class="mrange">
     <label>기간</label>
@@ -583,7 +593,7 @@ a{color:var(--acc)}
 
 <script src="config.js"></script>
 <script type="module">
-console.log("TREND AGENT signal.html v260808-38");
+console.log("TREND AGENT signal.html v260808-39");
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ══ 설정 — 다른 파일들과 같은 값 ══ */
@@ -1504,7 +1514,7 @@ function itemCardHTML(entry, it){
   return `<div class="kwcard${hasMore ? ' has-more' : ''}" data-kwlabel="${esc(entry.label)}">
     <div class="kwphotowrap">
       ${it.image_url
-        ? `<img class="kwphoto" src="${esc(it.image_url)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="imgFail(this)">`
+        ? `<img class="kwphoto zoomable" src="${esc(it.image_url)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="imgFail(this)" data-imgzoom="${esc(it.image_url)}" data-imgcap="${esc(entry.label)}${it.ym ? ' · ' + esc(it.ym) : ''}">`
         : `<div class="kwphoto imgfail"></div>`}
       ${it.ym ? `<div class="kwdate">${esc(it.ym)}</div>` : ''}
       ${it.region ? `<div class="kwregion">${esc(it.region)}</div>` : ''}
@@ -1518,7 +1528,7 @@ function itemCardHTML(entry, it){
     ${tagRow}
     ${hasMore ? `<div class="kwmore">
       ${extra.length ? `<div class="kwmoreimgs">${extra.map(u =>
-        `<img src="${esc(u)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="imgFail(this)">`).join('')}</div>` : ''}
+        `<img src="${esc(u)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="imgFail(this)" data-imgzoom="${esc(u)}" data-imgcap="${esc(entry.label)}">`).join('')}</div>` : ''}
       ${shared ? `<div class="kwshared">${shared}</div>` : ''}
     </div>` : ''}
     ${hasMore ? `<div class="kwmorehint"></div>` : ''}
@@ -1539,11 +1549,36 @@ function flatCardsHTML(ranked){
 }
 
 /* 카드(박스)를 누르면 펼쳐서 숨은 사진·전체 설명을 보여준다.
-   링크·태그·연결 배지 등에서 시작한 클릭은 각자 동작하도록 제외한다. */
+   링크·태그·연결 배지·사진 확대 등에서 시작한 클릭은 각자 동작하도록 제외한다. */
 document.addEventListener('click', e => {
-  if(e.target.closest('a, button, .tagrow, .tagchip, .relbadge, .kwmoreimgs')) return;
+  if(e.target.closest('a, button, .tagrow, .tagchip, .relbadge, .kwmoreimgs, [data-imgzoom]')) return;
   const card = e.target.closest('.kwcard.has-more'); if(!card) return;
   card.classList.toggle('expanded');
+});
+
+/* 카드 썸네일 클릭 → HTML 내부 이미지 라이트박스(크게 보기, 새 창 X) */
+function openImgLight(src, capHTML){
+  if(!src) return;
+  let box = document.getElementById('imgLight');
+  if(!box){
+    box = document.createElement('div'); box.id = 'imgLight';
+    box.innerHTML = `<div class="imgLightBg" data-imgclose="1"></div>
+      <button class="imgLightX" data-imgclose="1" aria-label="닫기">✕</button>
+      <figure class="imgLightFig"><img id="imgLightImg" referrerpolicy="no-referrer"><figcaption id="imgLightCap"></figcaption></figure>`;
+    document.body.appendChild(box);
+  }
+  document.getElementById('imgLightImg').src = src;
+  document.getElementById('imgLightCap').innerHTML = capHTML || '';
+  box.classList.add('on');
+}
+function closeImgLight(){ document.getElementById('imgLight')?.classList.remove('on'); }
+document.addEventListener('click', e => {
+  const z = e.target.closest('[data-imgzoom]');
+  if(z){ e.stopPropagation(); openImgLight(z.dataset.imgzoom, z.dataset.imgcap || ''); return; }
+  if(e.target.closest('[data-imgclose]')) closeImgLight();
+});
+document.addEventListener('keydown', e => {
+  if(e.key === 'Escape' && document.getElementById('imgLight')?.classList.contains('on')) closeImgLight();
 });
 
 /* 언급 건수 기준 버블 요약 — 카드 위에 표시, 카테고리/섹션이 바뀔 때마다 새로 계산됨(정적 아님).
