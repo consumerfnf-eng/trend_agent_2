@@ -426,6 +426,18 @@ circle.sc:hover{fill-opacity:.8}
 .flowToggle{margin-left:6px; border:1px solid var(--acc)!important; background:#fff!important; color:var(--acc)!important}
 .flowToggle.on{background:var(--acc)!important; color:#fff!important}
 .scatterTop{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:4px}
+.runwaySeasonTabs{display:flex; gap:6px; margin:10px 0 14px; flex-wrap:wrap}
+.runwaySeasonTabs button{font-size:12px; font-weight:800; letter-spacing:.02em; padding:6px 14px; border-radius:20px;
+  border:1px solid var(--hair); background:#fff; color:var(--sub); cursor:pointer; display:inline-flex; align-items:center; gap:6px}
+.runwaySeasonTabs button.on{background:var(--tx); border-color:var(--tx); color:#fff}
+.runwaySeasonTabs .rwCnt{font-size:10px; font-weight:700; background:rgba(0,0,0,.12); border-radius:10px; padding:0 6px}
+.runwaySeasonTabs button.on .rwCnt{background:rgba(255,255,255,.25)}
+.rwBrand{margin:0 0 20px}
+.rwBrandName{font-size:14px; font-weight:800; color:var(--tx); margin:0 0 8px; letter-spacing:.02em}
+.rwBrandName .rwBrandN{font-size:11px; font-weight:700; color:var(--sub); margin-left:4px}
+.rwShots{display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:10px}
+.rwShot{display:block; aspect-ratio:3/4; border-radius:12px; overflow:hidden; border:1px solid var(--hair); background:#f4efe7}
+.rwShot img{width:100%; height:100%; object-fit:cover; display:block}
 .flowTopn{margin-left:auto; font-size:11px; color:var(--sub); font-weight:700; display:inline-flex; align-items:center; gap:4px}
 .flowTopn select{font:inherit; font-size:11px; border:1px solid var(--hair); border-radius:7px; padding:2px 6px; background:#fff}
 .kwcard .kwname{font-size:15px; font-weight:800; margin-bottom:4px; line-height:1.3}
@@ -481,7 +493,7 @@ a{color:var(--acc)}
 </head>
 <body>
 <header>
-  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260808-33</span></h1>
+  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260808-34</span></h1>
   <a href="index.html" id="backLink" style="font-size:11px;letter-spacing:.12em;font-weight:700;color:var(--acc);text-decoration:none;border:1px solid var(--acc);padding:6px 12px">← DASHBOARD</a>
   <div class="mrange">
     <label>기간</label>
@@ -516,6 +528,13 @@ a{color:var(--acc)}
       <div class="kwlist" id="newsKwMore" style="display:none"></div>
     </div>
 
+    <div class="srcBlock" id="runwayBlock" style="display:none">
+      <h4 class="srcTitle">런웨이 <span id="runwayCnt" class="srcCnt"></span></h4>
+      <div class="sub">슈즈 런웨이 자료 — 쇼 시즌별로 모았어요 (파일명에서 브랜드 자동 표시)</div>
+      <div class="runwaySeasonTabs" id="runwaySeasonTabs"></div>
+      <div id="runwayGrid"></div>
+    </div>
+
     <div class="srcBlock" id="snsBlock">
       <h4 class="srcTitle">SNS 트렌드 <span id="snsCnt" class="srcCnt"></span>
         <span class="snsTools" id="snsTools">
@@ -539,7 +558,7 @@ a{color:var(--acc)}
 
 <script src="config.js"></script>
 <script type="module">
-console.log("TREND AGENT signal.html v260808-33");
+console.log("TREND AGENT signal.html v260808-34");
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ══ 설정 — 다른 파일들과 같은 값 ══ */
@@ -1129,6 +1148,65 @@ window.imgFail = function(img){
 };
 
 let scatF = 'lifestyle';
+
+/* ── 런웨이(슈즈 전용) ─────────────────────────────────────── */
+const RUNWAY_SEASONS = ['26FW', '27SS', '27FW'];
+let RUNWAY = [];                 /* {id, season, brand, filename, image_url, sort_order} */
+let runwaySeasonSel = '26FW';
+const CONNECTORS = new Set(['de','des','van','der','di','da','la','le','el','du','von','of','and','the','den','ten','op']);
+function brandFromFilename(fn){
+  let base = String(fn || '').replace(/\.[^.]+$/, '').replace(/^\s*\d+\s*[-_]\s*/, '');  /* 맨 앞 '숫자-' 접두어 제거(있을 때만) */
+  const parts = base.split('_').filter(Boolean);
+  const out = [];
+  for(const p of parts){
+    if(/^[A-Z]/.test(p) || CONNECTORS.has(p.toLowerCase())) out.push(p);
+    else break;                  /* 첫 소문자 브랜드코드 만나면 멈춤 */
+  }
+  let brand = out.join(' ').trim();
+  if(!brand) brand = (parts[0] || base);
+  return brand;
+}
+async function loadRunway(){
+  try{
+    const { data, error } = await sb.from('runway_shots').select('*').order('sort_order', { ascending: true }).order('created_at', { ascending: true });
+    if(error){ console.warn('runway_shots 로드 실패 (테이블이 아직 없을 수 있음):', error.message); RUNWAY = []; return; }
+    RUNWAY = (data || []).map(r => ({ id: r.id, season: r.season, brand: r.brand || brandFromFilename(r.filename), filename: r.filename, image_url: r.image_url, sort_order: r.sort_order ?? 0 }));
+  }catch(e){ console.warn('runway_shots 로드 실패:', e); RUNWAY = []; }
+}
+function renderRunway(){
+  const tabsEl = $('#runwaySeasonTabs'), gridEl = $('#runwayGrid'), cntEl = $('#runwayCnt');
+  if(!tabsEl || !gridEl) return;
+  /* 자료가 있는 시즌만 우선 노출하되, 기본 3시즌 탭은 항상 보여줌 */
+  tabsEl.innerHTML = RUNWAY_SEASONS.map(s => {
+    const n = RUNWAY.filter(r => r.season === s).length;
+    return `<button class="${s === runwaySeasonSel ? 'on' : ''}" data-runwayseason="${s}">${s}<span class="rwCnt">${n}</span></button>`;
+  }).join('');
+  const shots = RUNWAY.filter(r => r.season === runwaySeasonSel);
+  if(cntEl) cntEl.textContent = shots.length ? `${shots.length}컷` : '';
+  if(!shots.length){
+    gridEl.innerHTML = `<div class="empty" style="padding:16px 0">${runwaySeasonSel} 런웨이 자료가 아직 없어요. +수집(admin)의 '런웨이 자료'에서 이미지를 올려주세요.</div>`;
+    return;
+  }
+  /* 브랜드별 묶어서 */
+  const byBrand = new Map();
+  for(const r of shots){ const b = r.brand || '(브랜드 미상)'; if(!byBrand.has(b)) byBrand.set(b, []); byBrand.get(b).push(r); }
+  const brands = [...byBrand.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  gridEl.innerHTML = brands.map(([brand, rows]) => `
+    <div class="rwBrand">
+      <div class="rwBrandName">${esc(brand)} <span class="rwBrandN">${rows.length}</span></div>
+      <div class="rwShots">
+        ${rows.map(r => `<a class="rwShot" href="${esc(r.image_url)}" target="_blank" rel="noopener" title="${esc(r.filename)}">
+          <img src="${esc(r.image_url)}" loading="lazy" referrerpolicy="no-referrer" onerror="imgFail(this)">
+        </a>`).join('')}
+      </div>
+    </div>`).join('');
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-runwayseason]'); if(!b) return;
+  runwaySeasonSel = b.dataset.runwayseason;
+  renderRunway();
+});
+
 /* SNS 순서 편집 — 스타일(박스) 순서는 sns_style_order 테이블에, 사진 순서·대표는 trend_signals 에 저장 */
 let SNS_EDIT = false;
 const SNS_STYLE_ORDER = {};                 /* 'category|keyword' → sort_order */
@@ -1186,6 +1264,7 @@ function renderCurrentView(){
   const isLife = scatF === 'lifestyle';
   $('#lifeBlock').style.display = isLife ? '' : 'none';
   $('#newsBlock').style.display = isLife ? 'none' : '';
+  const rwb = $('#runwayBlock'); if(rwb){ rwb.style.display = (scatF === 'shoes') ? '' : 'none'; if(scatF === 'shoes') renderRunway(); }
   $('#snsBlock').style.display  = '';   /* 라이프스타일 탭에서도 SNS 섹션을 보여준다 */
   $('#catSub').textContent = isLife
     ? '소비자 활동·문화·행태 트렌드를 모아봤어요 — 다른 카테고리를 고르면 패션·SNS 트렌드를 볼 수 있어요'
@@ -1485,111 +1564,77 @@ function tagCellAgg(ranked){
 
 /* ── 기본 해시태그 버블: 가로=년월, 크기·글씨=언급량, 파스텔, 라벨 한 줄(안 잘림) ── */
 function tagScatterHTML(ranked, gridSel){
+  /* 기간 전체 태그별 합계 → 한 덩어리로 뭉치기(년월 축 없음, 큰 원 가운데) */
   const pts0 = tagCellAgg(ranked);
   if(!pts0.length) return '<div class="empty" style="padding:10px 0">이 섹션에는 아직 해시태그가 없습니다</div>';
   const months = tagMonthAxis(pts0.map(p => p.ym));
   const mIdx = new Map(months.map((m, i) => [m, i]));
-  const pts = pts0.filter(p => mIdx.has(p.ym));
-  if(!pts.length) return '<div class="empty" style="padding:10px 0">이 기간에는 해시태그가 없습니다</div>';
+  const totals = new Map();
+  for(const p of pts0){ if(!mIdx.has(p.ym)) continue; totals.set(p.tag, (totals.get(p.tag) || 0) + p.count); }
+  let arr = [...totals.entries()].map(([tag, count]) => ({ tag, count }));
+  if(!arr.length) return '<div class="empty" style="padding:10px 0">이 기간에는 해시태그가 없습니다</div>';
+  arr.sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag));
+  const TOPN = 40;
+  const totalTags = arr.length;
+  arr = arr.slice(0, TOPN);
+  const maxC = Math.max(...arr.map(a => a.count), 1);
 
-  /* 달마다 언급량 상위 N개 */
-  const PER_MONTH = 12;
-  const byCol = new Map();
-  for(const p of pts){ const c = mIdx.get(p.ym); if(!byCol.has(c)) byCol.set(c, []); byCol.get(c).push(p); }
-  for(const [, arr] of byCol) arr.sort((a, b) => b.count - a.count);
-  const keep = [];
-  for(const [c, arr] of byCol){ byCol.set(c, arr.slice(0, PER_MONTH)); keep.push(...byCol.get(c)); }
-  const maxC = Math.max(...keep.map(p => p.count), 1);
-
-  const padL = 14, padR = 14, padT = 22, padB = 38, W = 1120;
-  const plotW = W - padL - padR, colW = plotW / months.length;
-  const xAt = i => padL + colW * (i + 0.5);
-  const rMin = 16, rMax = Math.max(28, Math.min(colW * 0.44, 72));
+  const rMin = 20, rMax = 78;
   const rOf = c => rMin + (rMax - rMin) * Math.sqrt(c / maxC);
-
-  const wrapTag = (name) => {
-    if(name.length <= 8) return [name];
-    let cut = -1, best = 1e9, mid = name.length / 2;
-    for(let i = 1; i < name.length - 1; i++) if(name[i] === '-'){ const d = Math.abs(i - mid); if(d < best){ best = d; cut = i; } }
-    if(cut > 0) return [name.slice(0, cut + 1), name.slice(cut + 1)];
-    const c = Math.ceil(name.length / 2); return [name.slice(0, c), name.slice(c)];
-  };
-
-  /* 노드 만들고, 달(열)마다 큰 원을 중심으로 둥글게 뭉치기(circle packing) */
-  const nodes = [];
-  const colHalf = colW / 2 - 4;
-  for(const [c, arr] of byCol){
-    const ns = arr.map(p => ({ p, r: rOf(p.count), ox: (Math.random() - 0.5) * 6, oy: (Math.random() - 0.5) * 6 }));
-    ns.sort((a, b) => b.r - a.r);
-    if(ns.length) { ns[0].ox = 0; ns[0].oy = 0; }
-    for(let step = 0; step < 480; step++){
-      const g = step < 380 ? 0.94 : 1;              // 중심으로 끌어당김(뭉치기)
-      for(const n of ns){ n.ox *= g; n.oy *= g; }
-      for(let i = 0; i < ns.length; i++){
-        for(let j = i + 1; j < ns.length; j++){
-          const a = ns[i], b = ns[j];
-          let dx = b.ox - a.ox, dy = b.oy - a.oy, d = Math.hypot(dx, dy), need = a.r + b.r + 3;
-          if(d >= need) continue;
-          if(d < 0.01){ dx = Math.random() - 0.5; dy = Math.random() - 0.5; d = Math.hypot(dx, dy) || 1; }
-          const push = (need - d) / 2 + 0.1;
-          a.ox -= dx / d * push; a.oy -= dy / d * push;
-          b.ox += dx / d * push; b.oy += dy / d * push;
-        }
+  const nodes = arr.map(a => ({ p: a, r: rOf(a.count), x: 0, y: 0 }));
+  nodes.sort((a, b) => b.r - a.r);
+  /* 큰 것부터 중앙 근처, 초기엔 원형으로 흩뿌림 */
+  nodes.forEach((n, i) => { const ang = i * 2.399963; const rad = 6 + i * 6; n.x = Math.cos(ang) * rad; n.y = Math.sin(ang) * rad; });
+  if(nodes.length) { nodes[0].x = 0; nodes[0].y = 0; }
+  for(let step = 0; step < 700; step++){
+    const g = step < 560 ? 0.97 : 1;        /* 중심으로 끌어당김 */
+    for(const n of nodes){ n.x *= g; n.y *= g; }
+    for(let i = 0; i < nodes.length; i++){
+      for(let j = i + 1; j < nodes.length; j++){
+        const a = nodes[i], b = nodes[j];
+        let dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy), need = a.r + b.r + 3;
+        if(d >= need) continue;
+        if(d < 0.01){ dx = Math.random() - 0.5; dy = Math.random() - 0.5; d = Math.hypot(dx, dy) || 1; }
+        const push = (need - d) / 2 + 0.1;
+        a.x -= dx / d * push; a.y -= dy / d * push;
+        b.x += dx / d * push; b.y += dy / d * push;
       }
-      for(const n of ns){ const lim = Math.max(0, colHalf - n.r); n.ox = Math.min(lim, Math.max(-lim, n.ox)); }
     }
-    let minY = 1e9, maxY = -1e9;
-    for(const n of ns){ minY = Math.min(minY, n.oy - n.r); maxY = Math.max(maxY, n.oy + n.r); }
-    for(const n of ns){ n.col = c; n.midShift = (minY + maxY) / 2; nodes.push(n); }
-    byCol.set(c, ns);
   }
-  /* 전체 높이 = 가장 큰 달 뭉치의 높이, 각 달 뭉치를 세로 중앙 정렬 */
-  let maxColH = 0;
-  for(const [, ns] of byCol){
-    let mn = 1e9, mx = -1e9;
-    for(const n of ns){ mn = Math.min(mn, n.oy - n.r); mx = Math.max(mx, n.oy + n.r); }
-    if(ns.length) maxColH = Math.max(maxColH, mx - mn);
-  }
-  const midY = padT + maxColH / 2 + 4;
-  const H = padT + maxColH + padB + 8;
-  const plotBottom = padT + maxColH + 8;
-  for(const [c, ns] of byCol) for(const n of ns){ n.cx = xAt(c) + n.ox; n.cy = midY + (n.oy - n.midShift); }
+  /* 경계 계산 → viewBox */
+  let minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
+  for(const n of nodes){ minX = Math.min(minX, n.x - n.r); maxX = Math.max(maxX, n.x + n.r); minY = Math.min(minY, n.y - n.r); maxY = Math.max(maxY, n.y + n.r); }
+  const pad = 14;
+  const VW = (maxX - minX) + pad * 2, VH = (maxY - minY) + pad * 2;
+  const ox = -minX + pad, oy = -minY + pad;
 
-  let svg = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" style="display:block; width:100%; height:auto; margin:0 auto" role="img">`;
-  months.forEach((m, i) => {
-    const x0 = padL + colW * i;
-    if(i > 0) svg += `<line x1="${x0.toFixed(1)}" y1="${padT}" x2="${x0.toFixed(1)}" y2="${plotBottom.toFixed(1)}" stroke="#f2ede4" stroke-width="1"/>`;
-    svg += `<text x="${xAt(i).toFixed(1)}" y="${(H - 12).toFixed(1)}" font-size="13" font-weight="600" fill="#8a8578" text-anchor="middle">${esc(m)}</text>`;
-  });
-  svg += `<line x1="${padL}" y1="${(plotBottom + 6).toFixed(1)}" x2="${W - padR}" y2="${(plotBottom + 6).toFixed(1)}" stroke="#e4ded2" stroke-width="1"/>`;
-
-  for(const n of nodes){
+  let svg = `<svg viewBox="0 0 ${VW.toFixed(1)} ${VH.toFixed(1)}" preserveAspectRatio="xMidYMid meet" style="display:block; width:100%; height:auto; max-height:76vh; margin:0 auto" role="img">`;
+  for(const n of [...nodes].sort((a, b) => b.r - a.r)){
     const on = tagFilter === n.p.tag;
-    const op = on ? 1 : (0.42 + 0.58 * (n.p.count / maxC));   /* 많이 나올수록 진하게, 적으면 투명 */
+    const cx = n.x + ox, cy = n.y + oy;
+    const op = on ? 1 : (0.45 + 0.55 * (n.p.count / maxC));
     const name = '#' + n.p.tag;
     const availW = 2 * n.r * 0.86;
-    const fs = Math.max(Math.min(availW / (name.length * 0.56), n.r * 0.66, 17), 4.5);
-    const fsc = fs * 0.72;
+    const fs = Math.max(Math.min(availW / (name.length * 0.56), n.r * 0.66, 20), 5);
     const tcol = on ? '#ffffff' : '#33404a', ccol = on ? '#ffe4d8' : '#5c6771';
     svg += `<g class="scg" style="transform-box:fill-box; transform-origin:center">
-      <circle class="sc" cx="${n.cx.toFixed(1)}" cy="${n.cy.toFixed(1)}" r="${n.r.toFixed(1)}"
+      <circle class="sc" cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${n.r.toFixed(1)}"
         fill="${on ? '#c8451f' : tagHue(n.p.tag)}" fill-opacity="${op.toFixed(2)}" stroke="${on ? '#c8451f' : '#ffffff'}" stroke-width="${on ? 3 : 1.5}"
-        data-tagbubble="${esc(n.p.tag)}" data-target="${gridSel}" style="cursor:pointer"><title>#${esc(n.p.tag)} · ${esc(n.p.ym)} · ${n.p.count}건</title></circle>
-      <text x="${n.cx.toFixed(1)}" y="${(n.cy - fs * 0.16).toFixed(1)}" font-size="${fs.toFixed(1)}" font-weight="800" fill="${tcol}" text-anchor="middle" pointer-events="none">${esc(name)}</text>
-      <text x="${n.cx.toFixed(1)}" y="${(n.cy + fs * 0.9).toFixed(1)}" font-size="${fsc.toFixed(1)}" font-weight="700" fill="${ccol}" text-anchor="middle" pointer-events="none">${n.p.count}건</text>
+        data-tagbubble="${esc(n.p.tag)}" data-target="${gridSel}" style="cursor:pointer"><title>#${esc(n.p.tag)} · 기간 합계 ${n.p.count}건</title></circle>
+      <text x="${cx.toFixed(1)}" y="${(cy - fs * 0.16).toFixed(1)}" font-size="${fs.toFixed(1)}" font-weight="800" fill="${tcol}" text-anchor="middle" pointer-events="none">${esc(name)}</text>
+      <text x="${cx.toFixed(1)}" y="${(cy + fs * 0.9).toFixed(1)}" font-size="${(fs * 0.72).toFixed(1)}" font-weight="700" fill="${ccol}" text-anchor="middle" pointer-events="none">${n.p.count}건</text>
     </g>`;
   }
   svg += '</svg>';
-
-  const shown = new Set(keep.map(p => p.tag)).size, totalTags = new Set(pts.map(p => p.tag)).size;
   return `<div class="scatterWrap">
-    <div class="scatterTop"><span class="mini">가로 년월 · 버블 클수록 많이 언급 · 누르면 그 태그 카드만</span></div>
+    <div class="scatterTop"><span class="mini">기간 전체 · 많이 언급될수록 큰 버블(가운데) · 누르면 그 태그 카드만</span></div>
     ${svg}
-    <div class="mini" style="margin-top:4px">${totalTags > shown ? `달마다 상위 ${PER_MONTH}개 표시` : ''}</div>
+    <div class="mini" style="margin-top:4px">${totalTags > nodes.length ? `언급량 상위 ${nodes.length}개 표시 (전체 ${totalTags})` : ''}</div>
   </div>`;
 }
 
 function tagFlowHTML(ranked, gridSel){
+  /* 년월 가로축 · 태그마다 한 줄 · 달마다 점(크기=그 달 건수) · 점들을 선으로 이음 */
   const pts0 = tagCellAgg(ranked);
   if(!pts0.length) return '<div class="empty" style="padding:10px 0">이 섹션에는 아직 해시태그가 없습니다</div>';
   const months = tagMonthAxis(pts0.map(p => p.ym));
@@ -1601,16 +1646,8 @@ function tagFlowHTML(ranked, gridSel){
     if(!tagMap.has(p.tag)) tagMap.set(p.tag, { tag: p.tag, total: 0, byIdx: new Map() });
     const e = tagMap.get(p.tag); e.total += p.count; e.byIdx.set(mIdx.get(p.ym), (e.byIdx.get(mIdx.get(p.ym)) || 0) + p.count);
   }
-  /* 연속 2개월 이상 있는 태그만, 언급량 상위 N */
-  const runsOf = (byIdx) => {
-    const idxs = [...byIdx.keys()].sort((a, b) => a - b); const runs = []; let run = [];
-    for(const i of idxs){ if(run.length && i === run[run.length - 1] + 1) run.push(i); else { if(run.length) runs.push(run); run = [i]; } }
-    if(run.length) runs.push(run);
-    return runs;
-  };
   const qualified = [...tagMap.values()]
-    .map(t => ({ ...t, runs: runsOf(t.byIdx) }))
-    .filter(t => t.byIdx.size >= 2)          /* 기간 중 2개 이상의 달에 나온 키워드만 (1개 달만 나온 건 제외) */
+    .filter(t => t.byIdx.size >= 2)                 /* 2개 이상의 달에 나온 키워드만 */
     .sort((a, b) => b.total - a.total || a.tag.localeCompare(b.tag))
     .slice(0, FLOW_TOPN);
 
@@ -1618,82 +1655,59 @@ function tagFlowHTML(ranked, gridSel){
     <select data-flowtopn>${[5,7,10,15].map(v => `<option value="${v}"${v===FLOW_TOPN?' selected':''}>${v}</option>`).join('')}</select>개</label>`;
 
   if(!qualified.length){
-    return `<div class="scatterWrap"><div class="scatterTop"><span class="mini">여러 달에 걸쳐 언급된 키워드</span>${topnSel}</div>
+    return `<div class="scatterWrap"><div class="scatterTop"><span class="mini">여러 달(2개 이상)에 걸쳐 언급된 키워드</span>${topnSel}</div>
       <div class="empty" style="padding:16px 0">이 기간에 2개 달 이상 나온 키워드가 없어요. (기간을 넓히거나 여러 달 자료가 있는 카테고리에서 확인해 보세요)</div></div>`;
   }
 
-  /* 각 태그의 run을 아이템으로 (연속 2+ = 알약, 단독 달 = 원) */
-  const items = [];
-  for(const t of qualified){
-    for(const r of t.runs){
-      const a = r[0], b = r[r.length - 1];
-      let peak = 0, sum = 0; for(const i of r){ const c = t.byIdx.get(i); peak = Math.max(peak, c); sum += c; }
-      items.push({ tag: t.tag, a, b, peak, sum, span: b - a + 1, total: t.total });
-    }
-  }
-  const maxC = Math.max(...items.map(it => it.peak), 1);
-  const padL = 18, padR = 18, padT = 16, padB = 34, W = 1120;
-  const plotW = W - padL - padR, colW = plotW / months.length;
-  const xAt = i => padL + colW * (i + 0.5);
-  const rMax = Math.max(20, Math.min(colW * 0.42, 54)), rMin = 16;
-  const rOf = c => rMin + (rMax - rMin) * (c / maxC);
-
-  const nodes = items.map(it => {
-    const hh = rOf(it.peak), xL = xAt(it.a), xR = xAt(it.b);
-    const cx = (xL + xR) / 2, hw = (xR - xL) / 2 + hh;
-    return { it, hh, hw, cx, left: cx - hw, right: cx + hw, cy: 0, lane: 0, pill: it.b > it.a };
-  });
-  /* 언급 많은 태그가 위로 오도록: total desc로 배치 순서 결정 후 레인 패킹 */
-  nodes.sort((a, b) => b.it.total - a.it.total || a.left - b.left);
-  const gapX = 10, gapY = 12, lanes = [];
-  for(const n of nodes){
-    let placed = -1;
-    for(let k = 0; k < lanes.length; k++){ if(lanes[k].right + gapX <= n.left){ placed = k; break; } }
-    if(placed < 0){ placed = lanes.length; lanes.push({ right: -1e9, maxH: 0 }); }
-    const L = lanes[placed]; L.right = n.right; L.maxH = Math.max(L.maxH, 2 * n.hh); n.lane = placed;
-  }
-  const laneTop = []; let accY = padT;
-  for(let k = 0; k < lanes.length; k++){ laneTop[k] = accY; accY += lanes[k].maxH + gapY; }
-  const plotBottom = accY - gapY;
-  for(const n of nodes) n.cy = laneTop[n.lane] + lanes[n.lane].maxH / 2;
-  const H = plotBottom + padB;
+  const maxC = Math.max(...qualified.flatMap(t => [...t.byIdx.values()]), 1);
+  const gutterL = 150, padR = 26, padT = 30, padB = 30, rowH = 46, W = 1120;
+  const plotW = W - gutterL - padR, colW = plotW / months.length;
+  const xAt = i => gutterL + colW * (i + 0.5);
+  const rowY = k => padT + rowH * (k + 0.5);
+  const rMax = Math.min(rowH * 0.42, colW * 0.4, 20), rMin = 6;
+  const rOf = c => rMin + (rMax - rMin) * Math.sqrt(c / maxC);
+  const H = padT + rowH * qualified.length + padB;
 
   let svg = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" style="display:block; width:100%; height:auto; margin:0 auto" role="img">`;
+  /* 세로 월 가이드 + 헤더 */
   months.forEach((m, i) => {
-    const x0 = padL + colW * i;
-    if(i > 0) svg += `<line x1="${x0.toFixed(1)}" y1="${padT}" x2="${x0.toFixed(1)}" y2="${plotBottom.toFixed(1)}" stroke="#f2ede4" stroke-width="1"/>`;
-    svg += `<text x="${xAt(i).toFixed(1)}" y="${(H - 12).toFixed(1)}" font-size="13" font-weight="600" fill="#8a8578" text-anchor="middle">${esc(m)}</text>`;
+    const x0 = gutterL + colW * i;
+    svg += `<line x1="${x0.toFixed(1)}" y1="${padT}" x2="${x0.toFixed(1)}" y2="${(padT + rowH * qualified.length).toFixed(1)}" stroke="#f2ede4" stroke-width="1"/>`;
+    svg += `<text x="${xAt(i).toFixed(1)}" y="${(padT - 12).toFixed(1)}" font-size="12.5" font-weight="700" fill="#8a8578" text-anchor="middle">${esc(m)}</text>`;
   });
-  svg += `<line x1="${padL}" y1="${(plotBottom + 6).toFixed(1)}" x2="${W - padR}" y2="${(plotBottom + 6).toFixed(1)}" stroke="#e4ded2" stroke-width="1"/>`;
+  svg += `<line x1="${gutterL}" y1="${padT}" x2="${gutterL}" y2="${(padT + rowH * qualified.length).toFixed(1)}" stroke="#e4ded2" stroke-width="1"/>`;
 
-  for(const n of nodes){
-    const it = n.it, on = tagFilter === it.tag;
-    const op = on ? 1 : (0.32 + 0.6 * (it.peak / maxC));
-    const monLabel = it.pill ? `${months[it.a]}~${months[it.b].slice(5)}` : months[it.a];
-    const tip = `<title>#${esc(it.tag)} · ${monLabel} · ${it.sum}건${it.pill ? ' (연속 ' + it.span + '개월)' : ''}</title>`;
-    if(n.pill){
-      svg += `<rect class="sc" x="${(n.cx - n.hw).toFixed(1)}" y="${(n.cy - n.hh).toFixed(1)}" width="${(2 * n.hw).toFixed(1)}" height="${(2 * n.hh).toFixed(1)}" rx="${n.hh.toFixed(1)}" ry="${n.hh.toFixed(1)}"
-        fill="${on ? '#c8451f' : tagHue(it.tag)}" fill-opacity="${op.toFixed(2)}" stroke="${on ? '#c8451f' : '#ffffff'}" stroke-width="${on ? 3 : 1.5}"
-        data-tagbubble="${esc(it.tag)}" data-target="${gridSel}" style="cursor:pointer">${tip}</rect>`;
-    } else {
-      svg += `<circle class="sc" cx="${n.cx.toFixed(1)}" cy="${n.cy.toFixed(1)}" r="${n.hh.toFixed(1)}"
-        fill="${on ? '#c8451f' : tagHue(it.tag)}" fill-opacity="${op.toFixed(2)}" stroke="${on ? '#c8451f' : '#ffffff'}" stroke-width="${on ? 3 : 1.5}"
-        data-tagbubble="${esc(it.tag)}" data-target="${gridSel}" style="cursor:pointer">${tip}</circle>`;
+  qualified.forEach((t, k) => {
+    const y = rowY(k), on = tagFilter === t.tag, hue = tagHue(t.tag);
+    if(k % 2 === 1) svg += `<rect x="${gutterL}" y="${(padT + rowH * k).toFixed(1)}" width="${plotW.toFixed(1)}" height="${rowH}" fill="#faf7f2"/>`;
+    if(on) svg += `<rect x="0" y="${(padT + rowH * k).toFixed(1)}" width="${W}" height="${rowH}" fill="#fbeee7"/>`;
+    /* 왼쪽 라벨(한 줄) + 총 건수 */
+    svg += `<text x="${(gutterL - 12).toFixed(1)}" y="${(y - 2).toFixed(1)}" font-size="12.5" font-weight="${on ? 800 : 700}" fill="${on ? '#c8451f' : '#3a4048'}" text-anchor="end">#${esc(t.tag)}</text>`;
+    svg += `<text x="${(gutterL - 12).toFixed(1)}" y="${(y + 12).toFixed(1)}" font-size="9.5" font-weight="600" fill="#9a938a" text-anchor="end">총 ${t.total}건</text>`;
+    /* 점 좌표(월 순) */
+    const dots = months.map((m, i) => ({ i, x: xAt(i), c: t.byIdx.get(i) || 0 })).filter(d => d.c > 0);
+    /* 선으로 잇기(점들을 월 순서대로) */
+    if(dots.length >= 2){
+      const pline = dots.map(d => `${d.x.toFixed(1)},${y.toFixed(1)}`).join(' ');
+      svg += `<polyline points="${pline}" fill="none" stroke="${on ? '#c8451f' : hue}" stroke-width="${on ? 4 : 3}" stroke-opacity="${on ? 0.9 : 0.7}" stroke-linecap="round"/>`;
     }
-  }
-  for(const n of nodes){
-    const it = n.it, name = '#' + it.tag, on = tagFilter === it.tag;
-    const availW = 2 * n.hw * 0.88;
-    let fs = Math.min(availW / (name.length * 0.56), n.hh * 0.82, 18); fs = Math.max(fs, 7);
-    svg += `<text x="${n.cx.toFixed(1)}" y="${(n.cy - n.hh * 0.06).toFixed(1)}" font-size="${fs.toFixed(1)}" font-weight="800" fill="${on ? '#fff' : '#33404a'}" text-anchor="middle" pointer-events="none">${esc(name)}</text>`;
-    svg += `<text x="${n.cx.toFixed(1)}" y="${(n.cy + fs * 0.92).toFixed(1)}" font-size="${(fs * 0.66).toFixed(1)}" font-weight="700" fill="${on ? '#ffe4d8' : '#6b7681'}" text-anchor="middle" pointer-events="none">${it.sum}건</text>`;
-  }
+    /* 점(원) — 크기=그 달 건수, 건수 표시 */
+    for(const d of dots){
+      const r = rOf(d.c);
+      svg += `<g class="scg" style="transform-box:fill-box; transform-origin:center">
+        <circle class="sc" cx="${d.x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r.toFixed(1)}"
+          fill="${on ? '#c8451f' : hue}" fill-opacity="${on ? 1 : 0.92}" stroke="#ffffff" stroke-width="1.5"
+          data-tagbubble="${esc(t.tag)}" data-target="${gridSel}" style="cursor:pointer"><title>#${esc(t.tag)} · ${esc(months[d.i])} · ${d.c}건</title></circle>`;
+      if(r >= 9) svg += `<text x="${d.x.toFixed(1)}" y="${(y + 3.2).toFixed(1)}" font-size="10" font-weight="800" fill="#fff" text-anchor="middle" pointer-events="none">${d.c}</text>`;
+      svg += `</g>`;
+    }
+  });
   svg += '</svg>';
 
   return `<div class="scatterWrap">
-    <div class="scatterTop"><span class="mini">여러 달(2개 이상)에 걸쳐 언급된 키워드 · 많이 언급된 순 · 연속이면 이어서 표시</span>${topnSel}</div>
+    <div class="scatterTop"><span class="mini">가로 년월 · 태그마다 한 줄 · 점 크기=그 달 건수 · 선으로 흐름 표시 · 많이 언급된 순</span>${topnSel}</div>
     ${svg}
-    <div class="mini" style="margin-top:4px">막대(알약)를 누르면 그 태그 카드만 볼 수 있어요 · 상위 ${qualified.length}개</div>
+    <div class="mini" style="margin-top:4px">점을 누르면 그 태그 카드만 볼 수 있어요 · 상위 ${qualified.length}개</div>
   </div>`;
 }
 
@@ -3226,6 +3240,7 @@ async function loadAliases(){
 load();
 renderStatic();
 loadTagAliases().then(loadTagClusters).then(loadTrendSignals);
+loadRunway().then(() => { if(scatF === 'shoes') renderRunway(); });
 loadAliases();
 // loadSnsSheet();  // SNS 데이터 일단 비활성화 — 다시 켜려면 이 줄 주석 해제
 </script>
