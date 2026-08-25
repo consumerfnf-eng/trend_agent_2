@@ -27,6 +27,16 @@ header h1 em{font-style:normal; color:var(--rising)}
 .who{margin-left:auto; font-size:11px; color:var(--sub); display:flex; align-items:center; gap:10px}
 main{max-width:1180px; margin:0 auto; padding:22px 24px 90px}
 .view{display:none} .view.on{display:block}
+.rwAdmBrand{margin:0 0 18px}
+.rwAdmBrandHead{display:flex; align-items:center; gap:8px; margin:0 0 8px}
+.rwBrandEdit{font-size:14px; font-weight:800; border:1px solid transparent; border-radius:7px; padding:3px 7px; background:transparent; color:#2b2620; min-width:180px}
+.rwBrandEdit:hover, .rwBrandEdit:focus{border-color:#e6e0d6; background:#fff; outline:none}
+.rwAdmShots{display:grid; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); gap:10px}
+.rwAdmShot{position:relative; border:1px solid #e6e0d6; border-radius:10px; overflow:hidden; background:#f4efe7}
+.rwAdmShot img{width:100%; aspect-ratio:3/4; object-fit:cover; display:block}
+.rwAdmShot .rwDel{position:absolute; top:5px; right:5px; width:22px; height:22px; border-radius:50%; border:none; background:rgba(0,0,0,.55); color:#fff; font-size:12px; cursor:pointer}
+.rwAdmShot .rwDel:hover{background:#c8451f}
+.rwAdmShot .rwFn{font-size:9px; color:#8a8175; padding:3px 5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
 /* 등록 관리 목록 — 전역 input{width:100%} 때문에 체크박스가 폭을 다 먹지 않도록 */
 .mgRow{display:grid; grid-template-columns:20px 46px 1fr auto; gap:12px; align-items:start;
   padding:11px 14px; border:1px solid var(--hair); border-radius:10px; margin-bottom:7px;
@@ -243,10 +253,11 @@ tbody tr:hover{background:#fdfcf9}
             border:1px solid var(--hair); border-radius:20px; padding:5px 13px; font-size:11px;
             font-weight:800; letter-spacing:.03em; margin-right:14px; background:#fff">← 대시보드</a>
   <h1>TREND <em>AGENT</em></h1>
-  <span class="mini" id="verStamp" style="margin-left:8px;opacity:.55">v260808-07</span>
+  <span class="mini" id="verStamp" style="margin-left:8px;opacity:.55">v260808-09</span>
   <div class="tabs" id="tabs">
     <button data-v="intake" class="on">업로드</button>
     <button data-v="manage">등록 관리</button>
+    <button data-v="runway">런웨이</button>
     <button data-v="conf">설정</button>
   </div>
   <div class="who"><span id="whoTxt"></span><button class="btn ghost sm" id="logout">로그아웃</button></div>
@@ -332,7 +343,7 @@ tbody tr:hover{background:#fdfcf9}
       <span class="sp"></span>
       <span class="link-n" id="linkStat"></span>
       <button class="btn ghost sm" id="aiAll" disabled>AI로 채우기</button>
-      <button class="btn ghost sm" id="saveAsOnePost" disabled title="선택한 사진들을 한 게시물로 묶어 1건만 등록합니다">한 게시물로 등록</button>
+      <button class="btn ghost sm" id="saveAsOnePost" disabled title="선택한 사진들을 같은 카테고리·스타일로 한 번에 등록합니다 (계정·설명·링크는 사진마다 각각)">같은 스타일로 등록</button>
       <button class="btn sm" id="saveImgs" disabled>CSV로 내보내기 (0/0)</button>
     </div>
     <div class="cards" id="imgCards"></div>
@@ -761,6 +772,37 @@ tbody tr:hover{background:#fdfcf9}
     </div>
   </div>
   <div id="mgList" style="margin-top:12px"></div>
+</section>
+
+<!-- ── 런웨이 — 슈즈 쇼 자료(등록과 별개, 이미지만) ── -->
+<section id="runwayView" class="view">
+  <div class="sess">
+    <h3>런웨이 자료 <span class="mini" style="font-weight:400">— 슈즈 탭에 시즌별로 보여줄 런웨이 이미지. 등록(trend_signals)과 완전히 별개예요</span></h3>
+    <div class="row">
+      <div style="max-width:170px"><label class="f">시즌</label>
+        <select id="rwSeason">
+          <option value="26FW">26FW</option>
+          <option value="27SS">27SS</option>
+          <option value="27FW">27FW</option>
+        </select></div>
+      <div style="flex:1"><label class="f">이미지 파일 (여러 장 가능 · 파일명 그대로 저장 → 브랜드 자동 추출)</label>
+        <input id="rwFiles" type="file" accept="image/*" multiple></div>
+      <div style="max-width:130px; display:flex; align-items:flex-end">
+        <button class="btn sm" id="rwUpload" style="width:100%">업로드</button></div>
+    </div>
+    <div class="mini" id="rwHint" style="margin-top:6px">예: <code>08-Yohji_Yamamoto_yam_m_prs_det_aw26_093.jpg</code> → 브랜드 <b>Yohji Yamamoto</b> · 맨 앞 숫자 접두어는 있어도 없어도 됩니다.</div>
+  </div>
+  <div class="bar" style="margin-top:12px">
+    <label class="f" style="margin:0">보기 시즌</label>
+    <select id="rwViewSeason" style="max-width:140px">
+      <option value="26FW">26FW</option>
+      <option value="27SS">27SS</option>
+      <option value="27FW">27FW</option>
+    </select>
+    <button class="btn ghost sm" id="rwReload">새로고침</button>
+    <span class="mini" id="rwCount"></span>
+  </div>
+  <div id="rwList" style="margin-top:12px"></div>
 </section>
 
 <section id="confView" class="view">
@@ -1396,7 +1438,7 @@ function selStat(){
   const one = $('#saveAsOnePost');
   if(one){
     one.disabled = n < 2;
-    one.textContent = n >= 2 ? `한 게시물로 등록 (${n}장)` : '한 게시물로 등록';
+    one.textContent = n >= 2 ? `같은 스타일로 등록 (${n}장)` : '같은 스타일로 등록';
   }
   $('#saveImgs').disabled = !n || !IS_ADMIN;
   $('#aiAll').disabled    = !n || !GEMKEY;
@@ -1486,62 +1528,58 @@ $('#aiAll').onclick = async () => {
   toast(bad ? `${n}장 채움 · ${bad}장 실패 — 콘솔을 확인하세요` : `${n}장 채웠습니다. 확인하고 고쳐주세요`);
 };
 
-/* ── 선택한 사진들을 "한 게시물"로 묶어 1건만 등록 ──
-   첫 번째 사진의 입력값(키워드·요약·카테고리 등)을 대표로 쓰고,
-   사진은 image_url(대표) + extra_images(나머지)에 담는다. */
+/* ── 선택한 사진들을 "같은 스타일"로 한 번에 등록 ──
+   카테고리와 스타일(키워드)만 대표값으로 통일하고,
+   계정·설명·링크·하위구분은 사진마다 각각 저장한다(사진 = 각각 별도 항목).
+   → 등록 관리에서 장별로 따로 수정 가능해진다. */
 $('#saveAsOnePost').onclick = async () => {
   syncImgCardInputs();
   const tgt = picked();
   if(tgt.length < 2) return toast('사진을 2장 이상 선택하세요');
 
   const head = tgt.find(x => x.meta.keyword) || tgt[0];
-  if(!head.meta.keyword) return toast('선택한 사진 중 최소 한 장에 키워드(제목)를 입력해주세요');
-  if(!confirm(`${tgt.length}장을 한 게시물로 등록합니다.\n\n제목: ${head.meta.keyword}\n\n대표 사진(키워드가 있는 사진)이 먼저 보이고, 나머지 사진은 같은 카드 안에서 넘겨보게 됩니다.`)) return;
+  if(!head.meta.keyword) return toast('선택한 사진 중 최소 한 장에 스타일(키워드)을 입력해주세요');
+  const shareKw  = head.meta.keyword;
+  const shareCat = head.meta.category || (tgt.find(x => x.meta.category)?.meta.category) || null;
+  if(!confirm(`${tgt.length}장을 등록합니다.\n\n카테고리와 스타일(키워드)만 같게 저장하고,\n계정·설명·링크는 사진마다 각각 저장됩니다. (사진마다 개별 항목이라 나중에 따로 수정할 수 있어요)\n\n스타일: ${shareKw}${shareCat ? '\n카테고리: ' + shareCat : ''}`)) return;
 
-  /* 대표 사진을 맨 앞에 두고 사진 전부 업로드 */
-  const ordered = [head, ...tgt.filter(x => x !== head)];
-  const urls = [];
-  for(let i = 0; i < ordered.length; i++){
-    const it = ordered[i];
-    if(it.meta.image_url){ urls.push(it.meta.image_url); continue; }
-    busy(true, `이미지 업로드 중… ${i+1}/${ordered.length}`);
-    try{
-      const path = `${$('#sigType').value}/${ymNow()}/${it.hash}.jpg`;
-      const { error: upErr } = await sb.storage.from('trend-images')
-        .upload(path, it.thumb.blob, { contentType: 'image/jpeg', upsert: true });
-      if(upErr) throw upErr;
-      urls.push(sb.storage.from('trend-images').getPublicUrl(path).data.publicUrl);
-    }catch(e){ console.error(e); }
+  const rows = [];
+  for(let i = 0; i < tgt.length; i++){
+    const it = tgt[i];
+    let url = it.meta.image_url;
+    if(!url){
+      busy(true, `이미지 업로드 중… ${i+1}/${tgt.length}`);
+      try{
+        const path = `${$('#sigType').value}/${ymNow()}/${it.hash}.jpg`;
+        const { error: upErr } = await sb.storage.from('trend-images')
+          .upload(path, it.thumb.blob, { contentType: 'image/jpeg', upsert: true });
+        if(upErr) throw upErr;
+        url = sb.storage.from('trend-images').getPublicUrl(path).data.publicUrl;
+      }catch(e){ console.error(e); continue; }
+    }
+    rows.push({
+      source_type: $('#sigType').value,
+      category:    shareCat,                 /* 대표값 통일 */
+      keyword:     shareKw,                  /* 대표값 통일 */
+      sub_group:   it.meta.sub_group || null,   /* 사진별 */
+      account:     it.meta.account || null,     /* 사진별 */
+      url:         it.meta.source_url || null,  /* 사진별 */
+      image_url:   url,                          /* 사진별(각각 대표 이미지) */
+      note:        it.meta.note || null,         /* 사진별 */
+      source:      $('#source').value || null,
+      region:      $('#region').value || null,
+      author:      $('#author').value || null,
+      sheet_month: $('#ym').value || null,
+      brands:      SESS_BRANDS.length ? [...SESS_BRANDS] : null,
+    });
   }
-  if(!urls.length){ busy(false); return toast('이미지 업로드에 모두 실패했습니다'); }
+  if(!rows.length){ busy(false); return toast('이미지 업로드에 모두 실패했습니다'); }
 
-  /* 대표 입력값이 비어 있으면 선택한 다른 사진에서 값을 빌려온다 */
-  const pick = f => { const h = tgt.find(x => x.meta[f]); return h ? h.meta[f] : null; };
   busy(true, '등록 중…');
-  const row = {
-    source_type: $('#sigType').value,
-    category:    head.meta.category || pick('category') || null,
-    keyword:     head.meta.keyword,
-    sub_group:   head.meta.sub_group || pick('sub_group') || null,
-    account:     head.meta.account || pick('account') || null,
-    url:         head.meta.source_url || pick('source_url') || null,
-    image_url:   urls[0],
-    extra_images: urls.slice(1),
-    note:        head.meta.note || pick('note') || null,
-    source:      $('#source').value || null,
-    region:      $('#region').value || null,
-    author:      $('#author').value || null,
-    sheet_month: $('#ym').value || null,
-    brands:      SESS_BRANDS.length ? [...SESS_BRANDS] : null,
-  };
-  const { data, error } = await sb.from('trend_signals').insert(row).select('id');
+  const { data, error } = await sb.from('trend_signals').insert(rows).select('id');
   busy(false);
-  if(error){ die(error, '한 게시물 등록'); return; }
-  if(!data || !data.length){
-    alert('등록되지 않았습니다.\n\nextra_images 칸이 아직 없거나 권한 문제일 수 있습니다.\nmulti_photo SQL을 한 번 실행해 주세요.');
-    return;
-  }
-  toast(`${urls.length}장을 한 게시물로 등록했습니다`);
+  if(error){ die(error, '등록'); return; }
+  toast(`${rows.length}장을 등록했습니다 — 카테고리·스타일 동일, 계정 등은 각각`);
   /* 등록한 사진들은 목록에서 제거 */
   QUEUE_IMGS = QUEUE_IMGS.filter(x => !tgt.includes(x));
   renderImgCards();
@@ -4099,15 +4137,104 @@ async function nextSlot(viewId, t){
 }
 
 const LOADERS = { feed:renderFeed, queue:renderQueue, map:loadMap, cluster:loadClusterTab,
-  manage: loadManage,
+  manage: loadManage, runway: loadRunwayAdmin,
   conf: async () => { await renderAdmins(); await loadDna(); await renderAliases(); } };
 $('#tabs').onclick = e => {
   const b = e.target.closest('button'); if(!b) return;
   $$('#tabs button').forEach(x=>x.classList.toggle('on', x===b));
-  ['intake','feed','dict','brand','celeb','cluster','map','queue','manage','conf'].forEach(v=>
+  ['intake','feed','dict','brand','celeb','cluster','map','queue','manage','runway','conf'].forEach(v=>
     $('#'+v+'View').classList.toggle('on', b.dataset.v===v));
   Promise.resolve(LOADERS[b.dataset.v]?.()).catch(e => die(e, '탭 로딩'));
 };
+
+/* ═══════════════════════════════════════════════════════════
+   런웨이 자료 — 슈즈 탭용 이미지(등록과 별개). 파일명 그대로 저장 → 브랜드 자동 추출
+   ═══════════════════════════════════════════════════════════ */
+const RW_CONNECTORS = new Set(['de','des','van','der','di','da','la','le','el','du','von','of','and','the','den','ten','op']);
+function rwBrandFromFilename(fn){
+  let base = String(fn || '').replace(/\.[^.]+$/, '').replace(/^\s*\d+\s*[-_]\s*/, '');
+  const parts = base.split('_').filter(Boolean);
+  const out = [];
+  for(const p of parts){
+    if(/^[A-Z]/.test(p) || RW_CONNECTORS.has(p.toLowerCase())) out.push(p);
+    else break;
+  }
+  let brand = out.join(' ').trim();
+  if(!brand) brand = (parts[0] || base);
+  return brand;
+}
+/* Storage 키에는 한글/공백 불가 → 안전한 파일명으로 (원본 파일명은 DB filename 에 보존) */
+function rwSafeKey(fn){
+  const ext = (fn.match(/\.[^.]+$/) || ['.jpg'])[0].toLowerCase();
+  const stem = fn.replace(/\.[^.]+$/, '').replace(/[^A-Za-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80) || 'shot';
+  return `${stem}${ext}`;
+}
+async function rwUpload(){
+  const files = [...($('#rwFiles').files || [])];
+  if(!files.length) return toast('이미지 파일을 먼저 선택하세요');
+  const season = $('#rwSeason').value;
+  const rows = [];
+  for(let i = 0; i < files.length; i++){
+    const f = files[i];
+    busy(true, `런웨이 이미지 업로드 중… ${i+1}/${files.length}`);
+    const path = `runway/${season}/${Date.now()}_${i}_${rwSafeKey(f.name)}`;
+    const { error: upErr } = await sb.storage.from('trend-images').upload(path, f, { upsert: true, contentType: f.type || 'image/jpeg' });
+    if(upErr){ console.warn('업로드 실패', f.name, upErr.message); continue; }
+    const url = sb.storage.from('trend-images').getPublicUrl(path).data.publicUrl;
+    rows.push({ season, brand: rwBrandFromFilename(f.name), filename: f.name, image_url: url, sort_order: Date.now() + i });
+  }
+  if(!rows.length){ busy(false); return toast('업로드에 모두 실패했습니다'); }
+  const { error } = await sb.from('runway_shots').insert(rows);
+  busy(false);
+  if(error){ return toast('저장 실패: ' + error.message + '  (runway_shots.sql 을 먼저 Run 했는지 확인하세요)'); }
+  toast(`${rows.length}장 업로드 완료 (${season})`);
+  $('#rwFiles').value = '';
+  $('#rwViewSeason').value = season;
+  await loadRunwayAdmin();
+}
+async function loadRunwayAdmin(){
+  const season = $('#rwViewSeason').value;
+  const listEl = $('#rwList'), cntEl = $('#rwCount');
+  const { data, error } = await sb.from('runway_shots').select('*').eq('season', season).order('sort_order', { ascending: true });
+  if(error){ listEl.innerHTML = `<div class="mini">불러오기 실패: ${error.message} — runway_shots.sql 을 먼저 Run 하세요.</div>`; return; }
+  const shots = data || [];
+  if(cntEl) cntEl.textContent = `${season} · ${shots.length}컷`;
+  if(!shots.length){ listEl.innerHTML = `<div class="mini">${season} 런웨이 자료가 없습니다.</div>`; return; }
+  const byBrand = new Map();
+  for(const r of shots){ const b = r.brand || '(브랜드 미상)'; if(!byBrand.has(b)) byBrand.set(b, []); byBrand.get(b).push(r); }
+  listEl.innerHTML = [...byBrand.entries()].sort((a,b)=>a[0].localeCompare(b[0])).map(([brand, rows]) => `
+    <div class="rwAdmBrand">
+      <div class="rwAdmBrandHead">
+        <input class="rwBrandEdit" data-brandedit="${rows.map(r=>r.id).join(',')}" value="${esc(brand)}" title="이 브랜드 이름을 한 번에 바꿉니다">
+        <span class="mini">${rows.length}컷</span>
+      </div>
+      <div class="rwAdmShots">
+        ${rows.map(r => `<div class="rwAdmShot">
+          <img src="${esc(r.image_url)}" loading="lazy" referrerpolicy="no-referrer">
+          <button class="rwDel" data-rwdel="${r.id}" title="삭제">✕</button>
+          <div class="rwFn" title="${esc(r.filename)}">${esc(r.filename)}</div>
+        </div>`).join('')}
+      </div>
+    </div>`).join('');
+}
+$('#rwUpload').onclick = () => rwUpload().catch(e => die(e, '런웨이 업로드'));
+$('#rwReload').onclick = () => loadRunwayAdmin().catch(e => die(e, '런웨이 새로고침'));
+$('#rwViewSeason').onchange = () => loadRunwayAdmin().catch(e => die(e, '런웨이 새로고침'));
+$('#rwList').addEventListener('click', async e => {
+  const d = e.target.closest('[data-rwdel]'); if(!d) return;
+  if(!confirm('이 런웨이 이미지를 삭제할까요?')) return;
+  const { error } = await sb.from('runway_shots').delete().eq('id', d.dataset.rwdel);
+  if(error) return toast('삭제 실패: ' + error.message);
+  toast('삭제했습니다'); loadRunwayAdmin();
+});
+$('#rwList').addEventListener('change', async e => {
+  const inp = e.target.closest('[data-brandedit]'); if(!inp) return;
+  const ids = inp.dataset.brandedit.split(',').filter(Boolean);
+  const brand = inp.value.trim();
+  const { error } = await sb.from('runway_shots').update({ brand }).in('id', ids);
+  if(error) return toast('브랜드 수정 실패: ' + error.message);
+  toast('브랜드 이름을 바꿨습니다'); loadRunwayAdmin();
+});
 
 /* ═══════════════════════════════════════════════════════════
    브랜드 선택 — 사전에서 고르거나 직접 입력
@@ -4339,6 +4466,7 @@ function mgFormHTML(r){
     </div>
     <div class="btns">
       <button class="btn sm" data-save="${r.id}">저장</button>
+      ${(MG_PHOTOS[rid] || []).length >= 2 ? `<button class="btn ghost sm" data-split="${r.id}" title="이 게시물의 사진을 각각 별도 항목으로 나눕니다 — 계정·설명 등을 사진마다 따로 넣을 수 있게 됩니다">장별로 분리 (${(MG_PHOTOS[rid] || []).length}장)</button>` : ''}
       <button class="btn ghost sm" data-cancel="1">취소</button>
       <span class="mini">저장하면 대시보드에 바로 반영됩니다</span>
     </div>
@@ -4382,6 +4510,46 @@ $('#mgList')?.addEventListener('change', async e => {
   }
   if(status) status.textContent = done ? `${done}장 추가됨 · 저장을 눌러 반영하세요` : '업로드 실패';
   inp.value = '';   // 같은 파일 다시 선택 가능하게
+});
+
+$('#mgList')?.addEventListener('click', async e => {
+  const sp = e.target.closest('[data-split]'); if(!sp) return;
+  e.stopPropagation();
+  const id = String(sp.dataset.split);
+  const form = $(`.mgForm[data-form="${id}"]`); if(!form) return;
+  const imgs = (MG_PHOTOS[id] || []).filter(Boolean);
+  if(imgs.length < 2){ toast('사진이 2장 이상일 때만 분리할 수 있어요'); return; }
+  if(!confirm(`이 게시물의 사진 ${imgs.length}장을 각각 별도 항목으로 나눕니다.\n\n카테고리·스타일 등 지금 값은 모든 장에 동일하게 복사되고,\n분리 후 사진마다 계정·설명을 따로 수정할 수 있어요.\n\n(원래 항목은 사라지고 ${imgs.length}개 항목으로 바뀝니다)`)) return;
+  const val = k => { const el = form.querySelector(`[data-e="${k}"]`); return el ? el.value.trim() : ''; };
+  const list = v => v ? v.split(',').map(x => x.trim()).filter(Boolean) : null;
+  const base = {
+    source_type: val('source_type') || null,
+    category:    val('category') || null,
+    sheet_month: val('sheet_month') || null,
+    author:      val('author') || null,
+    source:      val('source') || null,
+    region:      val('region') || null,
+    keyword:     val('keyword') || null,
+    note:        val('note') || null,
+    tags:        list(val('tags')),
+    brands:      list(val('brands')),
+    moods:       list(val('moods')),
+    sub_group:   val('sub_group') || null,
+    account:     val('account') || null,
+    url:         val('url') || null,
+  };
+  if(!base.keyword){ toast('키워드는 비워둘 수 없습니다'); return; }
+  const rows = imgs.map(u => ({ ...base, image_url: u, extra_images: [] }));
+  busy(true, '분리 중…');
+  const { data: ins, error: insErr } = await sb.from('trend_signals').insert(rows).select('id');
+  if(insErr){ busy(false); die(insErr, '장별 분리(등록)'); return; }
+  const { error: delErr } = await sb.from('trend_signals').delete().eq('id', id);
+  busy(false);
+  if(delErr){ die(delErr, '원래 항목 삭제'); toast('새 항목은 만들었지만 원래 항목 삭제에 실패했어요 — 등록 관리에서 직접 지워주세요'); }
+  else toast(`${rows.length}개 항목으로 분리했습니다 — 이제 사진마다 따로 수정할 수 있어요`);
+  delete MG_PHOTOS[id];
+  MG_EDIT = null;
+  await loadManage();
 });
 
 $('#mgList')?.addEventListener('click', async e => {
