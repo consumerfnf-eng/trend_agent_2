@@ -530,6 +530,7 @@ a{color:var(--acc)}
 .repTitleInput{font-size:1.4em; font-weight:800; border:1px solid var(--acc); border-radius:8px; padding:2px 10px; font-family:inherit; width:auto; min-width:200px}
 .kgGroupBtn{margin-left:auto; border:1px solid var(--acc); background:#fff; color:var(--acc); border-radius:16px; padding:4px 12px; font-size:11px; font-weight:800; cursor:pointer}
 .kgGroupBtn:hover{background:var(--acc); color:#fff}
+.repEmpty{padding:14px 4px; color:var(--sub); font-size:12px}
 /* 그룹핑 모드 */
 body.kgGrouping .kwcard{cursor:pointer}
 body.kgGrouping .kwcard[data-cardid]:hover{outline:2px dashed var(--acc); outline-offset:2px}
@@ -555,7 +556,7 @@ body.kgGrouping .kwcard.kgsel::after{content:'✓ 선택'; position:absolute; to
 </head>
 <body>
 <header>
-  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260808-41</span></h1>
+  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260808-42</span></h1>
   <a href="index.html" id="backLink" style="font-size:11px;letter-spacing:.12em;font-weight:700;color:var(--acc);text-decoration:none;border:1px solid var(--acc);padding:6px 12px">← DASHBOARD</a>
   <div class="mrange">
     <label>기간</label>
@@ -625,7 +626,7 @@ body.kgGrouping .kwcard.kgsel::after{content:'✓ 선택'; position:absolute; to
 
 <script src="config.js"></script>
 <script type="module">
-console.log("TREND AGENT signal.html v260808-41");
+console.log("TREND AGENT signal.html v260808-42");
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ══ 설정 — 다른 파일들과 같은 값 ══ */
@@ -2002,6 +2003,14 @@ const REPORT_STOPWORDS = new Set([
   '스타일','트렌드','컬러','아이템','디자인','컬렉션','컬러가','룩','패션',
   '이유','다시','이번','올해','올여름','올가을','오늘','바로','정말','가장',
   'the','and','for','with','from','vs','x','&',
+  'its','it','a','an','of','to','in','on','at','by','up','as','is','are','was','were','be',
+  'this','that','these','those','has','have','gets','get','receives','receive','arrives','arrive',
+  'reveals','reveal','unveils','unveil','debuts','debut','drops','drop','introduces','introduce',
+  'brings','bring','readies','ready','sets','set','adds','add','returns','return','joins','join',
+  'official','look','looks','first','closer','take','takes','sneak','peek','date','info','images','image',
+  'release','releases','coming','soon','now','available','exclusive','edition','colorway','colorways',
+  'collab','collaboration','pack','collection','made','usa','built','features','featuring','wraps','wrap',
+  'gives','give','delivers','deliver','reworks','rework','reimagine','reimagines','revamps','channel','channels',
   /* 무의미 */
   '입은','왔다','됐다','됩니다','왔어요','한다','했다','합니다','싶어','있는',
   '멋있다','좋아','좋다','좋아요','예뻐','예쁘다',
@@ -2019,11 +2028,14 @@ const REPORT_STOPWORDS = new Set([
 
 /* 브랜드 세트는 이미 BRANDS_LC로 있으면 재활용, 없으면 미리 정의된 것에서 뽑음 */
 const REPORT_BRAND_SET = new Set([
-  'nike','adidas','puma','asics','salomon','merrell','mizuno','new-balance','on-running',
-  'converse','keen','kith','jacquemus','jil-sander','miu-miu','saint-laurent','celine',
-  'loewe','chloe','bottega-veneta','prada','collina-strada','skims','stussy','needles',
-  'fila','clot','soulgoods','naked-copenhagen','madhappy','jiyongkim','no-faith-studios',
-  'snow-peak','gentle-monster','bad-bunny','kendall-jenner','jennie','dua-lipa','trimming-bird',
+  'nike','adidas','puma','asics','salomon','merrell','mizuno','new-balance','new','balance','on-running','on',
+  'converse','keen','kith','jacquemus','jil-sander','miu-miu','saint-laurent','celine','vans','reebok','hoka',
+  'loewe','chloe','bottega-veneta','prada','collina-strada','skims','stussy','needles','moncler','birkenstock',
+  'fila','clot','soulgoods','naked-copenhagen','madhappy','jiyongkim','no-faith-studios','yeezy','norda','suicoke',
+  'snow-peak','gentle-monster','bad-bunny','kendall-jenner','jennie','dua-lipa','trimming-bird','noah','beams',
+  'comme','garcons','junya','watanabe','margaret','howell','travis','scott','pharrell','ye','bieber','anta',
+  'nikeskims','aderror','ader','error','somewhere','cnpts','cncpts','vandythepink','kiko','kostadinov','lakh',
+  'size','dtlr','invincible','madness','noir','kei','ninomiya','carnan','superkicks','hoff','billy','mfpen','zellerfeld',
   '나이키','아디다스','푸마','생','로랑','샤넬','디올','프라다','제니','두아리파','켄달제너',
 ]);
 
@@ -2158,7 +2170,7 @@ function applyKGroups(category, autoTrends, items){
 function repeatedTrendsReportHTML(items){
   const auto = detectRepeatedTitleTrends(items);
   const trends = applyKGroups(scatF, auto, items);
-  if(!trends.length && !KGROUPS.some(g => (!g.category || g.category === scatF))) return '';
+  if(!items.length) return '';   /* 카드가 아예 없을 때만 숨김 */
   const blocks = trends.map((t, i) => {
     const top = t.items[0];
     const img = top && top.image_url;
@@ -2187,12 +2199,14 @@ function repeatedTrendsReportHTML(items){
       </li>`;
     }).join('');
     const editAttr = t.kind === 'manual' ? `data-kind="manual" data-gid="${esc(t.gid)}"` : `data-kind="auto" data-key="${esc(t.key)}"`;
-    return `<div class="repBlock" ${editAttr}>
+    const memberIds = t.items.map(it => it.id).filter(Boolean).join(',');
+    return `<div class="repBlock" ${editAttr} data-memberids="${esc(memberIds)}">
       <div class="repBadge">${t.kind === 'manual' ? '직접 묶음' : '유행 중'} · ${t.count}건${t.kind === 'manual' ? '' : ' 반복'}</div>
       <div class="repTitleBar">
         <span class="repNum">${i + 1}</span>
         <span class="repTitle" data-reptitle>${esc(t.word)}</span>
         <button class="repEdit" data-kgrename title="제목 수정">✎</button>
+        <button class="repEdit" data-kgadd title="이 박스에 카드 더 넣기">＋ 카드</button>
         <button class="repDel" data-kgdelete title="이 박스 삭제">✕</button>
       </div>
       ${kwChips}
@@ -2209,7 +2223,7 @@ function repeatedTrendsReportHTML(items){
       <span class="repSub">제목에 3번 이상 반복된 단어 기준 · 자동 감지 (제목 ✎ 수정 · ✕ 삭제)</span>
       <button class="kgGroupBtn" data-kggroup title="카드를 직접 골라 새 박스로 묶기">＋ 카드 묶기</button>
     </div>
-    ${blocks}
+    ${blocks || '<div class="repEmpty">반복 키워드가 없어요 · ＋ 카드 묶기로 직접 묶음을 만들 수 있어요</div>'}
   </div>`;
 }
 
@@ -2262,6 +2276,7 @@ document.addEventListener('click', async e => {
 });
 
 /* ── 카드 직접 묶기(그룹핑 모드) ── */
+let KG_ADD_TARGET = null;   /* 기존 박스에 추가 모드일 때 {kind, gid, key, memberIds[]} */
 function _kgBar(){
   let bar = $('#kgBar');
   if(!bar){
@@ -2276,25 +2291,61 @@ function _kgBar(){
 }
 function _kgSelectedIds(){ return [...document.querySelectorAll('.kwcard.kgsel[data-cardid]')].map(c => c.dataset.cardid).filter(Boolean); }
 function updateKgBar(){ const n = _kgSelectedIds().length; const el = $('#kgBarCnt'); if(el) el.textContent = `${n}개 선택`; }
-function enterKgGrouping(){ document.body.classList.add('kgGrouping'); _kgBar().classList.add('on'); updateKgBar(); }
+function enterKgGrouping(){
+  document.body.classList.add('kgGrouping'); _kgBar().classList.add('on');
+  const ti = $('#kgBarTitle'), mk = $('#kgBarMake');
+  if(KG_ADD_TARGET){ ti.style.display = 'none'; mk.textContent = '이 박스에 추가'; }
+  else { ti.style.display = ''; mk.textContent = '묶음 만들기'; }
+  updateKgBar();
+}
 function exitKgGrouping(){
   document.body.classList.remove('kgGrouping');
   document.querySelectorAll('.kwcard.kgsel').forEach(c => c.classList.remove('kgsel'));
   $('#kgBar')?.classList.remove('on');
-  const ti = $('#kgBarTitle'); if(ti) ti.value = '';
+  const ti = $('#kgBarTitle'); if(ti){ ti.value = ''; ti.style.display = ''; }
+  KG_ADD_TARGET = null;
 }
 document.addEventListener('click', e => {
-  if(e.target.closest('[data-kggroup]')){ e.stopPropagation(); enterKgGrouping(); return; }
+  if(e.target.closest('[data-kggroup]')){ e.stopPropagation(); KG_ADD_TARGET = null; enterKgGrouping(); return; }
+  const add = e.target.closest('[data-kgadd]');
+  if(add){
+    e.stopPropagation();
+    const block = add.closest('.repBlock');
+    const members = (block.dataset.memberids || '').split(',').filter(Boolean);
+    KG_ADD_TARGET = { kind: block.dataset.kind, gid: block.dataset.gid, key: block.dataset.key,
+      title: block.querySelector('[data-reptitle]')?.textContent || '', members };
+    enterKgGrouping();
+    return;
+  }
   if(e.target.closest('#kgBarCancel')){ exitKgGrouping(); return; }
 });
 document.addEventListener('click', async e => {
   if(!e.target.closest('#kgBarMake')) return;
-  const ids = _kgSelectedIds();
-  if(ids.length < 2) return alert('카드를 2개 이상 선택하세요');
-  const title = ($('#kgBarTitle')?.value || '').trim();
-  if(!title) return alert('새 박스 제목을 입력하세요');
-  const { error } = await sb.from('keyword_groups').insert({ category: scatF, gtype: 'manual', title, card_ids: ids });
-  if(error) return alert('묶기 실패: ' + error.message);
+  const sel = _kgSelectedIds();
+  if(!sel.length) return alert('추가할 카드를 선택하세요');
+
+  if(KG_ADD_TARGET){
+    /* 기존 박스에 추가 */
+    const union = [...new Set([...KG_ADD_TARGET.members, ...sel])];
+    if(KG_ADD_TARGET.kind === 'manual'){
+      const { error } = await sb.from('keyword_groups').update({ card_ids: union }).eq('id', KG_ADD_TARGET.gid);
+      if(error) return alert('추가 실패: ' + error.message);
+    } else {
+      /* 자동 박스에 추가 → 그 박스를 직접묶음으로 전환(자동은 숨김) */
+      const title = KG_ADD_TARGET.title || '새 그룹';
+      const { error: e1 } = await sb.from('keyword_groups').insert({ category: scatF, gtype: 'manual', title, card_ids: union });
+      if(e1) return alert('추가 실패: ' + e1.message);
+      await sb.from('keyword_groups').delete().eq('gtype', 'hide').eq('auto_key', KG_ADD_TARGET.key).eq('category', scatF);
+      await sb.from('keyword_groups').insert({ category: scatF, gtype: 'hide', auto_key: KG_ADD_TARGET.key });
+    }
+  } else {
+    /* 새 박스 만들기 */
+    if(sel.length < 2) return alert('카드를 2개 이상 선택하세요');
+    const title = ($('#kgBarTitle')?.value || '').trim();
+    if(!title) return alert('새 박스 제목을 입력하세요');
+    const { error } = await sb.from('keyword_groups').insert({ category: scatF, gtype: 'manual', title, card_ids: sel });
+    if(error) return alert('묶기 실패: ' + error.message);
+  }
   exitKgGrouping();
   await loadKeywordGroups(); renderCurrentView();
 });
