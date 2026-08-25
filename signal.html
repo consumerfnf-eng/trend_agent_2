@@ -433,8 +433,26 @@ circle.sc:hover{fill-opacity:.8}
 .runwaySeasonTabs .rwCnt{font-size:10px; font-weight:700; background:rgba(0,0,0,.12); border-radius:10px; padding:0 6px}
 .runwaySeasonTabs button.on .rwCnt{background:rgba(255,255,255,.25)}
 .rwBrand{margin:0 0 20px}
-.rwBrandName{font-size:14px; font-weight:800; color:var(--tx); margin:0 0 8px; letter-spacing:.02em}
-.rwBrandName .rwBrandN{font-size:11px; font-weight:700; color:var(--sub); margin-left:4px}
+.rwGridFlat{display:grid; grid-template-columns:repeat(auto-fill, minmax(190px, 1fr)); gap:14px}
+.rwCard{margin:0; cursor:pointer; border-radius:12px; overflow:hidden; border:1px solid var(--hair); background:#fff}
+.rwCard:hover{border-color:var(--sub)}
+.rwCardImg{aspect-ratio:3/4; background:#f4efe7; overflow:hidden}
+.rwCardImg img{width:100%; height:100%; object-fit:cover; display:block}
+.rwCap{padding:8px 10px; line-height:1.35}
+.rwCap b{display:block; font-size:12.5px; font-weight:800; color:var(--tx)}
+.rwCap span{font-size:10.5px; color:var(--sub)}
+#rwLight{position:fixed; inset:0; z-index:9999; display:none; align-items:center; justify-content:center}
+#rwLight.on{display:flex}
+#rwLight .rwLightBg{position:absolute; inset:0; background:rgba(20,16,12,.86)}
+#rwLight .rwLightFig{position:relative; margin:0; max-width:92vw; max-height:92vh; display:flex; flex-direction:column; align-items:center; gap:10px; z-index:1}
+#rwLight .rwLightFig img{max-width:92vw; max-height:82vh; object-fit:contain; border-radius:10px; box-shadow:0 20px 60px rgba(0,0,0,.5)}
+#rwLight figcaption{color:#f4efe7; font-size:13px; font-weight:600; text-align:center}
+#rwLight figcaption .mini{color:#b8b0a4}
+#rwLight .rwLightX{position:absolute; top:18px; right:20px; z-index:2; width:40px; height:40px; border-radius:50%; border:none; background:rgba(255,255,255,.15); color:#fff; font-size:18px; cursor:pointer}
+#rwLight .rwLightX:hover{background:rgba(255,255,255,.3)}
+#rwLight .rwLightNav{position:absolute; top:50%; transform:translateY(-50%); z-index:2; width:48px; height:48px; border-radius:50%; border:none; background:rgba(255,255,255,.15); color:#fff; font-size:26px; line-height:1; cursor:pointer}
+#rwLight .rwLightNav:hover{background:rgba(255,255,255,.3)}
+#rwLight .rwLightNav.prev{left:22px} #rwLight .rwLightNav.next{right:22px}
 .rwShots{display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:10px}
 .rwShot{display:block; aspect-ratio:3/4; border-radius:12px; overflow:hidden; border:1px solid var(--hair); background:#f4efe7}
 .rwShot img{width:100%; height:100%; object-fit:cover; display:block}
@@ -493,7 +511,7 @@ a{color:var(--acc)}
 </head>
 <body>
 <header>
-  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260808-35</span></h1>
+  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260808-36</span></h1>
   <a href="index.html" id="backLink" style="font-size:11px;letter-spacing:.12em;font-weight:700;color:var(--acc);text-decoration:none;border:1px solid var(--acc);padding:6px 12px">← DASHBOARD</a>
   <div class="mrange">
     <label>기간</label>
@@ -558,7 +576,7 @@ a{color:var(--acc)}
 
 <script src="config.js"></script>
 <script type="module">
-console.log("TREND AGENT signal.html v260808-35");
+console.log("TREND AGENT signal.html v260808-36");
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ══ 설정 — 다른 파일들과 같은 값 ══ */
@@ -1176,35 +1194,64 @@ async function loadRunway(){
 function renderRunway(){
   const tabsEl = $('#runwaySeasonTabs'), gridEl = $('#runwayGrid'), cntEl = $('#runwayCnt');
   if(!tabsEl || !gridEl) return;
-  /* 자료가 있는 시즌만 우선 노출하되, 기본 3시즌 탭은 항상 보여줌 */
   tabsEl.innerHTML = RUNWAY_SEASONS.map(s => {
     const n = RUNWAY.filter(r => r.season === s).length;
     return `<button class="${s === runwaySeasonSel ? 'on' : ''}" data-runwayseason="${s}">${s}<span class="rwCnt">${n}</span></button>`;
   }).join('');
-  const shots = RUNWAY.filter(r => r.season === runwaySeasonSel);
+  const shots = RUNWAY.filter(r => r.season === runwaySeasonSel)
+    .sort((a, b) => (a.brand || '').localeCompare(b.brand || '') || (a.sort_order || 0) - (b.sort_order || 0));
   if(cntEl) cntEl.textContent = shots.length ? `${shots.length}컷` : '';
   if(!shots.length){
     gridEl.innerHTML = `<div class="empty" style="padding:16px 0">${runwaySeasonSel} 런웨이 자료가 아직 없어요. +수집(admin)의 '런웨이 자료'에서 이미지를 올려주세요.</div>`;
     return;
   }
-  /* 브랜드별 묶어서 */
-  const byBrand = new Map();
-  for(const r of shots){ const b = r.brand || '(브랜드 미상)'; if(!byBrand.has(b)) byBrand.set(b, []); byBrand.get(b).push(r); }
-  const brands = [...byBrand.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-  gridEl.innerHTML = brands.map(([brand, rows]) => `
-    <div class="rwBrand">
-      <div class="rwBrandName">${esc(brand)} <span class="rwBrandN">${rows.length}</span></div>
-      <div class="rwShots">
-        ${rows.map(r => `<a class="rwShot" href="${esc(r.image_url)}" target="_blank" rel="noopener" title="${esc(r.filename)}">
-          <img src="${esc(r.image_url)}" loading="lazy" referrerpolicy="no-referrer" onerror="imgFail(this)">
-        </a>`).join('')}
-      </div>
-    </div>`).join('');
+  /* 구분 없이 전체 그리드 · 브랜드 이니셜 순 · 브랜드는 사진 하단 캡션 */
+  gridEl.className = 'rwGridFlat';
+  gridEl.innerHTML = shots.map((r, i) => `
+    <figure class="rwCard" data-rwopen="${i}">
+      <div class="rwCardImg"><img src="${esc(r.image_url)}" loading="lazy" referrerpolicy="no-referrer" onerror="imgFail(this)"></div>
+      <figcaption class="rwCap"><b>${esc(r.brand || '(브랜드 미상)')}</b><span>${esc(runwaySeasonSel)}</span></figcaption>
+    </figure>`).join('');
+  RUNWAY_VIEW = shots;   /* 라이트박스 인덱스용 */
 }
+/* ── 런웨이 라이트박스(HTML 내부 팝업) ── */
+let RUNWAY_VIEW = [], rwLightIdx = -1;
+function rwOpenLight(i){
+  RUNWAY_VIEW = RUNWAY.filter(r => r.season === runwaySeasonSel)
+    .sort((a, b) => (a.brand || '').localeCompare(b.brand || '') || (a.sort_order || 0) - (b.sort_order || 0));
+  if(i < 0 || i >= RUNWAY_VIEW.length) return;
+  rwLightIdx = i;
+  const r = RUNWAY_VIEW[i];
+  let box = $('#rwLight');
+  if(!box){
+    box = document.createElement('div'); box.id = 'rwLight';
+    box.innerHTML = `<div class="rwLightBg" data-rwclose="1"></div>
+      <button class="rwLightX" data-rwclose="1" aria-label="닫기">✕</button>
+      <button class="rwLightNav prev" data-rwprev="1" aria-label="이전">‹</button>
+      <button class="rwLightNav next" data-rwnext="1" aria-label="다음">›</button>
+      <figure class="rwLightFig"><img id="rwLightImg" referrerpolicy="no-referrer"><figcaption id="rwLightCap"></figcaption></figure>`;
+    document.body.appendChild(box);
+  }
+  $('#rwLightImg').src = r.image_url;
+  $('#rwLightCap').innerHTML = `<b>${esc(r.brand || '(브랜드 미상)')}</b> · ${esc(r.season)} · <span class="mini">${esc(r.filename)}</span>`;
+  box.classList.add('on');
+}
+function rwCloseLight(){ const b = $('#rwLight'); if(b) b.classList.remove('on'); rwLightIdx = -1; }
+function rwStep(d){ if(rwLightIdx < 0) return; const n = rwLightIdx + d; if(n < 0 || n >= RUNWAY_VIEW.length) return; rwOpenLight(n); }
 document.addEventListener('click', e => {
-  const b = e.target.closest('[data-runwayseason]'); if(!b) return;
-  runwaySeasonSel = b.dataset.runwayseason;
-  renderRunway();
+  const s = e.target.closest('[data-runwayseason]');
+  if(s){ runwaySeasonSel = s.dataset.runwayseason; renderRunway(); return; }
+  const card = e.target.closest('[data-rwopen]');
+  if(card){ rwOpenLight(parseInt(card.dataset.rwopen, 10)); return; }
+  if(e.target.closest('[data-rwclose]')){ rwCloseLight(); return; }
+  if(e.target.closest('[data-rwprev]')){ rwStep(-1); return; }
+  if(e.target.closest('[data-rwnext]')){ rwStep(1); return; }
+});
+document.addEventListener('keydown', e => {
+  if(!$('#rwLight')?.classList.contains('on')) return;
+  if(e.key === 'Escape') rwCloseLight();
+  else if(e.key === 'ArrowLeft') rwStep(-1);
+  else if(e.key === 'ArrowRight') rwStep(1);
 });
 
 /* SNS 순서 편집 — 스타일(박스) 순서는 sns_style_order 테이블에, 사진 순서·대표는 trend_signals 에 저장 */
@@ -1655,11 +1702,13 @@ function tagScatterHTML(ranked, gridSel){
 }
 
 function tagFlowHTML(ranked, gridSel){
-  /* 년월 가로축 · 태그마다 한 줄 · 달마다 점(크기=그 달 건수) · 점들을 선으로 이음 */
+  /* 알약 레인: 태그마다 연속된 달은 가로로 긴 알약, 단독 달은 원. 파스텔. 겹치지 않게 레인 패킹.
+     대상: 2개 이상의 달에 나온 키워드 + '가장 최신 달(기간 끝)에 나온 키워드'는 1건이어도 포함 */
   const pts0 = tagCellAgg(ranked);
   if(!pts0.length) return '<div class="empty" style="padding:10px 0">이 섹션에는 아직 해시태그가 없습니다</div>';
   const months = tagMonthAxis(pts0.map(p => p.ym));
   const mIdx = new Map(months.map((m, i) => [m, i]));
+  const lastIdx = months.length - 1;
   const pts = pts0.filter(p => mIdx.has(p.ym));
 
   const tagMap = new Map();
@@ -1668,7 +1717,7 @@ function tagFlowHTML(ranked, gridSel){
     const e = tagMap.get(p.tag); e.total += p.count; e.byIdx.set(mIdx.get(p.ym), (e.byIdx.get(mIdx.get(p.ym)) || 0) + p.count);
   }
   const qualified = [...tagMap.values()]
-    .filter(t => t.byIdx.size >= 2)                 /* 2개 이상의 달에 나온 키워드만 */
+    .filter(t => t.byIdx.size >= 2 || t.byIdx.has(lastIdx))   /* 2개 달 이상 OR 최신 달에 등장 */
     .sort((a, b) => b.total - a.total || a.tag.localeCompare(b.tag))
     .slice(0, FLOW_TOPN);
 
@@ -1676,59 +1725,88 @@ function tagFlowHTML(ranked, gridSel){
     <select data-flowtopn>${[5,7,10,15].map(v => `<option value="${v}"${v===FLOW_TOPN?' selected':''}>${v}</option>`).join('')}</select>개</label>`;
 
   if(!qualified.length){
-    return `<div class="scatterWrap"><div class="scatterTop"><span class="mini">여러 달(2개 이상)에 걸쳐 언급된 키워드</span>${topnSel}</div>
-      <div class="empty" style="padding:16px 0">이 기간에 2개 달 이상 나온 키워드가 없어요. (기간을 넓히거나 여러 달 자료가 있는 카테고리에서 확인해 보세요)</div></div>`;
+    return `<div class="scatterWrap"><div class="scatterTop"><span class="mini">여러 달에 걸쳐 언급된 키워드(+ 최신 달 신규)</span>${topnSel}</div>
+      <div class="empty" style="padding:16px 0">이 기간에 표시할 키워드가 없어요.</div></div>`;
   }
 
-  const maxC = Math.max(...qualified.flatMap(t => [...t.byIdx.values()]), 1);
-  const gutterL = 150, padR = 26, padT = 30, padB = 30, rowH = 46, W = 1120;
-  const plotW = W - gutterL - padR, colW = plotW / months.length;
-  const xAt = i => gutterL + colW * (i + 0.5);
-  const rowY = k => padT + rowH * (k + 0.5);
-  const rMax = Math.min(rowH * 0.42, colW * 0.4, 20), rMin = 6;
-  const rOf = c => rMin + (rMax - rMin) * Math.sqrt(c / maxC);
-  const H = padT + rowH * qualified.length + padB;
+  /* 각 태그를 연속된 달끼리 묶어 아이템화(연속 2+ = 알약, 단독 = 원) */
+  const items = [];
+  for(const t of qualified){
+    const idxs = [...t.byIdx.keys()].sort((a, b) => a - b);
+    let run = [];
+    const flush = () => {
+      if(!run.length) return;
+      const a = run[0], b = run[run.length - 1];
+      let peak = 0, sum = 0; for(const i of run){ const c = t.byIdx.get(i); peak = Math.max(peak, c); sum += c; }
+      items.push({ tag: t.tag, a, b, peak, sum, span: b - a + 1, total: t.total });
+      run = [];
+    };
+    for(const i of idxs){ if(run.length && i === run[run.length - 1] + 1) run.push(i); else { flush(); run = [i]; } }
+    flush();
+  }
+  const maxC = Math.max(...items.map(it => it.peak), 1);
+  const padL = 18, padR = 18, padT = 16, padB = 34, W = 1120;
+  const plotW = W - padL - padR, colW = plotW / months.length;
+  const xAt = i => padL + colW * (i + 0.5);
+  const rMax = Math.max(20, Math.min(colW * 0.42, 54)), rMin = 16;
+  const rOf = c => rMin + (rMax - rMin) * (c / maxC);
+
+  const nodes = items.map(it => {
+    const hh = rOf(it.peak), xL = xAt(it.a), xR = xAt(it.b);
+    const cx = (xL + xR) / 2, hw = (xR - xL) / 2 + hh;
+    return { it, hh, hw, cx, left: cx - hw, right: cx + hw, cy: 0, lane: 0, pill: it.b > it.a };
+  });
+  /* 언급 많은 태그가 위로 오도록 total desc → 레인 패킹(무겹침) */
+  nodes.sort((a, b) => b.it.total - a.it.total || a.left - b.left);
+  const gapX = 10, gapY = 12, lanes = [];
+  for(const n of nodes){
+    let placed = -1;
+    for(let k = 0; k < lanes.length; k++){ if(lanes[k].right + gapX <= n.left){ placed = k; break; } }
+    if(placed < 0){ placed = lanes.length; lanes.push({ right: -1e9, maxH: 0 }); }
+    const L = lanes[placed]; L.right = n.right; L.maxH = Math.max(L.maxH, 2 * n.hh); n.lane = placed;
+  }
+  const laneTop = []; let accY = padT;
+  for(let k = 0; k < lanes.length; k++){ laneTop[k] = accY; accY += lanes[k].maxH + gapY; }
+  const plotBottom = accY - gapY;
+  for(const n of nodes) n.cy = laneTop[n.lane] + lanes[n.lane].maxH / 2;
+  const H = plotBottom + padB;
 
   let svg = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" style="display:block; width:100%; height:auto; margin:0 auto" role="img">`;
-  /* 세로 월 가이드 + 헤더 */
   months.forEach((m, i) => {
-    const x0 = gutterL + colW * i;
-    svg += `<line x1="${x0.toFixed(1)}" y1="${padT}" x2="${x0.toFixed(1)}" y2="${(padT + rowH * qualified.length).toFixed(1)}" stroke="#f2ede4" stroke-width="1"/>`;
-    svg += `<text x="${xAt(i).toFixed(1)}" y="${(padT - 12).toFixed(1)}" font-size="12.5" font-weight="700" fill="#8a8578" text-anchor="middle">${esc(m)}</text>`;
+    const x0 = padL + colW * i;
+    if(i > 0) svg += `<line x1="${x0.toFixed(1)}" y1="${padT}" x2="${x0.toFixed(1)}" y2="${plotBottom.toFixed(1)}" stroke="#f2ede4" stroke-width="1"/>`;
+    svg += `<text x="${xAt(i).toFixed(1)}" y="${(H - 12).toFixed(1)}" font-size="13" font-weight="600" fill="#8a8578" text-anchor="middle">${esc(m)}</text>`;
   });
-  svg += `<line x1="${gutterL}" y1="${padT}" x2="${gutterL}" y2="${(padT + rowH * qualified.length).toFixed(1)}" stroke="#e4ded2" stroke-width="1"/>`;
+  svg += `<line x1="${padL}" y1="${(plotBottom + 6).toFixed(1)}" x2="${W - padR}" y2="${(plotBottom + 6).toFixed(1)}" stroke="#e4ded2" stroke-width="1"/>`;
 
-  qualified.forEach((t, k) => {
-    const y = rowY(k), on = tagFilter === t.tag, hue = tagHue(t.tag);
-    if(k % 2 === 1) svg += `<rect x="${gutterL}" y="${(padT + rowH * k).toFixed(1)}" width="${plotW.toFixed(1)}" height="${rowH}" fill="#faf7f2"/>`;
-    if(on) svg += `<rect x="0" y="${(padT + rowH * k).toFixed(1)}" width="${W}" height="${rowH}" fill="#fbeee7"/>`;
-    /* 왼쪽 라벨(한 줄) + 총 건수 */
-    svg += `<text x="${(gutterL - 12).toFixed(1)}" y="${(y - 2).toFixed(1)}" font-size="12.5" font-weight="${on ? 800 : 700}" fill="${on ? '#c8451f' : '#3a4048'}" text-anchor="end">#${esc(t.tag)}</text>`;
-    svg += `<text x="${(gutterL - 12).toFixed(1)}" y="${(y + 12).toFixed(1)}" font-size="9.5" font-weight="600" fill="#9a938a" text-anchor="end">총 ${t.total}건</text>`;
-    /* 점 좌표(월 순) */
-    const dots = months.map((m, i) => ({ i, x: xAt(i), c: t.byIdx.get(i) || 0 })).filter(d => d.c > 0);
-    /* 선으로 잇기(점들을 월 순서대로) */
-    if(dots.length >= 2){
-      const pline = dots.map(d => `${d.x.toFixed(1)},${y.toFixed(1)}`).join(' ');
-      svg += `<polyline points="${pline}" fill="none" stroke="${on ? '#c8451f' : hue}" stroke-width="${on ? 4 : 3}" stroke-opacity="${on ? 0.9 : 0.7}" stroke-linecap="round"/>`;
+  for(const n of nodes){
+    const it = n.it, on = tagFilter === it.tag, hue = tagHue(it.tag);
+    const op = on ? 1 : (0.5 + 0.5 * (it.peak / maxC));
+    const monLabel = it.pill ? `${months[it.a]}~${months[it.b].slice(5)}` : months[it.a];
+    const tip = `<title>#${esc(it.tag)} · ${monLabel} · ${it.sum}건${it.pill ? ' (연속 ' + it.span + '개월)' : ''}</title>`;
+    if(n.pill){
+      svg += `<rect class="sc" x="${(n.cx - n.hw).toFixed(1)}" y="${(n.cy - n.hh).toFixed(1)}" width="${(2 * n.hw).toFixed(1)}" height="${(2 * n.hh).toFixed(1)}" rx="${n.hh.toFixed(1)}" ry="${n.hh.toFixed(1)}"
+        fill="${on ? '#c8451f' : hue}" fill-opacity="${op.toFixed(2)}" stroke="${on ? '#c8451f' : '#ffffff'}" stroke-width="${on ? 3 : 1.5}"
+        data-tagbubble="${esc(it.tag)}" data-target="${gridSel}" style="cursor:pointer">${tip}</rect>`;
+    } else {
+      svg += `<circle class="sc" cx="${n.cx.toFixed(1)}" cy="${n.cy.toFixed(1)}" r="${n.hh.toFixed(1)}"
+        fill="${on ? '#c8451f' : hue}" fill-opacity="${op.toFixed(2)}" stroke="${on ? '#c8451f' : '#ffffff'}" stroke-width="${on ? 3 : 1.5}"
+        data-tagbubble="${esc(it.tag)}" data-target="${gridSel}" style="cursor:pointer">${tip}</circle>`;
     }
-    /* 점(원) — 크기=그 달 건수, 건수 표시 */
-    for(const d of dots){
-      const r = rOf(d.c);
-      svg += `<g class="scg" style="transform-box:fill-box; transform-origin:center">
-        <circle class="sc" cx="${d.x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r.toFixed(1)}"
-          fill="${on ? '#c8451f' : hue}" fill-opacity="${on ? 1 : 0.92}" stroke="#ffffff" stroke-width="1.5"
-          data-tagbubble="${esc(t.tag)}" data-target="${gridSel}" style="cursor:pointer"><title>#${esc(t.tag)} · ${esc(months[d.i])} · ${d.c}건</title></circle>`;
-      if(r >= 9) svg += `<text x="${d.x.toFixed(1)}" y="${(y + 3.2).toFixed(1)}" font-size="10" font-weight="800" fill="#fff" text-anchor="middle" pointer-events="none">${d.c}</text>`;
-      svg += `</g>`;
-    }
-  });
+  }
+  for(const n of nodes){
+    const it = n.it, name = '#' + it.tag, on = tagFilter === it.tag;
+    const availW = 2 * n.hw * 0.88;
+    let fs = Math.min(availW / (name.length * 0.56), n.hh * 0.82, 18); fs = Math.max(fs, 7);
+    svg += `<text x="${n.cx.toFixed(1)}" y="${(n.cy - n.hh * 0.06).toFixed(1)}" font-size="${fs.toFixed(1)}" font-weight="800" fill="${on ? '#fff' : '#33404a'}" text-anchor="middle" pointer-events="none">${esc(name)}</text>`;
+    svg += `<text x="${n.cx.toFixed(1)}" y="${(n.cy + fs * 0.92).toFixed(1)}" font-size="${(fs * 0.66).toFixed(1)}" font-weight="700" fill="${on ? '#ffe4d8' : '#6b7681'}" text-anchor="middle" pointer-events="none">${it.sum}건</text>`;
+  }
   svg += '</svg>';
 
   return `<div class="scatterWrap">
-    <div class="scatterTop"><span class="mini">가로 년월 · 태그마다 한 줄 · 점 크기=그 달 건수 · 선으로 흐름 표시 · 많이 언급된 순</span>${topnSel}</div>
+    <div class="scatterTop"><span class="mini">가로 년월 · 연속된 달은 이어서(알약) · 단독은 원 · 많이 언급된 순 · 최신 달 신규 포함</span>${topnSel}</div>
     ${svg}
-    <div class="mini" style="margin-top:4px">점을 누르면 그 태그 카드만 볼 수 있어요 · 상위 ${qualified.length}개</div>
+    <div class="mini" style="margin-top:4px">막대(알약)를 누르면 그 태그 카드만 볼 수 있어요 · 상위 ${qualified.length}개</div>
   </div>`;
 }
 
