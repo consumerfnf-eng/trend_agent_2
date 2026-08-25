@@ -511,7 +511,7 @@ a{color:var(--acc)}
 </head>
 <body>
 <header>
-  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260808-36</span></h1>
+  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260808-37</span></h1>
   <a href="index.html" id="backLink" style="font-size:11px;letter-spacing:.12em;font-weight:700;color:var(--acc);text-decoration:none;border:1px solid var(--acc);padding:6px 12px">← DASHBOARD</a>
   <div class="mrange">
     <label>기간</label>
@@ -576,7 +576,7 @@ a{color:var(--acc)}
 
 <script src="config.js"></script>
 <script type="module">
-console.log("TREND AGENT signal.html v260808-36");
+console.log("TREND AGENT signal.html v260808-37");
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ══ 설정 — 다른 파일들과 같은 값 ══ */
@@ -1701,6 +1701,7 @@ function tagScatterHTML(ranked, gridSel){
   </div>`;
 }
 
+let FLOW_TOPN = 7;   /* 흐름 보기 상위 N개 (드롭다운으로 변경) */
 function tagFlowHTML(ranked, gridSel){
   /* 알약 레인: 태그마다 연속된 달은 가로로 긴 알약, 단독 달은 원. 파스텔. 겹치지 않게 레인 패킹.
      대상: 2개 이상의 달에 나온 키워드 + '가장 최신 달(기간 끝)에 나온 키워드'는 1건이어도 포함 */
