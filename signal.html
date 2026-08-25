@@ -507,11 +507,17 @@ td.ctxt{max-width:340px; overflow:hidden; text-overflow:ellipsis; white-space:no
 td a.plink{color:var(--acc); font-weight:700; font-size:11px; text-decoration:none}
 .mini{color:var(--sub); font-size:11px}
 a{color:var(--acc)}
+.releaseBar{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:10px 0 4px}
+.releaseToggle{font-size:12px; font-weight:800; padding:6px 14px; border-radius:20px; border:1px solid var(--acc); background:#fff; color:var(--acc); cursor:pointer}
+.releaseToggle.on{background:var(--acc); color:#fff}
+.releaseToggle .rlN{font-size:10px; font-weight:700; background:rgba(0,0,0,.12); border-radius:10px; padding:0 6px; margin-left:2px}
+.releaseToggle.on .rlN{background:rgba(255,255,255,.25)}
+.kwcard .kwshared{margin-top:8px}
 </style>
 </head>
 <body>
 <header>
-  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260808-37</span></h1>
+  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260808-38</span></h1>
   <a href="index.html" id="backLink" style="font-size:11px;letter-spacing:.12em;font-weight:700;color:var(--acc);text-decoration:none;border:1px solid var(--acc);padding:6px 12px">← DASHBOARD</a>
   <div class="mrange">
     <label>기간</label>
@@ -540,6 +546,7 @@ a{color:var(--acc)}
     <div class="srcBlock" id="newsBlock">
       <h4 class="srcTitle">패션 트렌드 <span id="newsCnt" class="srcCnt"></span></h4>
       <div class="sub">기사·리포트에서 추출한 트렌드 키워드 — 이미지는 아직 수집되지 않아 텍스트로만 표시돼요</div>
+      <div id="newsReleaseBar" class="releaseBar"></div>
       <div class="bubbleWrap" id="newsBubble"></div>
       <div class="kwgrid" id="newsKwGrid"></div>
       <button class="morebtn" id="newsMoreBtn" style="display:none"></button>
@@ -576,7 +583,7 @@ a{color:var(--acc)}
 
 <script src="config.js"></script>
 <script type="module">
-console.log("TREND AGENT signal.html v260808-37");
+console.log("TREND AGENT signal.html v260808-38");
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ══ 설정 — 다른 파일들과 같은 값 ══ */
@@ -1166,6 +1173,12 @@ window.imgFail = function(img){
 };
 
 let scatF = 'lifestyle';
+let RELEASE_ONLY = false;   /* 슈즈 탭 '신상(release)만 보기' 토글 */
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-releasetoggle]'); if(!b) return;
+  RELEASE_ONLY = !RELEASE_ONLY;
+  renderCurrentView();
+});
 
 /* ── 런웨이(슈즈 전용) ─────────────────────────────────────── */
 const RUNWAY_SEASONS = ['26FW', '27SS', '27FW'];
@@ -1458,7 +1471,6 @@ function itemCardHTML(entry, it){
   const authorColor = it.author ? (AUTHOR_COLOR[it.author] || 'var(--acc)') : null;
   /* 한 게시물에 여러 장 올린 경우 — 대표 외 나머지는 펼쳤을 때 보여준다 */
   const extra = (it.extra_images || []).filter(Boolean);
-  const hasMore = extra.length > 0 || text.length > 90;
 
   /* 정방향: 라이프스타일 카드 → 연결된 패션 카테고리 키워드 */
   const fwd = scatF === 'lifestyle'
@@ -1486,6 +1498,9 @@ function itemCardHTML(entry, it){
         `<button class="tagchip${tagFilter === t ? ' on' : ''}" data-tag="${esc(t)}">#${esc(t)}</button>`).join('')}${editBtn}</div>`
     : '';
 
+  const shared = rel + back;   /* 파란색 공유 트렌드 배지 — 기본 숨김, 더보기로 펼침 */
+  const hasMore = extra.length > 0 || shared.length > 0;
+
   return `<div class="kwcard${hasMore ? ' has-more' : ''}" data-kwlabel="${esc(entry.label)}">
     <div class="kwphotowrap">
       ${it.image_url
@@ -1499,10 +1514,13 @@ function itemCardHTML(entry, it){
     </div>
     <div class="kwname">${esc(entry.label)}</div>
     ${text ? `<div class="kwex">${esc(text)}</div>` : ''}
-    ${extra.length ? `<div class="kwmore"><div class="kwmoreimgs">${extra.map(u =>
-        `<img src="${esc(u)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="imgFail(this)">`).join('')}</div></div>` : ''}
     ${link ? `<a class="kwlink" href="${esc(link)}" target="_blank" rel="noopener">${linkLabel} →</a>` : ''}
-    ${tagRow}${rel}${back}
+    ${tagRow}
+    ${hasMore ? `<div class="kwmore">
+      ${extra.length ? `<div class="kwmoreimgs">${extra.map(u =>
+        `<img src="${esc(u)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="imgFail(this)">`).join('')}</div>` : ''}
+      ${shared ? `<div class="kwshared">${shared}</div>` : ''}
+    </div>` : ''}
     ${hasMore ? `<div class="kwmorehint"></div>` : ''}
   </div>`;
 }
@@ -1601,6 +1619,7 @@ function tagCellAgg(ranked){
   for(const e of ranked) for(const it of (e.items || [])){
     const ym = it.ym; if(!ym) continue;
     for(const t of (it.tags || [])){
+      if(normKw(t) === 'release') continue;   /* 신상(release) 태그는 트렌드 집계에서 제외 */
       const key = t + '|' + ym;
       if(!cell.has(key)) cell.set(key, { tag: t, ym, count: 0 });
       cell.get(key).count++;
@@ -2135,8 +2154,20 @@ function snsTagEntry(pred){
 }
 
 function drawNewsGrid(){
-  const catItems = [...NEWS_SIG, ...SB_NEWS].filter(s => s.category === scatF && visible(s));
+  const isRelease = it => (it.tags || []).some(t => normKw(t) === 'release');
+  let catItems = [...NEWS_SIG, ...SB_NEWS].filter(s => s.category === scatF && visible(s));
+  if(scatF === 'shoes' && RELEASE_ONLY) catItems = catItems.filter(isRelease);
   const ranked = aggregateNewsKw(catItems);
+  /* 슈즈 탭에만 '신상(release)만 보기' 토글 노출 */
+  const bar = $('#newsReleaseBar');
+  if(bar){
+    if(scatF === 'shoes'){
+      const relCnt = [...NEWS_SIG, ...SB_NEWS].filter(s => s.category === scatF && visible(s) && isRelease(s)).length;
+      bar.style.display = '';
+      bar.innerHTML = `<button class="releaseToggle${RELEASE_ONLY ? ' on' : ''}" data-releasetoggle="1">🆕 신상(release)만 보기${relCnt ? ` <span class="rlN">${relCnt}</span>` : ''}</button>
+        ${RELEASE_ONLY ? `<span class="mini">신상 발매 자료만 보는 중 — 다시 누르면 전체 트렌드</span>` : `<span class="mini">발매 정보만 모아 봅니다 (트렌드 버블·흐름엔 안 섞여요)</span>`}`;
+    } else { bar.style.display = 'none'; bar.innerHTML = ''; }
+  }
   TAG_POOL['#newsBubble'] = [
     ...aggregateNewsKw([...NEWS_SIG, ...SB_NEWS].filter(s => s.category === scatF && inMonth(s))),
     ...snsTagEntry(s => s.category === scatF && inMonth(s)),
