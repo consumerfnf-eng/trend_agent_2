@@ -493,7 +493,7 @@ a{color:var(--acc)}
 </head>
 <body>
 <header>
-  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260808-34</span></h1>
+  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260808-35</span></h1>
   <a href="index.html" id="backLink" style="font-size:11px;letter-spacing:.12em;font-weight:700;color:var(--acc);text-decoration:none;border:1px solid var(--acc);padding:6px 12px">← DASHBOARD</a>
   <div class="mrange">
     <label>기간</label>
@@ -528,13 +528,6 @@ a{color:var(--acc)}
       <div class="kwlist" id="newsKwMore" style="display:none"></div>
     </div>
 
-    <div class="srcBlock" id="runwayBlock" style="display:none">
-      <h4 class="srcTitle">런웨이 <span id="runwayCnt" class="srcCnt"></span></h4>
-      <div class="sub">슈즈 런웨이 자료 — 쇼 시즌별로 모았어요 (파일명에서 브랜드 자동 표시)</div>
-      <div class="runwaySeasonTabs" id="runwaySeasonTabs"></div>
-      <div id="runwayGrid"></div>
-    </div>
-
     <div class="srcBlock" id="snsBlock">
       <h4 class="srcTitle">SNS 트렌드 <span id="snsCnt" class="srcCnt"></span>
         <span class="snsTools" id="snsTools">
@@ -550,6 +543,13 @@ a{color:var(--acc)}
       <button class="morebtn" id="snsMoreBtn" style="display:none"></button>
       <div class="kwlist" id="snsKwMore" style="display:none"></div>
     </div>
+
+    <div class="srcBlock" id="runwayBlock" style="display:none">
+      <h4 class="srcTitle">런웨이 <span id="runwayCnt" class="srcCnt"></span></h4>
+      <div class="sub">슈즈 런웨이 자료 — 쇼 시즌별로 모았어요 (파일명에서 브랜드 자동 표시)</div>
+      <div class="runwaySeasonTabs" id="runwaySeasonTabs"></div>
+      <div id="runwayGrid"></div>
+    </div>
   </section>
 </main>
 
@@ -558,7 +558,7 @@ a{color:var(--acc)}
 
 <script src="config.js"></script>
 <script type="module">
-console.log("TREND AGENT signal.html v260808-34");
+console.log("TREND AGENT signal.html v260808-35");
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ══ 설정 — 다른 파일들과 같은 값 ══ */
@@ -1564,7 +1564,7 @@ function tagCellAgg(ranked){
 
 /* ── 기본 해시태그 버블: 가로=년월, 크기·글씨=언급량, 파스텔, 라벨 한 줄(안 잘림) ── */
 function tagScatterHTML(ranked, gridSel){
-  /* 기간 전체 태그별 합계 → 한 덩어리로 뭉치기(년월 축 없음, 큰 원 가운데) */
+  /* 기간 전체 태그별 합계 → 한 덩어리로 뭉치기(년월 축 없음). 많이 나온 건 중앙, 비슷한 건 가까이 */
   const pts0 = tagCellAgg(ranked);
   if(!pts0.length) return '<div class="empty" style="padding:10px 0">이 섹션에는 아직 해시태그가 없습니다</div>';
   const months = tagMonthAxis(pts0.map(p => p.ym));
@@ -1579,16 +1579,37 @@ function tagScatterHTML(ranked, gridSel){
   arr = arr.slice(0, TOPN);
   const maxC = Math.max(...arr.map(a => a.count), 1);
 
-  const rMin = 20, rMax = 78;
-  const rOf = c => rMin + (rMax - rMin) * Math.sqrt(c / maxC);
-  const nodes = arr.map(a => ({ p: a, r: rOf(a.count), x: 0, y: 0 }));
-  nodes.sort((a, b) => b.r - a.r);
-  /* 큰 것부터 중앙 근처, 초기엔 원형으로 흩뿌림 */
-  nodes.forEach((n, i) => { const ang = i * 2.399963; const rad = 6 + i * 6; n.x = Math.cos(ang) * rad; n.y = Math.sin(ang) * rad; });
-  if(nodes.length) { nodes[0].x = 0; nodes[0].y = 0; }
-  for(let step = 0; step < 700; step++){
-    const g = step < 560 ? 0.97 : 1;        /* 중심으로 끌어당김 */
-    for(const n of nodes){ n.x *= g; n.y *= g; }
+  /* 비슷한 키워드 그룹키: 대표어(클러스터 head) 우선, 없으면 앞글자(어간) */
+  const stem = t => String(t).toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 4);
+  const groupKey = t => (typeof TAG_TO_HEAD !== 'undefined' && (TAG_TO_HEAD[t] || TAG_TO_HEAD[canonTag(t)])) || stem(t);
+
+  /* 크기: 1건은 모두 같은 작은 크기, 2건 이상만 언급량에 따라 커짐 */
+  const R1 = 30, FS1 = 12;                          /* 1건 고정 반지름·폰트 */
+  const R2 = 44, RMAX = 96;                          /* 2건~최대 */
+  const rOf = c => c <= 1 ? R1 : (maxC <= 1 ? R2 : R2 + (RMAX - R2) * Math.sqrt((c - 1) / (maxC - 1)));
+
+  const nodes = arr.map(a => ({ p: a, r: rOf(a.count), g: groupKey(a.tag), x: 0, y: 0 }));
+  nodes.sort((a, b) => b.p.count - a.p.count);
+  /* 초기 배치: 많이 나온 건 중앙 근처, 적은 건 바깥 링으로 */
+  nodes.forEach((n, i) => { const ang = i * 2.399963; const rad = 8 + i * 7; n.x = Math.cos(ang) * rad; n.y = Math.sin(ang) * rad; });
+  if(nodes.length){ nodes[0].x = 0; nodes[0].y = 0; }
+
+  const groups = [...new Set(nodes.map(n => n.g))];
+  for(let step = 0; step < 900; step++){
+    /* 1) 중심으로 끌어당김 — 언급량 클수록 훨씬 강하게(큰 버블이 가운데 고정) */
+    for(const n of nodes){
+      const cw = n.p.count / maxC;               /* 0~1 */
+      const pull = 0.006 + 0.16 * cw * cw;       /* 많이 나올수록 급격히 큰 인력, 1건은 거의 안 당김 */
+      n.x -= n.x * pull; n.y -= n.y * pull;
+    }
+    /* 2) 같은 그룹끼리 서로 끌어당김(비슷한 키워드 뭉치기) */
+    for(const g of groups){
+      const gm = nodes.filter(n => n.g === g);
+      if(gm.length < 2) continue;
+      let cx = 0, cy = 0; for(const n of gm){ cx += n.x; cy += n.y; } cx /= gm.length; cy /= gm.length;
+      for(const n of gm){ n.x += (cx - n.x) * 0.05; n.y += (cy - n.y) * 0.05; }
+    }
+    /* 3) 서로 안 겹치게 밀어내기 */
     for(let i = 0; i < nodes.length; i++){
       for(let j = i + 1; j < nodes.length; j++){
         const a = nodes[i], b = nodes[j];
@@ -1601,7 +1622,6 @@ function tagScatterHTML(ranked, gridSel){
       }
     }
   }
-  /* 경계 계산 → viewBox */
   let minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
   for(const n of nodes){ minX = Math.min(minX, n.x - n.r); maxX = Math.max(maxX, n.x + n.r); minY = Math.min(minY, n.y - n.r); maxY = Math.max(maxY, n.y + n.r); }
   const pad = 14;
@@ -1614,20 +1634,21 @@ function tagScatterHTML(ranked, gridSel){
     const cx = n.x + ox, cy = n.y + oy;
     const op = on ? 1 : (0.45 + 0.55 * (n.p.count / maxC));
     const name = '#' + n.p.tag;
-    const availW = 2 * n.r * 0.86;
-    const fs = Math.max(Math.min(availW / (name.length * 0.56), n.r * 0.66, 20), 5);
+    /* 1건은 폰트 전부 동일, 2건 이상은 원 크기에 맞춰(한 줄 유지) */
+    let fs = n.p.count <= 1 ? FS1 : Math.min(2 * n.r * 0.86 / (name.length * 0.56), n.r * 0.66, 20);
+    fs = Math.max(fs, 5);
     const tcol = on ? '#ffffff' : '#33404a', ccol = on ? '#ffe4d8' : '#5c6771';
     svg += `<g class="scg" style="transform-box:fill-box; transform-origin:center">
       <circle class="sc" cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${n.r.toFixed(1)}"
         fill="${on ? '#c8451f' : tagHue(n.p.tag)}" fill-opacity="${op.toFixed(2)}" stroke="${on ? '#c8451f' : '#ffffff'}" stroke-width="${on ? 3 : 1.5}"
         data-tagbubble="${esc(n.p.tag)}" data-target="${gridSel}" style="cursor:pointer"><title>#${esc(n.p.tag)} · 기간 합계 ${n.p.count}건</title></circle>
       <text x="${cx.toFixed(1)}" y="${(cy - fs * 0.16).toFixed(1)}" font-size="${fs.toFixed(1)}" font-weight="800" fill="${tcol}" text-anchor="middle" pointer-events="none">${esc(name)}</text>
-      <text x="${cx.toFixed(1)}" y="${(cy + fs * 0.9).toFixed(1)}" font-size="${(fs * 0.72).toFixed(1)}" font-weight="700" fill="${ccol}" text-anchor="middle" pointer-events="none">${n.p.count}건</text>
+      <text x="${cx.toFixed(1)}" y="${(cy + fs * 0.9).toFixed(1)}" font-size="${(n.p.count <= 1 ? FS1 * 0.72 : fs * 0.72).toFixed(1)}" font-weight="700" fill="${ccol}" text-anchor="middle" pointer-events="none">${n.p.count}건</text>
     </g>`;
   }
   svg += '</svg>';
   return `<div class="scatterWrap">
-    <div class="scatterTop"><span class="mini">기간 전체 · 많이 언급될수록 큰 버블(가운데) · 누르면 그 태그 카드만</span></div>
+    <div class="scatterTop"><span class="mini">기간 전체 · 많이 언급될수록 큰 버블(가운데) · 비슷한 키워드끼리 모임 · 누르면 그 태그 카드만</span></div>
     ${svg}
     <div class="mini" style="margin-top:4px">${totalTags > nodes.length ? `언급량 상위 ${nodes.length}개 표시 (전체 ${totalTags})` : ''}</div>
   </div>`;
