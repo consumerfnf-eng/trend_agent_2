@@ -122,6 +122,9 @@ tr.krow{cursor:pointer} tr.krow:hover{background:#faf6ec}
 .repText{color:var(--tx)}
 .repLink{display:inline-block; margin-left:6px; font-size:10.5px; font-weight:700; color:var(--acc); text-decoration:none}
 .repLink:hover{text-decoration:underline}
+.repList li .repItemDel{margin-left:8px; border:none; background:transparent; color:var(--sub); cursor:pointer; font-size:11px; opacity:0; transition:opacity .12s; padding:1px 5px; border-radius:6px}
+.repList li:hover .repItemDel{opacity:.7}
+.repList li .repItemDel:hover{opacity:1; background:#f6dcd2; color:#c8451f}
 .bubbleRow{display:flex; align-items:center; flex-wrap:wrap; gap:10px}
 .bubble.on{border-color:var(--acc); box-shadow:0 0 0 2px var(--acc) inset}
 .bubble{position:relative; border-radius:50%; background:#fff; border:1px solid var(--hair); display:flex; align-items:center;
@@ -556,7 +559,7 @@ body.kgGrouping .kwcard.kgsel::after{content:'✓ 선택'; position:absolute; to
 </head>
 <body>
 <header>
-  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260808-42</span></h1>
+  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260808-43</span></h1>
   <a href="index.html" id="backLink" style="font-size:11px;letter-spacing:.12em;font-weight:700;color:var(--acc);text-decoration:none;border:1px solid var(--acc);padding:6px 12px">← DASHBOARD</a>
   <div class="mrange">
     <label>기간</label>
@@ -626,7 +629,7 @@ body.kgGrouping .kwcard.kgsel::after{content:'✓ 선택'; position:absolute; to
 
 <script src="config.js"></script>
 <script type="module">
-console.log("TREND AGENT signal.html v260808-42");
+console.log("TREND AGENT signal.html v260808-43");
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ══ 설정 — 다른 파일들과 같은 값 ══ */
@@ -2196,6 +2199,7 @@ function repeatedTrendsReportHTML(items){
         <span class="repSrc">${esc(src) || '출처 미상'}</span>
         <span class="repText">${esc(line)}</span>
         ${link}
+        ${it.id ? `<button class="repItemDel" data-kgremove="${esc(it.id)}" title="이 카드를 박스에서 빼기">✕</button>` : ''}
       </li>`;
     }).join('');
     const editAttr = t.kind === 'manual' ? `data-kind="manual" data-gid="${esc(t.gid)}"` : `data-kind="auto" data-key="${esc(t.key)}"`;
@@ -2271,6 +2275,38 @@ document.addEventListener('click', async e => {
     await sb.from('keyword_groups').delete().eq('gtype', 'hide').eq('auto_key', key).eq('category', scatF);
     const { error } = await sb.from('keyword_groups').insert({ category: scatF, gtype: 'hide', auto_key: key });
     if(error) return alert('숨김 실패: ' + error.message);
+  }
+  await loadKeywordGroups(); renderCurrentView();
+});
+
+/* 박스에서 카드 한 장 빼기(✕) — 카드/DB는 그대로, 이 박스에서만 제외 */
+document.addEventListener('click', async e => {
+  const b = e.target.closest('[data-kgremove]'); if(!b) return;
+  e.stopPropagation();
+  const block = b.closest('.repBlock'); if(!block) return;
+  const rid = b.dataset.kgremove;
+  const members = (block.dataset.memberids || '').split(',').filter(Boolean);
+  const next = members.filter(x => x !== rid);
+  if(block.dataset.kind === 'manual'){
+    const gid = block.dataset.gid;
+    if(next.length < 1){
+      if(!confirm('이 카드를 빼면 박스가 비어서 삭제돼요. 진행할까요?')) return;
+      const { error } = await sb.from('keyword_groups').delete().eq('id', gid);
+      if(error) return alert('삭제 실패: ' + error.message);
+    } else {
+      const { error } = await sb.from('keyword_groups').update({ card_ids: next }).eq('id', gid);
+      if(error) return alert('빼기 실패: ' + error.message);
+    }
+  } else {
+    /* 자동 박스 → 직접 묶음으로 전환(남은 카드만) + 자동 숨김 */
+    const title = block.querySelector('[data-reptitle]')?.textContent || '새 그룹';
+    const key = block.dataset.key;
+    if(next.length >= 1){
+      const { error } = await sb.from('keyword_groups').insert({ category: scatF, gtype: 'manual', title, card_ids: next });
+      if(error) return alert('빼기 실패: ' + error.message);
+    }
+    await sb.from('keyword_groups').delete().eq('gtype', 'hide').eq('auto_key', key).eq('category', scatF);
+    await sb.from('keyword_groups').insert({ category: scatF, gtype: 'hide', auto_key: key });
   }
   await loadKeywordGroups(); renderCurrentView();
 });
