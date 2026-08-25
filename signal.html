@@ -427,6 +427,9 @@ circle.sc:hover{fill-opacity:.8}
 .flowToggle.on{background:var(--acc)!important; color:#fff!important}
 .scatterTop{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:4px}
 .runwaySeasonTabs{display:flex; gap:6px; margin:10px 0 14px; flex-wrap:wrap}
+.runwayFold{margin-left:10px; font-size:11px; font-weight:800; padding:4px 12px; border-radius:16px;
+  border:1px solid var(--acc); background:#fff; color:var(--acc); cursor:pointer; vertical-align:middle}
+.runwayFold:hover{background:var(--acc); color:#fff}
 .runwaySeasonTabs button{font-size:12px; font-weight:800; letter-spacing:.02em; padding:6px 14px; border-radius:20px;
   border:1px solid var(--hair); background:#fff; color:var(--sub); cursor:pointer; display:inline-flex; align-items:center; gap:6px}
 .runwaySeasonTabs button.on{background:var(--tx); border-color:var(--tx); color:#fff}
@@ -527,7 +530,7 @@ a{color:var(--acc)}
 </head>
 <body>
 <header>
-  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260808-39</span></h1>
+  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260808-40</span></h1>
   <a href="index.html" id="backLink" style="font-size:11px;letter-spacing:.12em;font-weight:700;color:var(--acc);text-decoration:none;border:1px solid var(--acc);padding:6px 12px">← DASHBOARD</a>
   <div class="mrange">
     <label>기간</label>
@@ -580,10 +583,14 @@ a{color:var(--acc)}
     </div>
 
     <div class="srcBlock" id="runwayBlock" style="display:none">
-      <h4 class="srcTitle">런웨이 <span id="runwayCnt" class="srcCnt"></span></h4>
+      <h4 class="srcTitle">런웨이 <span id="runwayCnt" class="srcCnt"></span>
+        <button class="runwayFold" id="runwayFold" data-runwayfold="1">펼치기 ▾</button>
+      </h4>
       <div class="sub">슈즈 런웨이 자료 — 쇼 시즌별로 모았어요 (파일명에서 브랜드 자동 표시)</div>
-      <div class="runwaySeasonTabs" id="runwaySeasonTabs"></div>
-      <div id="runwayGrid"></div>
+      <div id="runwayBody" style="display:none">
+        <div class="runwaySeasonTabs" id="runwaySeasonTabs"></div>
+        <div id="runwayGrid"></div>
+      </div>
     </div>
   </section>
 </main>
@@ -593,7 +600,7 @@ a{color:var(--acc)}
 
 <script src="config.js"></script>
 <script type="module">
-console.log("TREND AGENT signal.html v260808-39");
+console.log("TREND AGENT signal.html v260808-40");
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ══ 설정 — 다른 파일들과 같은 값 ══ */
@@ -1239,6 +1246,18 @@ function renderRunway(){
 }
 /* ── 런웨이 라이트박스(HTML 내부 팝업) ── */
 let RUNWAY_VIEW = [], rwLightIdx = -1;
+let runwayOpen = false;   /* 슈즈 런웨이 기본 접힘 */
+function applyRunwayFold(){
+  const body = $('#runwayBody'), btn = $('#runwayFold');
+  if(body) body.style.display = runwayOpen ? '' : 'none';
+  if(btn) btn.textContent = runwayOpen ? '접기 ▴' : '펼치기 ▾';
+}
+document.addEventListener('click', e => {
+  if(!e.target.closest('[data-runwayfold]')) return;
+  runwayOpen = !runwayOpen;
+  applyRunwayFold();
+  if(runwayOpen) renderRunway();
+});
 function rwOpenLight(i){
   RUNWAY_VIEW = RUNWAY.filter(r => r.season === runwaySeasonSel)
     .sort((a, b) => (a.brand || '').localeCompare(b.brand || '') || (a.sort_order || 0) - (b.sort_order || 0));
@@ -1334,7 +1353,7 @@ function renderCurrentView(){
   const isLife = scatF === 'lifestyle';
   $('#lifeBlock').style.display = isLife ? '' : 'none';
   $('#newsBlock').style.display = isLife ? 'none' : '';
-  const rwb = $('#runwayBlock'); if(rwb){ rwb.style.display = (scatF === 'shoes') ? '' : 'none'; if(scatF === 'shoes') renderRunway(); }
+  const rwb = $('#runwayBlock'); if(rwb){ rwb.style.display = (scatF === 'shoes') ? '' : 'none'; if(scatF === 'shoes'){ renderRunway(); applyRunwayFold(); } }
   $('#snsBlock').style.display  = '';   /* 라이프스타일 탭에서도 SNS 섹션을 보여준다 */
   $('#catSub').textContent = isLife
     ? '소비자 활동·문화·행태 트렌드를 모아봤어요 — 다른 카테고리를 고르면 패션·SNS 트렌드를 볼 수 있어요'
