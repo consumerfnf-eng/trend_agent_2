@@ -481,7 +481,7 @@ a{color:var(--acc)}
 </head>
 <body>
 <header>
-  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260808-32</span></h1>
+  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260808-33</span></h1>
   <a href="index.html" id="backLink" style="font-size:11px;letter-spacing:.12em;font-weight:700;color:var(--acc);text-decoration:none;border:1px solid var(--acc);padding:6px 12px">← DASHBOARD</a>
   <div class="mrange">
     <label>기간</label>
@@ -539,7 +539,7 @@ a{color:var(--acc)}
 
 <script src="config.js"></script>
 <script type="module">
-console.log("TREND AGENT signal.html v260808-32");
+console.log("TREND AGENT signal.html v260808-33");
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ══ 설정 — 다른 파일들과 같은 값 ══ */
@@ -1565,7 +1565,7 @@ function tagScatterHTML(ranked, gridSel){
 
   for(const n of nodes){
     const on = tagFilter === n.p.tag;
-    const op = on ? 1 : (0.32 + 0.6 * (n.p.count / maxC));   /* 많이 나올수록 진하게, 적으면 투명 */
+    const op = on ? 1 : (0.42 + 0.58 * (n.p.count / maxC));   /* 많이 나올수록 진하게, 적으면 투명 */
     const name = '#' + n.p.tag;
     const availW = 2 * n.r * 0.86;
     const fs = Math.max(Math.min(availW / (name.length * 0.56), n.r * 0.66, 17), 4.5);
@@ -1573,7 +1573,7 @@ function tagScatterHTML(ranked, gridSel){
     const tcol = on ? '#ffffff' : '#33404a', ccol = on ? '#ffe4d8' : '#5c6771';
     svg += `<g class="scg" style="transform-box:fill-box; transform-origin:center">
       <circle class="sc" cx="${n.cx.toFixed(1)}" cy="${n.cy.toFixed(1)}" r="${n.r.toFixed(1)}"
-        fill="${on ? '#c8451f' : BUBBLE_HUE}" fill-opacity="${op.toFixed(2)}" stroke="${on ? '#c8451f' : '#ffffff'}" stroke-width="${on ? 3 : 1.5}"
+        fill="${on ? '#c8451f' : tagHue(n.p.tag)}" fill-opacity="${op.toFixed(2)}" stroke="${on ? '#c8451f' : '#ffffff'}" stroke-width="${on ? 3 : 1.5}"
         data-tagbubble="${esc(n.p.tag)}" data-target="${gridSel}" style="cursor:pointer"><title>#${esc(n.p.tag)} · ${esc(n.p.ym)} · ${n.p.count}건</title></circle>
       <text x="${n.cx.toFixed(1)}" y="${(n.cy - fs * 0.16).toFixed(1)}" font-size="${fs.toFixed(1)}" font-weight="800" fill="${tcol}" text-anchor="middle" pointer-events="none">${esc(name)}</text>
       <text x="${n.cx.toFixed(1)}" y="${(n.cy + fs * 0.9).toFixed(1)}" font-size="${fsc.toFixed(1)}" font-weight="700" fill="${ccol}" text-anchor="middle" pointer-events="none">${n.p.count}건</text>
@@ -1610,7 +1610,7 @@ function tagFlowHTML(ranked, gridSel){
   };
   const qualified = [...tagMap.values()]
     .map(t => ({ ...t, runs: runsOf(t.byIdx) }))
-    .filter(t => t.runs.some(r => r.length >= 2))
+    .filter(t => t.byIdx.size >= 2)          /* 기간 중 2개 이상의 달에 나온 키워드만 (1개 달만 나온 건 제외) */
     .sort((a, b) => b.total - a.total || a.tag.localeCompare(b.tag))
     .slice(0, FLOW_TOPN);
 
@@ -1618,8 +1618,8 @@ function tagFlowHTML(ranked, gridSel){
     <select data-flowtopn>${[5,7,10,15].map(v => `<option value="${v}"${v===FLOW_TOPN?' selected':''}>${v}</option>`).join('')}</select>개</label>`;
 
   if(!qualified.length){
-    return `<div class="scatterWrap"><div class="scatterTop"><span class="mini">2개월 이상 이어서 언급된 키워드</span>${topnSel}</div>
-      <div class="empty" style="padding:16px 0">이 기간에 2개월 이상 연속으로 언급된 키워드가 없어요.</div></div>`;
+    return `<div class="scatterWrap"><div class="scatterTop"><span class="mini">여러 달에 걸쳐 언급된 키워드</span>${topnSel}</div>
+      <div class="empty" style="padding:16px 0">이 기간에 2개 달 이상 나온 키워드가 없어요. (기간을 넓히거나 여러 달 자료가 있는 카테고리에서 확인해 보세요)</div></div>`;
   }
 
   /* 각 태그의 run을 아이템으로 (연속 2+ = 알약, 단독 달 = 원) */
@@ -1673,11 +1673,11 @@ function tagFlowHTML(ranked, gridSel){
     const tip = `<title>#${esc(it.tag)} · ${monLabel} · ${it.sum}건${it.pill ? ' (연속 ' + it.span + '개월)' : ''}</title>`;
     if(n.pill){
       svg += `<rect class="sc" x="${(n.cx - n.hw).toFixed(1)}" y="${(n.cy - n.hh).toFixed(1)}" width="${(2 * n.hw).toFixed(1)}" height="${(2 * n.hh).toFixed(1)}" rx="${n.hh.toFixed(1)}" ry="${n.hh.toFixed(1)}"
-        fill="${on ? '#c8451f' : BUBBLE_HUE}" fill-opacity="${op.toFixed(2)}" stroke="${on ? '#c8451f' : '#ffffff'}" stroke-width="${on ? 3 : 1.5}"
+        fill="${on ? '#c8451f' : tagHue(it.tag)}" fill-opacity="${op.toFixed(2)}" stroke="${on ? '#c8451f' : '#ffffff'}" stroke-width="${on ? 3 : 1.5}"
         data-tagbubble="${esc(it.tag)}" data-target="${gridSel}" style="cursor:pointer">${tip}</rect>`;
     } else {
       svg += `<circle class="sc" cx="${n.cx.toFixed(1)}" cy="${n.cy.toFixed(1)}" r="${n.hh.toFixed(1)}"
-        fill="${on ? '#c8451f' : BUBBLE_HUE}" fill-opacity="${op.toFixed(2)}" stroke="${on ? '#c8451f' : '#ffffff'}" stroke-width="${on ? 3 : 1.5}"
+        fill="${on ? '#c8451f' : tagHue(it.tag)}" fill-opacity="${op.toFixed(2)}" stroke="${on ? '#c8451f' : '#ffffff'}" stroke-width="${on ? 3 : 1.5}"
         data-tagbubble="${esc(it.tag)}" data-target="${gridSel}" style="cursor:pointer">${tip}</circle>`;
     }
   }
@@ -1691,7 +1691,7 @@ function tagFlowHTML(ranked, gridSel){
   svg += '</svg>';
 
   return `<div class="scatterWrap">
-    <div class="scatterTop"><span class="mini">2개월 이상 이어서 언급된 키워드 · 많이 언급된 순</span>${topnSel}</div>
+    <div class="scatterTop"><span class="mini">여러 달(2개 이상)에 걸쳐 언급된 키워드 · 많이 언급된 순 · 연속이면 이어서 표시</span>${topnSel}</div>
     ${svg}
     <div class="mini" style="margin-top:4px">막대(알약)를 누르면 그 태그 카드만 볼 수 있어요 · 상위 ${qualified.length}개</div>
   </div>`;
