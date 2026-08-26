@@ -539,6 +539,9 @@ body.kgGrouping .kwcard{cursor:pointer}
 body.kgGrouping .kwcard[data-cardid]:hover{outline:2px dashed var(--acc); outline-offset:2px}
 body.kgGrouping .kwcard.kgsel{outline:3px solid var(--acc); outline-offset:2px}
 body.kgGrouping .kwcard.kgsel::after{content:'✓ 선택'; position:absolute; top:8px; left:8px; z-index:5; background:var(--acc); color:#fff; font-size:10px; font-weight:800; padding:2px 8px; border-radius:12px}
+body.kgGrouping .kwcard.kgin{opacity:.55; cursor:not-allowed}
+body.kgGrouping .kwcard.kgin:hover{outline:2px solid #b7ab99; outline-offset:2px}
+body.kgGrouping .kwcard.kgin::after{content:'이미 있음'; position:absolute; top:8px; left:8px; z-index:5; background:#7a7264; color:#fff; font-size:10px; font-weight:800; padding:2px 8px; border-radius:12px}
 #kgBar{position:fixed; left:50%; bottom:24px; transform:translateX(-50%) translateY(120%); z-index:9998; display:flex; align-items:center; gap:10px; background:#2b2620; color:#fff; padding:10px 16px; border-radius:30px; box-shadow:0 12px 40px rgba(0,0,0,.35); transition:transform .2s}
 #kgBar.on{transform:translateX(-50%) translateY(0)}
 #kgBar #kgBarCnt{font-size:12px; font-weight:700}
@@ -559,7 +562,7 @@ body.kgGrouping .kwcard.kgsel::after{content:'✓ 선택'; position:absolute; to
 </head>
 <body>
 <header>
-  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260808-43</span></h1>
+  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260808-44</span></h1>
   <a href="index.html" id="backLink" style="font-size:11px;letter-spacing:.12em;font-weight:700;color:var(--acc);text-decoration:none;border:1px solid var(--acc);padding:6px 12px">← DASHBOARD</a>
   <div class="mrange">
     <label>기간</label>
@@ -629,7 +632,7 @@ body.kgGrouping .kwcard.kgsel::after{content:'✓ 선택'; position:absolute; to
 
 <script src="config.js"></script>
 <script type="module">
-console.log("TREND AGENT signal.html v260808-43");
+console.log("TREND AGENT signal.html v260808-44");
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ══ 설정 — 다른 파일들과 같은 값 ══ */
@@ -2166,7 +2169,8 @@ function applyKGroups(category, autoTrends, items){
     if(!its.length) return null;
     return { word: g.title || '새 그룹', count: its.length, items: its.slice().sort((a, b) => (b.ym || '0').localeCompare(a.ym || '0')), kind: 'manual', gid: g.id };
   }).filter(Boolean);
-  return [...manual, ...auto];   /* 직접 묶은 박스를 위에 */
+  /* 카드 많은 순으로 정렬(직접 묶음·자동 구분 없이 count 내림차순, 동수면 직접 묶음 먼저) */
+  return [...manual, ...auto].sort((a, b) => b.count - a.count || ((a.kind === 'manual' ? 0 : 1) - (b.kind === 'manual' ? 0 : 1)));
 }
 
 /* 리포트 섹션 HTML — 카테고리 위 상단에 반복 단어별로 카드형 리포트 */
@@ -2330,13 +2334,21 @@ function updateKgBar(){ const n = _kgSelectedIds().length; const el = $('#kgBarC
 function enterKgGrouping(){
   document.body.classList.add('kgGrouping'); _kgBar().classList.add('on');
   const ti = $('#kgBarTitle'), mk = $('#kgBarMake');
-  if(KG_ADD_TARGET){ ti.style.display = 'none'; mk.textContent = '이 박스에 추가'; }
-  else { ti.style.display = ''; mk.textContent = '묶음 만들기'; }
+  /* 추가 모드: 이미 이 박스에 들어있는 카드는 '이미 있음'으로 표시(중복 방지) */
+  document.querySelectorAll('.kwcard.kgin').forEach(c => c.classList.remove('kgin'));
+  if(KG_ADD_TARGET){
+    ti.style.display = 'none'; mk.textContent = '이 박스에 추가';
+    const set = new Set(KG_ADD_TARGET.members || []);
+    document.querySelectorAll('.kwcard[data-cardid]').forEach(c => { if(set.has(c.dataset.cardid)) c.classList.add('kgin'); });
+  } else {
+    ti.style.display = ''; mk.textContent = '묶음 만들기';
+  }
   updateKgBar();
 }
 function exitKgGrouping(){
   document.body.classList.remove('kgGrouping');
   document.querySelectorAll('.kwcard.kgsel').forEach(c => c.classList.remove('kgsel'));
+  document.querySelectorAll('.kwcard.kgin').forEach(c => c.classList.remove('kgin'));
   $('#kgBar')?.classList.remove('on');
   const ti = $('#kgBarTitle'); if(ti){ ti.value = ''; ti.style.display = ''; }
   KG_ADD_TARGET = null;
@@ -2390,7 +2402,11 @@ document.addEventListener('click', e => {
   if(!document.body.classList.contains('kgGrouping')) return;
   if(e.target.closest('#kgBar')) return;
   const card = e.target.closest('.kwcard[data-cardid]');
-  if(card && card.dataset.cardid){ e.stopPropagation(); e.preventDefault(); card.classList.toggle('kgsel'); updateKgBar(); }
+  if(card && card.dataset.cardid){
+    e.stopPropagation(); e.preventDefault();
+    if(card.classList.contains('kgin')) return;   /* 이미 박스에 있는 카드는 선택 불가 */
+    card.classList.toggle('kgsel'); updateKgBar();
+  }
 }, true);
 
 function reportBoxFor(gridSel){
