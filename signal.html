@@ -519,6 +519,7 @@ a{color:var(--acc)}
 .releaseToggle .rlN{font-size:10px; font-weight:700; background:rgba(0,0,0,.12); border-radius:10px; padding:0 6px; margin-left:2px}
 .releaseToggle.on .rlN{background:rgba(255,255,255,.25)}
 .kwcard .kwshared{margin-top:8px}
+.kwcard .kwbrand{display:block; font-size:9.5px; font-weight:800; letter-spacing:.09em; text-transform:uppercase; color:var(--acc); margin-bottom:3px}
 /* 태그 칩 편집 */
 .tagrow.editing{display:flex; flex-wrap:wrap; gap:5px; align-items:center}
 .etag{display:inline-flex; align-items:center; gap:3px; font-size:10px; font-weight:700; padding:3px 6px 3px 8px; border-radius:20px; background:#f1ece3; color:var(--tx)}
@@ -562,7 +563,7 @@ body.kgGrouping .kwcard.kgin::after{content:'이미 있음'; position:absolute; 
 </head>
 <body>
 <header>
-  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260808-44</span></h1>
+  <h1>TREND SIGNAL<span>F&F Trend Intelligence · v260808-45</span></h1>
   <a href="index.html" id="backLink" style="font-size:11px;letter-spacing:.12em;font-weight:700;color:var(--acc);text-decoration:none;border:1px solid var(--acc);padding:6px 12px">← DASHBOARD</a>
   <div class="mrange">
     <label>기간</label>
@@ -632,7 +633,7 @@ body.kgGrouping .kwcard.kgin::after{content:'이미 있음'; position:absolute; 
 
 <script src="config.js"></script>
 <script type="module">
-console.log("TREND AGENT signal.html v260808-44");
+console.log("TREND AGENT signal.html v260808-45");
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* ══ 설정 — 다른 파일들과 같은 값 ══ */
@@ -1192,16 +1193,16 @@ async function loadTrendSignals(){
       if(r.source_type === 'news'){
         SB_NEWS.push({ id: r.id, url: r.url, note: r.keyword, category: REV_CAT_LABEL[r.category] || r.category || 'etc',
           keywords: [r.keyword], summary: r.note || '', image_url: r.image_url, extra_images: r.extra_images || [], stage: 'early',
-          source: r.source, region: r.region, author: r.author, tags: canonTags(r.tags), ym: ymOf(r) });
+          source: r.source, region: r.region, author: r.author, brands: r.brands || [], tags: canonTags(r.tags), ym: ymOf(r) });
       } else if(r.source_type === 'lifestyle'){
         SB_LIFESTYLE.push({ id: r.id, url: r.url, note: r.keyword, category: 'lifestyle',
           keywords: [r.keyword], summary: r.note || '', image_url: r.image_url, extra_images: r.extra_images || [], stage: 'early',
           related: r.related || null, related_keyword: r.related_keyword || '', related_note: r.related_note || '',
-          source: r.source, region: r.region, author: r.author, tags: canonTags(r.tags), ym: ymOf(r) });
+          source: r.source, region: r.region, author: r.author, brands: r.brands || [], tags: canonTags(r.tags), ym: ymOf(r) });
       } else if(r.source_type === 'sns'){
         SB_SNS.push({ id: r.id, category: REV_CAT_LABEL[r.category] || r.category || 'etc', keyword: r.keyword,
           note: r.note || '', url: r.url, image_url: r.image_url, extra_images: r.extra_images || [], source: r.source, region: r.region,
-          author: r.author, tags: canonTags(r.tags), ym: ymOf(r),
+          author: r.author, brands: r.brands || [], tags: canonTags(r.tags), ym: ymOf(r),
           account: r.account || '', sub_group: r.sub_group || '',
           photo_order: (r.photo_order ?? null), is_cover: !!r.is_cover });
       }
@@ -1573,7 +1574,7 @@ function itemCardHTML(entry, it){
       ${extra.length ? `<div class="morebadge">+${extra.length}장</div>` : ''}
       ${authorColor ? `<div class="authorline" style="background:${authorColor}"></div>` : ''}
     </div>
-    <div class="kwname">${esc(entry.label)}</div>
+    <div class="kwname">${(it.brands && it.brands.length) ? `<span class="kwbrand">${it.brands.map(esc).join(' · ')}</span>` : ''}${esc(entry.label)}</div>
     ${text ? `<div class="kwex">${esc(text)}</div>` : ''}
     ${link ? `<a class="kwlink" href="${esc(link)}" target="_blank" rel="noopener">${linkLabel} →</a>` : ''}
     ${tagRow}
