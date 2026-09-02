@@ -218,9 +218,9 @@ header h1{font-family:'Playfair Display',serif; font-size:22px}
 .pdfBox{background:var(--paper); border-radius:14px; padding:18px 20px; width:min(1400px, 96vw); position:relative}
 .pdfClose{position:absolute; top:10px; right:14px; border:0; background:none; font-size:26px; cursor:pointer; color:var(--sub)}
 .pdfTitle{font-family:'Playfair Display',serif; font-size:20px; margin-bottom:10px}
-.pdfStrip{display:flex; gap:14px; overflow-x:auto; padding-bottom:8px; align-items:flex-start}
-.pdfPage{flex:0 0 auto}
-.pdfPage canvas{display:block; border:1px solid var(--hair); border-radius:6px; background:#fff}
+.pdfStrip{display:flex; flex-direction:column; gap:14px; overflow-y:auto; max-height:82vh; align-items:center; padding-right:4px}
+.pdfPage{flex:0 0 auto; width:100%; display:flex; flex-direction:column; align-items:center}
+.pdfPage canvas{display:block; border:1px solid var(--hair); border-radius:6px; background:#fff; max-width:100%; height:auto}
 .rpForm{border-top:1px solid var(--hair); margin-top:10px; padding-top:10px}
 .rpForm .row{display:flex; gap:8px; flex-wrap:wrap}
 .rpForm input, .rpForm select{border:1px solid var(--hair); border-radius:6px; padding:5px 8px;
@@ -315,7 +315,7 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
 <body>
 
 <header>
-  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260808-14</span></h1>
+  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260808-15</span></h1>
   <div class="tabs">
     <button data-v="signal" class="on">TREND SIGNAL</button>
     <button data-v="keywords">TREND KEYWORDS</button>
@@ -2323,7 +2323,7 @@ async function openPdfStrip(url, title){
     <button class="pdfClose" aria-label="닫기">×</button>
     <div class="pdfTitle">${esc(title || '')}</div>
     <div class="pdfStrip"><div class="mini" style="padding:40px">불러오는 중…</div></div>
-    <div class="mini" style="margin-top:6px">좌우로 밀어서 넘겨보세요 · Esc로 닫기</div>
+    <div class="mini" style="margin-top:6px">위아래로 스크롤해서 넘겨보세요 · Esc로 닫기</div>
   </div>`;
   document.body.appendChild(wrap);
   const strip = wrap.querySelector('.pdfStrip');
@@ -2337,7 +2337,7 @@ async function openPdfStrip(url, title){
       holder.appendChild(cv);
       holder.insertAdjacentHTML('beforeend', `<div class="mini" style="text-align:center">${i}</div>`);
       strip.appendChild(holder);
-      await renderPage(doc, i, cv, 640);
+      await renderPage(doc, i, cv, 900);
     }
   }catch(e){
     strip.innerHTML = '<div class="mini" style="padding:40px">PDF를 불러오지 못했습니다</div>';
