@@ -37,21 +37,48 @@ main{max-width:1180px; margin:0 auto; padding:22px 24px 90px}
 .rwAdmShot .rwDel{position:absolute; top:5px; right:5px; width:22px; height:22px; border-radius:50%; border:none; background:rgba(0,0,0,.55); color:#fff; font-size:12px; cursor:pointer}
 .rwAdmShot .rwDel:hover{background:#c8451f}
 .rwAdmShot .rwFn{font-size:9px; color:#8a8175; padding:3px 5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-/* 등록 관리 목록 — 전역 input{width:100%} 때문에 체크박스가 폭을 다 먹지 않도록 */
-.mgRow{display:grid; grid-template-columns:20px 46px 1fr auto; gap:12px; align-items:start;
-  padding:11px 14px; border:1px solid var(--hair); border-radius:10px; margin-bottom:7px;
-  background:#fff; cursor:pointer}
-.mgRow.on{background:#fdf3ef; border-color:#f1d9cf}
-.mgRow input[type=checkbox]{width:16px !important; height:16px; margin:3px 0 0; padding:0; flex:none}
-.mgRow img{width:46px; height:60px; object-fit:cover; border-radius:6px; background:#efeae1; display:block}
-.mgRow .mgTitle{font-weight:800; font-size:13px; line-height:1.35; word-break:keep-all}
-.mgRow .mgMeta{font-size:11px; color:var(--sub); margin-top:3px}
-.mgRow .mgNote{font-size:11px; color:var(--sub); opacity:.85; margin-top:4px; line-height:1.5}
-.mgRow .mgBrands{font-size:11px; color:var(--accent); margin-top:4px}
-.mgRow .mgLink{font-size:11px; color:var(--sub); white-space:nowrap; text-decoration:none}
-.mgRow .mgEdit{font-size:10.5px; font-weight:800; color:var(--accent); background:#fdf3ef;
-  border:1px solid #f1d9cf; border-radius:20px; padding:4px 11px; cursor:pointer; white-space:nowrap;
+/* 등록 관리 — 한 줄에 7개 정사각형 카드 그리드 */
+.mgGrid{display:grid; grid-template-columns:repeat(7, 1fr); gap:10px}
+@media(max-width:1200px){ .mgGrid{grid-template-columns:repeat(5, 1fr)} }
+@media(max-width:820px){ .mgGrid{grid-template-columns:repeat(3, 1fr)} }
+.mgCard{position:relative; border:1px solid var(--hair); border-radius:10px; background:#fff; overflow:hidden;
+  display:flex; flex-direction:column; cursor:pointer}
+.mgCard.on{border-color:#f1d9cf; box-shadow:0 0 0 2px #f1d9cf inset}
+.mgCard.editing{border-color:var(--accent); box-shadow:0 0 0 2px var(--accent) inset}
+.mgCard .mgPick{position:absolute; top:6px; left:6px; z-index:2; background:rgba(255,255,255,.9); border-radius:6px; padding:2px; line-height:0}
+.mgCard .mgPick input[type=checkbox]{width:16px !important; height:16px; margin:0; padding:0}
+.mgCard .mgThumb{position:relative; aspect-ratio:1/1; background:#efeae1; overflow:hidden}
+.mgCard .mgThumb img{width:100%; height:100%; object-fit:cover; display:block}
+.mgCard .mgNoimg{width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:#b7ab99; font-size:11px}
+.mgCard .mgTypeBadge{position:absolute; top:6px; right:6px; z-index:2; background:rgba(43,38,32,.82); color:#fff; font-size:9px; font-weight:800; padding:2px 7px; border-radius:10px}
+.mgCard .mgBody{padding:8px 9px 4px; flex:1; min-width:0}
+.mgCard .mgTitle{font-weight:800; font-size:12px; line-height:1.3; word-break:keep-all;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden}
+.mgCard .mgMeta{font-size:10px; color:var(--sub); margin-top:3px; line-height:1.4;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden}
+.mgCard .mgNote{font-size:10px; color:var(--sub); opacity:.85; margin-top:3px; line-height:1.45;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden}
+.mgCard .mgBrands{font-size:10px; font-weight:700; color:var(--accent); margin-top:3px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.mgCard .mgActions{display:flex; align-items:center; justify-content:space-between; gap:6px; padding:6px 9px 9px}
+.mgCard .mgLink{font-size:10px; color:var(--sub); white-space:nowrap; text-decoration:none}
+.mgCard .mgEdit{font-size:10px; font-weight:800; color:var(--accent); background:#fdf3ef;
+  border:1px solid #f1d9cf; border-radius:20px; padding:3px 10px; cursor:pointer; white-space:nowrap;
   font-family:inherit; width:auto}
+.mgEditPanel{margin-top:12px}
+.stashWrap{margin-top:22px; border:1px dashed #dcd2c2; border-radius:12px; padding:14px 16px; background:#fdfbf7}
+.stashHead{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px}
+.stashGrid{display:grid; grid-template-columns:repeat(7, 1fr); gap:10px}
+@media(max-width:1200px){ .stashGrid{grid-template-columns:repeat(5, 1fr)} }
+@media(max-width:820px){ .stashGrid{grid-template-columns:repeat(3, 1fr)} }
+.stashCard{border:1px solid var(--hair); border-radius:10px; background:#fff; overflow:hidden; display:flex; flex-direction:column}
+.stashThumb{aspect-ratio:1/1; background:#efeae1; overflow:hidden}
+.stashThumb img{width:100%; height:100%; object-fit:cover; display:block}
+.stashInfo{padding:7px 9px 3px; min-width:0}
+.stashInfo .stashKw{font-size:11.5px; font-weight:800; line-height:1.3; word-break:keep-all;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden}
+.stashBtns{display:flex; gap:6px; padding:6px 9px 9px}
+.stashBtns .btn{flex:1; font-size:10px; padding:3px 0}
 .mgForm{border:1px solid #f1d9cf; border-left:3px solid var(--accent); border-radius:10px;
   padding:14px 16px; margin:-3px 0 10px; background:#fffdfb}
 .mgForm .row{display:flex; gap:10px; flex-wrap:wrap; margin-bottom:8px}
@@ -253,7 +280,7 @@ tbody tr:hover{background:#fdfcf9}
             border:1px solid var(--hair); border-radius:20px; padding:5px 13px; font-size:11px;
             font-weight:800; letter-spacing:.03em; margin-right:14px; background:#fff">← 대시보드</a>
   <h1>TREND <em>AGENT</em></h1>
-  <span class="mini" id="verStamp" style="margin-left:8px;opacity:.55">v260808-10</span>
+  <span class="mini" id="verStamp" style="margin-left:8px;opacity:.55">v260808-11</span>
   <div class="tabs" id="tabs">
     <button data-v="intake" class="on">업로드</button>
     <button data-v="manage">등록 관리</button>
@@ -344,10 +371,23 @@ tbody tr:hover{background:#fdfcf9}
       <span class="link-n" id="linkStat"></span>
       <button class="btn ghost sm" id="aiAll" disabled>AI로 채우기</button>
       <button class="btn ghost sm" id="saveAsOnePost" disabled title="선택한 사진들을 같은 카테고리·스타일로 한 번에 등록합니다 (계정·설명·링크는 사진마다 각각)">같은 스타일로 등록</button>
+      <button class="btn ghost sm" id="stashAdd" disabled title="선택한 사진을 미분류 보관함에 담아 나중에 다른 자료와 함께 등록">📥 보관함에 담기</button>
       <button class="btn sm" id="saveImgs" disabled>CSV로 내보내기 (0/0)</button>
     </div>
     <div class="cards" id="imgCards"></div>
     <div style="margin-top:10px"><span class="mini" id="imgCount"></span></div>
+
+    <!-- 미분류 보관함 — 지금 분류 안 하고 담아뒀다가 나중에 다른 자료와 함께 등록 -->
+    <div class="stashWrap" id="stashPanel">
+      <div class="stashHead">
+        <b>📦 미분류 보관함</b>
+        <span class="mini" id="stashCount">0장</span>
+        <span class="mini" style="opacity:.7">— 분류 안 한 사진을 여기 담아두고, 나중에 위 작업대로 불러와 다른 자료와 함께 등록하세요 (이 브라우저에 저장)</span>
+        <button class="btn ghost sm" id="stashRestoreAll" style="margin-left:auto" disabled>전체 불러오기</button>
+        <button class="btn ghost sm" id="stashClear" disabled style="color:#c8451f;border-color:#f1d9cf">전체 비우기</button>
+      </div>
+      <div class="stashGrid" id="stashGrid"></div>
+    </div>
   </div>
 
   <!-- 문서 -->
@@ -757,6 +797,8 @@ tbody tr:hover{background:#fdfcf9}
           <option value="lifestyle">라이프스타일 트렌드</option>
           <option value="sns">SNS 트렌드</option>
         </select></div>
+      <div style="max-width:160px"><label class="f">카테고리</label>
+        <select id="mgCat"><option value="">전체</option></select></div>
       <div style="max-width:150px"><label class="f">귀속 월</label>
         <select id="mgMonth"><option value="">전체</option></select></div>
       <div style="flex:1"><label class="f">검색</label>
@@ -1425,6 +1467,71 @@ function renderImgCards(){
 }
 
 const picked = () => QUEUE_IMGS.filter(x => x.sel);
+
+/* ── 미분류 보관함 (IndexedDB에 사진+메타 보관) ── */
+let STASH_DB = null;
+function stashDB(){
+  if(STASH_DB) return Promise.resolve(STASH_DB);
+  return new Promise((res, rej) => {
+    const req = indexedDB.open('ta_stash', 1);
+    req.onupgradeneeded = () => { const db = req.result; if(!db.objectStoreNames.contains('items')) db.createObjectStore('items', { keyPath:'id' }); };
+    req.onsuccess = () => { STASH_DB = req.result; res(STASH_DB); };
+    req.onerror = () => rej(req.error);
+  });
+}
+function stashTx(mode){ return stashDB().then(db => db.transaction('items', mode).objectStore('items')); }
+async function stashPut(rec){ const st = await stashTx('readwrite'); return new Promise((res, rej) => { const r = st.put(rec); r.onsuccess = res; r.onerror = () => rej(r.error); }); }
+async function stashAll(){ const st = await stashTx('readonly'); return new Promise((res, rej) => { const r = st.getAll(); r.onsuccess = () => res(r.result || []); r.onerror = () => rej(r.error); }); }
+async function stashDel(id){ const st = await stashTx('readwrite'); return new Promise((res, rej) => { const r = st.delete(id); r.onsuccess = res; r.onerror = () => rej(r.error); }); }
+async function stashClearAll(){ const st = await stashTx('readwrite'); return new Promise((res, rej) => { const r = st.clear(); r.onsuccess = res; r.onerror = () => rej(r.error); }); }
+
+async function stashSelected(){
+  const items = picked();
+  if(!items.length) return;
+  for(const it of items){
+    await stashPut({ id: it.hash || (Date.now() + '-' + Math.random().toString(36).slice(2)),
+      name: it.name, orig: it.orig, meta: { ...it.meta }, full: it.full.blob, thumb: it.thumb.blob });
+  }
+  const taken = new Set(items);
+  QUEUE_IMGS.forEach(x => { if(taken.has(x)) URL.revokeObjectURL(x.preview); });
+  QUEUE_IMGS = QUEUE_IMGS.filter(x => !taken.has(x));
+  renderImgCards();
+  await renderStash();
+  toast(`${items.length}장 보관함에 담았어요 — 나중에 불러와 등록하세요`);
+}
+async function stashRestore(id){
+  const all = await stashAll();
+  const rec = all.find(x => String(x.id) === String(id));
+  if(!rec) return;
+  QUEUE_IMGS.push({ hash: rec.id, name: rec.name, orig: rec.orig || rec.full.size,
+    full: { blob: rec.full, w:0, h:0 }, thumb: { blob: rec.thumb, w:0, h:0 },
+    preview: URL.createObjectURL(rec.thumb), meta: { ...(rec.meta||{}) }, sel:false });
+  await stashDel(id);
+  renderImgCards();
+  await renderStash();
+}
+async function renderStash(){
+  const grid = $('#stashGrid'); if(!grid) return;
+  let all = [];
+  try{ all = await stashAll(); }catch(e){ grid.innerHTML = '<div class="mini">보관함을 열 수 없어요</div>'; return; }
+  $('#stashCount').textContent = `${all.length}장`;
+  $('#stashClear').disabled = all.length === 0;
+  $('#stashRestoreAll').disabled = all.length === 0;
+  if(!all.length){ grid.innerHTML = '<div class="mini" style="padding:10px 2px; opacity:.7">담긴 자료가 없어요</div>'; return; }
+  grid.innerHTML = all.map(rec => {
+    const url = URL.createObjectURL(rec.thumb);
+    const kw = (rec.meta && rec.meta.keyword) || '(키워드 없음)';
+    const sub = rec.meta && (rec.meta.account || rec.meta.sub_group || rec.meta.category);
+    return `<div class="stashCard" data-sid="${esc(rec.id)}">
+      <div class="stashThumb"><img src="${url}" loading="lazy"></div>
+      <div class="stashInfo"><div class="stashKw">${esc(kw)}</div>${sub ? `<div class="mini">${esc(sub)}</div>` : ''}</div>
+      <div class="stashBtns">
+        <button class="btn ghost sm" data-srestore="${esc(rec.id)}">불러오기</button>
+        <button class="btn ghost sm" data-sdel="${esc(rec.id)}" style="color:#c8451f;border-color:#f1d9cf">삭제</button>
+      </div>
+    </div>`;
+  }).join('');
+}
 const SESS_FIT = ['ALL'];
 bindFits('#brandFit', SESS_FIT);
 const ENT_FIT = ['ALL'];
@@ -1442,6 +1549,7 @@ function selStat(){
   }
   $('#saveImgs').disabled = !n || !IS_ADMIN;
   $('#aiAll').disabled    = !n || !GEMKEY;
+  const st = $('#stashAdd'); if(st){ st.disabled = !n; st.textContent = n ? `📥 보관함에 담기 (${n})` : '📥 보관함에 담기'; }
 }
 
 /* 연결 현황 — 키워드 없는 사진이 몇 장인지만 보여줌 */
@@ -1455,6 +1563,14 @@ function linkStat(){
 /* ── 일괄 적용 ── */
 $('#selAll').onclick  = () => { QUEUE_IMGS.forEach(x=>x.sel=true);  renderImgCards(); };
 $('#selNone').onclick = () => { QUEUE_IMGS.forEach(x=>x.sel=false); renderImgCards(); };
+$('#stashAdd').onclick = () => stashSelected();
+$('#stashRestoreAll').onclick = async () => { const all = await stashAll(); for(const r of all) await stashRestore(r.id); };
+$('#stashClear').onclick = async () => { if(!confirm('보관함을 전부 비울까요? (되돌릴 수 없어요)')) return; await stashClearAll(); await renderStash(); };
+$('#stashGrid')?.addEventListener('click', async e => {
+  const rs = e.target.closest('[data-srestore]'); if(rs){ await stashRestore(rs.dataset.srestore); return; }
+  const dl = e.target.closest('[data-sdel]'); if(dl){ if(confirm('이 항목을 보관함에서 삭제할까요?')){ await stashDel(dl.dataset.sdel); await renderStash(); } return; }
+});
+renderStash();
 
 $('#bulkSubApply').onclick = () => {
   const raw = $('#bulkSub').value.trim();
@@ -4334,6 +4450,9 @@ async function loadManage(){
     const months = [...new Set(MG_ROWS.map(r => r.sheet_month).filter(Boolean))].sort().reverse();
     $('#mgMonth').innerHTML = '<option value="">전체</option>' +
       months.map(m => `<option value="${m}">${m}</option>`).join('');
+    const cats = [...new Set(MG_ROWS.map(r => r.category).filter(Boolean))].sort();
+    $('#mgCat').innerHTML = '<option value="">전체</option>' +
+      cats.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
     drawManage();
   }catch(e){
     box.innerHTML = '<div class="mini">불러오지 못했습니다 — ' + (e.message || e) + '</div>';
@@ -4341,10 +4460,11 @@ async function loadManage(){
 }
 
 function mgFiltered(){
-  const t = $('#mgType').value, m = $('#mgMonth').value;
+  const t = $('#mgType').value, m = $('#mgMonth').value, c = ($('#mgCat')?.value || '');
   const q = $('#mgSearch').value.trim().toLowerCase();
   return MG_ROWS.filter(r => {
     if(t && r.source_type !== t) return false;
+    if(c && r.category !== c) return false;
     if(m && r.sheet_month !== m) return false;
     if(q){
       const hay = `${r.keyword||''} ${r.note||''} ${(r.brands||[]).join(' ')} ${(r.tags||[]).join(' ')}`.toLowerCase();
@@ -4357,24 +4477,29 @@ function mgFiltered(){
 function drawManage(){
   const rows = mgFiltered();
   const TYPE = { news:'패션', lifestyle:'라이프', sns:'SNS' };
-  $('#mgList').innerHTML = rows.length ? rows.map(r => `
-    <div class="mgRow${MG_SEL.has(String(r.id)) ? ' on' : ''}" data-row="${r.id}">
-      <input type="checkbox" data-id="${r.id}" ${MG_SEL.has(String(r.id)) ? 'checked' : ''}>
-      ${r.image_url
-        ? `<img src="${r.image_url}" loading="lazy" referrerpolicy="no-referrer">`
-        : '<div style="width:46px;height:60px;border-radius:6px;background:#efeae1"></div>'}
-      <div style="min-width:0">
+  const editRow = MG_EDIT ? MG_ROWS.find(r => String(r.id) === String(MG_EDIT)) : null;
+  const cards = rows.map(r => `
+    <div class="mgCard${MG_SEL.has(String(r.id)) ? ' on' : ''}${String(r.id) === String(MG_EDIT) ? ' editing' : ''}" data-row="${r.id}">
+      <label class="mgPick"><input type="checkbox" data-id="${r.id}" ${MG_SEL.has(String(r.id)) ? 'checked' : ''}></label>
+      <div class="mgThumb">
+        ${r.image_url
+          ? `<img src="${r.image_url}" loading="lazy" referrerpolicy="no-referrer">`
+          : '<div class="mgNoimg">이미지 없음</div>'}
+        <span class="mgTypeBadge">${esc(TYPE[r.source_type] || r.source_type || '-')}</span>
+      </div>
+      <div class="mgBody">
         <div class="mgTitle">${esc(r.keyword || '(키워드 없음)')}</div>
-        <div class="mgMeta">${esc(TYPE[r.source_type] || r.source_type || '-')} · ${esc(r.category || '-')} · ${esc(r.sheet_month || '-')} · ${esc(r.source || '-')} · ${esc(r.author || '-')}${(r.moods||[]).length ? ' · ' + esc(r.moods.join('/')) : ''}${r.account ? ' · ' + esc(r.account) : ''}${r.sub_group ? ' · #' + esc(r.sub_group) : ''}</div>
-        ${r.note ? `<div class="mgNote">${esc(String(r.note).slice(0, 110))}${String(r.note).length > 110 ? '…' : ''}</div>` : ''}
+        <div class="mgMeta">${esc(r.category || '-')} · ${esc(r.sheet_month || '-')}${r.source ? ' · ' + esc(r.source) : ''}${r.author ? ' · ' + esc(r.author) : ''}${r.account ? ' · ' + esc(r.account) : ''}${r.sub_group ? ' · #' + esc(r.sub_group) : ''}</div>
+        ${r.note ? `<div class="mgNote">${esc(String(r.note).slice(0, 70))}${String(r.note).length > 70 ? '…' : ''}</div>` : ''}
         ${(r.brands||[]).length ? `<div class="mgBrands">${esc(r.brands.join(' · '))}</div>` : ''}
       </div>
-      <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-end">
+      <div class="mgActions">
         <button class="mgEdit" data-edit="${r.id}">수정</button>
         ${r.url ? `<a href="${esc(r.url)}" target="_blank" rel="noopener" class="mgLink">원문 ↗</a>` : ''}
       </div>
-    </div>
-    ${MG_EDIT === String(r.id) ? mgFormHTML(r) : ''}`).join('')
+    </div>`).join('');
+  $('#mgList').innerHTML = rows.length
+    ? `<div class="mgGrid">${cards}</div>${editRow ? `<div class="mgEditPanel">${mgFormHTML(editRow)}</div>` : ''}`
     : '<div class="mini" style="padding:20px">조건에 맞는 항목이 없습니다</div>';
   $('#mgCount').textContent = `${MG_SEL.size}개 선택 · 전체 ${rows.length}개`;
   $('#mgDelete').disabled = MG_SEL.size === 0;
@@ -4602,12 +4727,13 @@ $('#mgList')?.addEventListener('change', e => {
 $('#mgList')?.addEventListener('click', e => {
   if(e.target.closest('a') || e.target.closest('.mgForm') || e.target.closest('button')
      || e.target.matches('input[type=checkbox]')) return;
-  const row = e.target.closest('.mgRow'); if(!row) return;
+  const row = e.target.closest('.mgCard'); if(!row) return;
   const id = String(row.dataset.row);
   if(MG_SEL.has(id)) MG_SEL.delete(id); else MG_SEL.add(id);
   drawManage();
 });
 $('#mgType')?.addEventListener('change', drawManage);
+$('#mgCat')?.addEventListener('change', drawManage);
 $('#mgMonth')?.addEventListener('change', drawManage);
 $('#mgSearch')?.addEventListener('input', drawManage);
 $('#mgReload')?.addEventListener('click', loadManage);
