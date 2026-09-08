@@ -66,6 +66,11 @@ main{max-width:1180px; margin:0 auto; padding:22px 24px 90px}
   border:1px solid #f1d9cf; border-radius:20px; padding:3px 10px; cursor:pointer; white-space:nowrap;
   font-family:inherit; width:auto}
 .mgEditPanel{margin-top:12px}
+.mgModal{position:fixed; inset:0; z-index:500; background:rgba(20,18,16,.55);
+  display:flex; align-items:flex-start; justify-content:center; padding:40px 20px; overflow-y:auto}
+.mgModalBox{background:var(--paper,#faf7f2); border-radius:14px; width:min(920px, 96vw);
+  box-shadow:0 24px 70px rgba(0,0,0,.35); position:relative}
+.mgModalBox .mgForm{border:0; margin:0; border-radius:14px; padding:20px 22px; background:transparent}
 .stashWrap{margin-top:22px; border:1px dashed #dcd2c2; border-radius:12px; padding:14px 16px; background:#fdfbf7}
 .stashHead{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px}
 .stashGrid{display:grid; grid-template-columns:repeat(7, 1fr); gap:10px}
@@ -280,7 +285,7 @@ tbody tr:hover{background:#fdfcf9}
             border:1px solid var(--hair); border-radius:20px; padding:5px 13px; font-size:11px;
             font-weight:800; letter-spacing:.03em; margin-right:14px; background:#fff">← 대시보드</a>
   <h1>TREND <em>AGENT</em></h1>
-  <span class="mini" id="verStamp" style="margin-left:8px;opacity:.55">v260808-11</span>
+  <span class="mini" id="verStamp" style="margin-left:8px;opacity:.55">v260808-12</span>
   <div class="tabs" id="tabs">
     <button data-v="intake" class="on">업로드</button>
     <button data-v="manage">등록 관리</button>
@@ -4499,7 +4504,7 @@ function drawManage(){
       </div>
     </div>`).join('');
   $('#mgList').innerHTML = rows.length
-    ? `<div class="mgGrid">${cards}</div>${editRow ? `<div class="mgEditPanel">${mgFormHTML(editRow)}</div>` : ''}`
+    ? `<div class="mgGrid">${cards}</div>${editRow ? `<div class="mgModal" id="mgModal"><div class="mgModalBox">${mgFormHTML(editRow)}</div></div>` : ''}`
     : '<div class="mini" style="padding:20px">조건에 맞는 항목이 없습니다</div>';
   $('#mgCount').textContent = `${MG_SEL.size}개 선택 · 전체 ${rows.length}개`;
   $('#mgDelete').disabled = MG_SEL.size === 0;
@@ -4610,6 +4615,13 @@ $('#mgList')?.addEventListener('click', e => {
   if(ed){ e.stopPropagation(); const eid = String(ed.dataset.edit); if(MG_EDIT && MG_EDIT !== eid) delete MG_PHOTOS[MG_EDIT]; delete MG_PHOTOS[eid]; MG_EDIT = (MG_EDIT === eid) ? null : eid; drawManage(); return; }
   const cancel = e.target.closest('[data-cancel]');
   if(cancel){ e.stopPropagation(); if(MG_EDIT) delete MG_PHOTOS[MG_EDIT]; MG_EDIT = null; drawManage(); return; }
+  /* 모달 바깥(어두운 배경) 클릭 시 닫기 */
+  if(e.target.id === 'mgModal'){ if(MG_EDIT) delete MG_PHOTOS[MG_EDIT]; MG_EDIT = null; drawManage(); return; }
+});
+document.addEventListener('keydown', e => {
+  if(e.key === 'Escape' && MG_EDIT && document.getElementById('mgModal')){
+    delete MG_PHOTOS[MG_EDIT]; MG_EDIT = null; drawManage();
+  }
 });
 function mgRedrawPhotos(id){ const box = $(`[data-photos="${id}"]`); if(box) box.innerHTML = mgPhotoStrip(String(id)); }
 
