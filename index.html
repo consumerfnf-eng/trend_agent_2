@@ -341,7 +341,7 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
 <body>
 
 <header>
-  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260808-17</span></h1>
+  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260808-18</span></h1>
   <div class="tabs">
     <button data-v="signal" class="on">TREND SIGNAL</button>
     <button data-v="keywords">TREND KEYWORDS</button>
@@ -1356,36 +1356,6 @@ async function kwAddEn(row, tag){
   await buildKwTable2();
 }
 
-/* 표 안 인라인 편집 — 한국어/영문 칩 추가·삭제 */
-document.addEventListener('click', async e => {
-  const rm = e.target.closest('.koChipDel');
-  if(rm){ e.stopPropagation(); await kwRemoveKo(rm.dataset.kormHead, rm.dataset.kormTerm); return; }
-});
-document.addEventListener('keydown', async e => {
-  const koInp = e.target.closest?.('.koAddInp');
-  if(koInp && (e.key === 'Enter' || e.key === ',')){
-    e.preventDefault();
-    const label = koInp.dataset.koadd;
-    const row = (window.KW_ROWS2 || []).find(r => r.label === label);
-    const val = koInp.value.trim(); koInp.value = '';
-    if(row && val) await kwAddKo(row, val);
-    return;
-  }
-  const enInp = e.target.closest?.('.enAddInp');
-  if(enInp && (e.key === 'Enter' || e.key === ',')){
-    e.preventDefault();
-    const label = enInp.dataset.enadd;
-    const row = (window.KW_ROWS2 || []).find(r => r.label === label);
-    const val = enInp.value.trim(); enInp.value = '';
-    if(row && val) await kwAddEn(row, val);
-    return;
-  }
-});
-/* 입력칸 클릭이 행 선택으로 번지지 않게 (칩 삭제 ✕는 막지 않음) */
-document.addEventListener('click', e => {
-  if(e.target.closest('.koAddInp, .enAddInp')) e.stopPropagation();
-}, true);
-
 /* (기존) 상단 폼 방식 추가/삭제/대표 변경 */
 document.addEventListener('click', async e => {
   const add = e.target.closest('#koAddBtn');
@@ -1530,28 +1500,15 @@ function drawKwBody2(){
     const pctHtml = pct == null ? '<span class="mini">준비중</span>'
       : `<span style="color:${pct>=0?'#1a7a4a':'#c8451f'};font-weight:700;font-size:11px">${pct>=0?'▲':'▼'} ${Math.abs(pct)}%</span>`;
 
-    /* 한국어 컬럼 — 칩(✕ 삭제) + 추가 입력. 한국어 탭에선 검색량 잡힌 별칭 강조 */
-    const koHead = r.head || r.label;   // 편집 대상 head (없으면 이 태그로 새로 만듦)
-    const usedSet = isKo ? new Set(r.sparkTerms || []) : new Set();
-    const koChips = (r.ko || []).map(k => {
-      const hot = usedSet.has(k);
-      return `<span class="koChip${hot ? ' hot' : ''}">${esc(k)}<button class="koChipDel" data-korm-head="${esc(koHead)}" data-korm-term="${esc(k)}" title="삭제">✕</button></span>`;
-    }).join(' ');
-    let koCell = `<div class="koWrap">${koChips}
-      <input class="koAddInp" data-koadd="${esc(r.label)}" placeholder="+한국어" autocomplete="off"></div>`;
-    if(isKo){
-      if(!(r.ko || []).length) koCell = `<div class="koWrap"><span class="mini">별칭 없음 — </span><input class="koAddInp" data-koadd="${esc(r.label)}" placeholder="+한국어" autocomplete="off"></div>`;
-      else if(r.sparkTerms && r.sparkTerms.length)
-        koCell += `<div class="mini" style="margin-top:2px">검색량: ${r.sparkTerms.length}/${r.ko.length}개</div>`;
-      else koCell += `<div class="mini" style="margin-top:2px; color:#c8451f">검색량 데이터 아직 없어요 (수집 후 표시)</div>`;
-    }
+    /* 한국어 컬럼 — 영문 탭에서는 읽기 전용(편집은 한국어 탭에서) */
+    const koStr = (r.ko || []).join(', ');
+    const koCell = koStr ? `<span class="mini">${esc(koStr)}</span>` : '<span class="mini">-</span>';
 
-    const headBadge = (r.head
+    const headBadge = r.head
       ? (r.head === r.label
           ? '<span class="mini" style="color:#c8451f;font-weight:700">대표</span>'
           : `<span class="pillb2">#${esc(r.head)}</span>`)
-      : '<span class="mini">-</span>')
-      + `<input class="enAddInp" data-enadd="${esc(r.label)}" placeholder="+영문 유사어" autocomplete="off">`;
+      : '<span class="mini">-</span>';
     const cats = r.cats.map(c => esc(CAT_LABEL[c] || c)).join(', ');
     const cnt = r.count > 1
       ? `<span style="color:#c8451f;font-weight:800">🔥 ${r.count}</span>`
