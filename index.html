@@ -85,6 +85,24 @@ header h1{font-family:'Playfair Display',serif; font-size:22px}
 .koAddInp{width:76px; border:1px dashed #cfc6b6; border-radius:10px; padding:2px 7px; font:inherit; font-size:10px; background:#fffdfb}
 .enAddInp{display:block; margin-top:4px; width:96px; border:1px dashed #cfc6b6; border-radius:10px; padding:2px 7px; font:inherit; font-size:10px; background:#fffdfb}
 .koAddInp:focus,.enAddInp:focus{outline:none; border-color:#c8451f; border-style:solid}
+/* 검색량 움직임 — 순위 카드 */
+.moveHead{display:flex; align-items:baseline; gap:10px; border-bottom:1px solid var(--hair); padding-bottom:6px; margin:0 0 12px; flex-wrap:wrap}
+.moveHead h3{font-family:'Playfair Display',serif; font-size:18px; margin:0}
+.moveHeadSub{font-size:11px; color:var(--sub)}
+.moveGrid{display:grid; grid-template-columns:1fr 1fr; gap:18px}
+@media(max-width:760px){ .moveGrid{grid-template-columns:1fr} }
+.moveColHead{display:flex; align-items:center; gap:7px; font-size:13px; font-weight:800; color:var(--ink); margin-bottom:8px}
+.moveColHead .moveSub{font-size:10.5px; font-weight:500; color:var(--sub); letter-spacing:0}
+.moveDot{display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; border-radius:50%; font-size:11px; font-weight:900; color:#fff}
+.moveDot.up{background:#1a7a4a} .moveDot.down{background:#c8451f}
+.moveCards{display:flex; flex-direction:column; gap:6px}
+.moveCard{display:flex; align-items:center; gap:10px; background:#fff; border:1px solid var(--hair); border-radius:10px; padding:8px 12px; transition:border-color .12s}
+.moveCard:hover{border-color:var(--sub)}
+.moveCard .moveRank{font-family:'Playfair Display',serif; font-size:15px; font-weight:700; color:var(--sub); width:20px; text-align:center; flex:none}
+.moveCard .moveKw{flex:1; font-size:13px; font-weight:700; color:var(--ink); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.moveCard .movePct{flex:none; font-size:11.5px; font-weight:800; padding:2px 9px; border-radius:20px}
+.moveCard .movePct.up{background:#e7efe9; color:#1a7a4a} .moveCard .movePct.down{background:#f8e3da; color:#c8451f}
+.moveEmpty{font-size:11.5px; color:var(--sub); padding:14px 4px}
 /* ── LIVE FEED 필터 (브랜드/국가/카테고리) ── */
 .ffrow{display:flex; flex-wrap:wrap; gap:8px}
 .ffbox{display:inline-flex; align-items:center; gap:6px; border:1px solid var(--hair); background:#fff;
@@ -323,7 +341,7 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
 <body>
 
 <header>
-  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260808-16</span></h1>
+  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260808-17</span></h1>
   <div class="tabs">
     <button data-v="signal" class="on">TREND SIGNAL</button>
     <button data-v="keywords">TREND KEYWORDS</button>
@@ -1857,16 +1875,26 @@ async function drawDigest(){
     return { keyword: k, pct: Math.round((after - before) / before * 100) };
   }).filter(Boolean);
   const ups = moves.filter(m => m.pct > 0).sort((a,b) => b.pct - a.pct).slice(0, 8);
-  const downs = moves.filter(m => m.pct < 0).sort((a,b) => a.pct - b.pct).slice(0, 5);
-  const volBlock = `<div style="display:flex; gap:24px; flex-wrap:wrap">
-    <div><div class="mini" style="font-weight:800; margin-bottom:4px">오르는 검색어</div>
-      <table class="lystTable">${ups.map(m =>
-        `<tr><td>${esc(m.keyword)}</td><td style="width:70px" class="lystUp">▲${m.pct}%</td></tr>`).join('')
-        || '<tr><td class="mini">데이터가 더 쌓여야 합니다</td></tr>'}</table></div>
-    <div><div class="mini" style="font-weight:800; margin-bottom:4px">내리는 검색어</div>
-      <table class="lystTable">${downs.map(m =>
-        `<tr><td>${esc(m.keyword)}</td><td style="width:70px" class="lystDown">▼${Math.abs(m.pct)}%</td></tr>`).join('')
-        || '<tr><td class="mini">-</td></tr>'}</table></div></div>`;
+  const downs = moves.filter(m => m.pct < 0).sort((a,b) => a.pct - b.pct).slice(0, 8);
+  const moveCard = (m, i, dir) => `<div class="moveCard">
+      <span class="moveRank">${i + 1}</span>
+      <span class="moveKw">#${esc(m.keyword)}</span>
+      <span class="movePct ${dir}">${dir === 'up' ? '▲' : '▼'} ${Math.abs(m.pct)}%</span>
+    </div>`;
+  const volBlock = `<div class="moveGrid">
+    <div class="moveCol">
+      <div class="moveColHead"><span class="moveDot up">↑</span> 떠오르는 키워드
+        <span class="moveSub">최근 검색량이 오르는 중</span></div>
+      <div class="moveCards">${ups.map((m, i) => moveCard(m, i, 'up')).join('')
+        || '<div class="moveEmpty">데이터가 더 쌓이면 나타나요</div>'}</div>
+    </div>
+    <div class="moveCol">
+      <div class="moveColHead"><span class="moveDot down">↓</span> 지는 키워드
+        <span class="moveSub">최근 검색량이 내리는 중</span></div>
+      <div class="moveCards">${downs.map((m, i) => moveCard(m, i, 'down')).join('')
+        || '<div class="moveEmpty">데이터가 더 쌓이면 나타나요</div>'}</div>
+    </div>
+  </div>`;
 
   /* ── 3. 브랜드 교차 — 의류 / 슈즈 각각 ── */
   const SHOE_CATS = new Set(['슈즈', 'shoes']);
@@ -2013,8 +2041,10 @@ async function ensureDigestData(){
 function renderMovedBlocks(){
   const v = $('#volMoves');
   if(v && window.__volBlock){
-    v.innerHTML = `<h3 style="font-family:'Playfair Display',serif; font-size:17px;
-      border-bottom:1px solid var(--hair); padding-bottom:5px; margin:0 0 10px">검색량 움직임</h3>${window.__volBlock}`;
+    v.innerHTML = `<div class="moveHead">
+        <h3>지금 뜨고 지는 검색어</h3>
+        <span class="moveHeadSub">네이버 검색량 최근 흐름 · 상대지수 기준</span>
+      </div>${window.__volBlock}`;
   }
   /* 브랜드 교차 표는 화면에서 뺐다 — Lyst 순위는 각 브랜드 카드의 배지로 확인 */
 }
