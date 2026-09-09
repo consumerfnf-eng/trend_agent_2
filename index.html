@@ -77,6 +77,14 @@ header h1{font-family:'Playfair Display',serif; font-size:22px}
 .srcbadge2.NEWS{background:#eef1f7; color:#3a5a8a}
 .srcbadge2.RETAIL{background:#fdf3ef; color:#c8451f}
 .pillb2{display:inline-block; font-size:9px; font-weight:800; padding:2px 8px; border-radius:10px; background:#e7efe9; color:#1a7a4a}
+.koWrap{display:flex; flex-wrap:wrap; gap:4px; align-items:center}
+.koChip{display:inline-flex; align-items:center; gap:3px; font-size:10px; font-weight:700; padding:2px 5px 2px 8px; border-radius:12px; background:#f1ece3; color:var(--ink)}
+.koChip.hot{background:#fdf3ef; color:#c8451f}
+.koChip .koChipDel{border:none; background:rgba(0,0,0,.12); color:#000; width:13px; height:13px; border-radius:50%; font-size:8px; line-height:1; cursor:pointer; padding:0}
+.koChip .koChipDel:hover{background:#c8451f; color:#fff}
+.koAddInp{width:76px; border:1px dashed #cfc6b6; border-radius:10px; padding:2px 7px; font:inherit; font-size:10px; background:#fffdfb}
+.enAddInp{display:block; margin-top:4px; width:96px; border:1px dashed #cfc6b6; border-radius:10px; padding:2px 7px; font:inherit; font-size:10px; background:#fffdfb}
+.koAddInp:focus,.enAddInp:focus{outline:none; border-color:#c8451f; border-style:solid}
 /* ── LIVE FEED 필터 (브랜드/국가/카테고리) ── */
 .ffrow{display:flex; flex-wrap:wrap; gap:8px}
 .ffbox{display:inline-flex; align-items:center; gap:6px; border:1px solid var(--hair); background:#fff;
@@ -315,7 +323,7 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
 <body>
 
 <header>
-  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260808-15</span></h1>
+  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260808-16</span></h1>
   <div class="tabs">
     <button data-v="signal" class="on">TREND SIGNAL</button>
     <button data-v="keywords">TREND KEYWORDS</button>
@@ -1291,7 +1299,76 @@ async function saveKoAliases(head, list){
   return true;
 }
 
-/* 추가 / 삭제 / 대표 변경 */
+/* 이 태그의 대표(head)를 확보 — 이미 클러스터가 있으면 그 head, 없으면 이 태그로 새 클러스터를 만든다 */
+async function ensureClusterHead(row){
+  if(row.head) return row.head;
+  const head = row.label;
+  const { error } = await sb.from('tag_clusters')
+    .upsert({ head, members: [], ko_aliases: [] }, { onConflict: 'head' });
+  if(error){ alert('클러스터 생성 실패: ' + error.message); return null; }
+  return head;
+}
+/* 표에서 한국어 별칭 한 개 추가 (없으면 클러스터 생성) */
+async function kwAddKo(row, term){
+  term = String(term || '').trim();
+  if(!term) return;
+  const head = await ensureClusterHead(row); if(!head) return;
+  const cur = (ALL_CLUSTERS.find(c => c.head === head)?.ko) || (row.head ? row.ko : []) || [];
+  if(cur.includes(term)) return;
+  if(await saveKoAliases(head, [...cur, term])) await buildKwTable2();
+}
+/* 표에서 한국어 별칭 한 개 삭제 */
+async function kwRemoveKo(head, term){
+  const cur = (ALL_CLUSTERS.find(c => c.head === head)?.ko) || [];
+  if(await saveKoAliases(head, cur.filter(k => k !== term))) await buildKwTable2();
+}
+/* 표에서 영문 유사어(멤버) 한 개 추가 (없으면 클러스터 생성) */
+async function kwAddEn(row, tag){
+  tag = String(tag || '').trim().toLowerCase().replace(/^#/, '');
+  if(!tag) return;
+  const head = await ensureClusterHead(row); if(!head) return;
+  if(tag === head) return;
+  const { data: cur } = await sb.from('tag_clusters').select('members').eq('head', head).maybeSingle();
+  const members = cur?.members || [];
+  if(members.includes(tag)) return;
+  const { data, error } = await sb.from('tag_clusters')
+    .update({ members: [...members, tag] }).eq('head', head).select('head');
+  if(error) return alert('추가 실패: ' + error.message);
+  if(!data || !data.length) return alert('추가되지 않았습니다 — tag_clusters 권한을 확인해 주세요');
+  await buildKwTable2();
+}
+
+/* 표 안 인라인 편집 — 한국어/영문 칩 추가·삭제 */
+document.addEventListener('click', async e => {
+  const rm = e.target.closest('.koChipDel');
+  if(rm){ e.stopPropagation(); await kwRemoveKo(rm.dataset.kormHead, rm.dataset.kormTerm); return; }
+});
+document.addEventListener('keydown', async e => {
+  const koInp = e.target.closest?.('.koAddInp');
+  if(koInp && (e.key === 'Enter' || e.key === ',')){
+    e.preventDefault();
+    const label = koInp.dataset.koadd;
+    const row = (window.KW_ROWS2 || []).find(r => r.label === label);
+    const val = koInp.value.trim(); koInp.value = '';
+    if(row && val) await kwAddKo(row, val);
+    return;
+  }
+  const enInp = e.target.closest?.('.enAddInp');
+  if(enInp && (e.key === 'Enter' || e.key === ',')){
+    e.preventDefault();
+    const label = enInp.dataset.enadd;
+    const row = (window.KW_ROWS2 || []).find(r => r.label === label);
+    const val = enInp.value.trim(); enInp.value = '';
+    if(row && val) await kwAddEn(row, val);
+    return;
+  }
+});
+/* 입력칸 클릭이 행 선택으로 번지지 않게 (칩 삭제 ✕는 막지 않음) */
+document.addEventListener('click', e => {
+  if(e.target.closest('.koAddInp, .enAddInp')) e.stopPropagation();
+}, true);
+
+/* (기존) 상단 폼 방식 추가/삭제/대표 변경 */
 document.addEventListener('click', async e => {
   const add = e.target.closest('#koAddBtn');
   if(add){
@@ -1435,32 +1512,28 @@ function drawKwBody2(){
     const pctHtml = pct == null ? '<span class="mini">준비중</span>'
       : `<span style="color:${pct>=0?'#1a7a4a':'#c8451f'};font-weight:700;font-size:11px">${pct>=0?'▲':'▼'} ${Math.abs(pct)}%</span>`;
 
-    /* 한국어 컬럼 — 영문 탭: 전체 별칭 나열 / 한국어 탭: 실제 합산된 검색어만 강조 */
-    let koCell;
+    /* 한국어 컬럼 — 칩(✕ 삭제) + 추가 입력. 한국어 탭에선 검색량 잡힌 별칭 강조 */
+    const koHead = r.head || r.label;   // 편집 대상 head (없으면 이 태그로 새로 만듦)
+    const usedSet = isKo ? new Set(r.sparkTerms || []) : new Set();
+    const koChips = (r.ko || []).map(k => {
+      const hot = usedSet.has(k);
+      return `<span class="koChip${hot ? ' hot' : ''}">${esc(k)}<button class="koChipDel" data-korm-head="${esc(koHead)}" data-korm-term="${esc(k)}" title="삭제">✕</button></span>`;
+    }).join(' ');
+    let koCell = `<div class="koWrap">${koChips}
+      <input class="koAddInp" data-koadd="${esc(r.label)}" placeholder="+한국어" autocomplete="off"></div>`;
     if(isKo){
-      const usedSet = new Set(r.sparkTerms || []);
-      if(!(r.ko || []).length){
-        koCell = '<span class="mini">별칭 없음</span>';
-      } else {
-        koCell = (r.ko || []).map(k => usedSet.has(k)
-          ? `<span class="pillb2" style="background:#fdf3ef;color:#c8451f;font-weight:700">#${esc(k)}</span>`
-          : `<span class="pillb2" style="opacity:.4">${esc(k)}</span>`).join(' ');
-        if(r.sparkTerms && r.sparkTerms.length){
-          koCell += `<div class="mini" style="margin-top:3px">합산: ${r.sparkTerms.length}개 / 전체 ${r.ko.length}개</div>`;
-        } else {
-          koCell += `<div class="mini" style="margin-top:3px; color:#c8451f">이 별칭들 검색량 데이터가 아직 없어요</div>`;
-        }
-      }
-    } else {
-      const koStr = (r.ko || []).join(', ');
-      koCell = koStr ? esc(koStr) : '<span class="mini">-</span>';
+      if(!(r.ko || []).length) koCell = `<div class="koWrap"><span class="mini">별칭 없음 — </span><input class="koAddInp" data-koadd="${esc(r.label)}" placeholder="+한국어" autocomplete="off"></div>`;
+      else if(r.sparkTerms && r.sparkTerms.length)
+        koCell += `<div class="mini" style="margin-top:2px">검색량: ${r.sparkTerms.length}/${r.ko.length}개</div>`;
+      else koCell += `<div class="mini" style="margin-top:2px; color:#c8451f">검색량 데이터 아직 없어요 (수집 후 표시)</div>`;
     }
 
-    const headBadge = r.head
+    const headBadge = (r.head
       ? (r.head === r.label
           ? '<span class="mini" style="color:#c8451f;font-weight:700">대표</span>'
           : `<span class="pillb2">#${esc(r.head)}</span>`)
-      : '<span class="mini">-</span>';
+      : '<span class="mini">-</span>')
+      + `<input class="enAddInp" data-enadd="${esc(r.label)}" placeholder="+영문 유사어" autocomplete="off">`;
     const cats = r.cats.map(c => esc(CAT_LABEL[c] || c)).join(', ');
     const cnt = r.count > 1
       ? `<span style="color:#c8451f;font-weight:800">🔥 ${r.count}</span>`
