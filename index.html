@@ -341,7 +341,7 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
 <body>
 
 <header>
-  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260808-19</span></h1>
+  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260808-20</span></h1>
   <div class="tabs">
     <button data-v="signal" class="on">TREND SIGNAL</button>
     <button data-v="keywords">TREND KEYWORDS</button>
@@ -1195,29 +1195,34 @@ async function loadAllVolumeData(){
   if(!rows.length) return;
 
   if(kwLang2 === 'en'){
-    /* 영문 — 지금 방식 그대로 */
+    /* 영문 — 지금 방식 그대로 (키워드 많으면 나눠서 조회) */
     const keywords = [...new Set(rows.map(r => r.label))];
-    const { data, error } = await sb.from('search_volume').select('*').in('keyword', keywords).eq('region', 'KR').order('week');
-    if(error){ console.warn('search_volume(en) 로드 실패:', error.message); return; }
     const map = {};
-    for(const r of (data || [])) (map[r.keyword] ||= []).push(r);
-    /* 각 행에 sparklinePoints, sparkTerms(스파크라인이 어떤 검색어들로 만들어졌는지) 저장 */
+    for(let i = 0; i < keywords.length; i += 120){
+      const { data, error } = await sb.from('search_volume').select('*')
+        .in('keyword', keywords.slice(i, i + 120)).eq('region', 'KR').order('week');
+      if(error){ console.warn('search_volume(en) 로드 실패:', error.message); continue; }
+      for(const r of (data || [])) (map[r.keyword] ||= []).push(r);
+    }
     for(const r of rows){
       r.sparkPoints = map[r.label] || null;
       r.sparkTerms = r.sparkPoints ? [r.label] : [];
     }
-    window.KW_VOLMAP = map;   /* 하위 호환용 */
+    window.KW_VOLMAP = map;
     drawKwBody2();
     return;
   }
 
-  /* 한국어 탭 — 한국어 검색어 하나하나를 따로 조회해서 각각의 추이를 보여준다 (합산하지 않음) */
+  /* 한국어 탭 — 한국어 검색어 하나하나를 따로 조회 (별칭이 수백 개일 수 있어 나눠서 조회) */
   const allKo = [...new Set(rows.flatMap(r => r.ko || []))];
   KO_VOL = {};
   if(!allKo.length){ drawKwBody2(); return; }
-  const { data, error } = await sb.from('search_volume').select('*').in('keyword', allKo).eq('region', 'KR').order('week');
-  if(error){ console.warn('search_volume(ko) 로드 실패:', error.message); return; }
-  for(const r of (data || [])) (KO_VOL[r.keyword] ||= []).push(r);
+  for(let i = 0; i < allKo.length; i += 120){
+    const { data, error } = await sb.from('search_volume').select('*')
+      .in('keyword', allKo.slice(i, i + 120)).eq('region', 'KR').order('week');
+    if(error){ console.warn('search_volume(ko) 로드 실패:', error.message); continue; }
+    for(const r of (data || [])) (KO_VOL[r.keyword] ||= []).push(r);
+  }
   drawKwBody2();
 }
 
