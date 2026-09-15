@@ -27,6 +27,14 @@ header h1{font-family:'Playfair Display',serif; font-size:22px}
 .tabs a{border:1px solid var(--ink); background:transparent; padding:7px 16px; font-size:11px; letter-spacing:.15em; font-weight:700; text-decoration:none; color:var(--ink); display:inline-block}
 .note{margin-left:auto; font-size:10px; letter-spacing:.14em; color:var(--sub); text-transform:uppercase}
 .view{display:none} .view.on{display:block}
+.wrapPad{padding:20px 22px 40px; max-width:1160px; margin:0 auto}
+.kwTable{width:100%; border-collapse:collapse; background:var(--card,#fffdfa); border:1px solid var(--hair); border-radius:10px; overflow:hidden}
+.kwTable th,.kwTable td{padding:9px 12px; border-bottom:1px solid var(--hair); font-size:13.5px; text-align:left; vertical-align:middle}
+.kwTable th{background:#f4eee4; font-weight:800; font-size:12px}
+.kwTable tr:last-child td{border-bottom:0}
+.kwTable .spark{width:64px; height:22px}
+.chip2{border:1px solid var(--hair); background:#fff; color:var(--ink); border-radius:20px; padding:4px 13px; font-size:12.5px; font-weight:700; cursor:pointer; font-family:inherit}
+.chip2.on{background:var(--ink); color:#fff; border-color:var(--ink)}
 /* ── TREND KEYWORDS (signal.html과 통일된 카드 스타일) ── */
 .kwgrid2{display:grid; grid-template-columns:repeat(auto-fit,minmax(340px,1fr)); gap:16px; margin-top:14px}
 .tcard2{background:#fff; border:1px solid var(--hair); border-radius:10px; padding:16px 18px}
@@ -341,10 +349,11 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
 <body>
 
 <header>
-  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260808-20</span></h1>
+  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260808-21</span></h1>
   <div class="tabs">
     <button data-v="signal" class="on">TREND SIGNAL</button>
     <button data-v="keywords">TREND KEYWORDS</button>
+    <button data-v="fashionvol">패션 검색량</button>
     <button data-v="brand">KEY BRAND</button>
     <button data-v="report">시즌 리포트</button>
     <a href="admin.html">+ 수집</a>
@@ -400,6 +409,24 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
     </table></div>
   </div>
 </div>
+
+<div id="fashionvolView" class="view"><div class="wrapPad">
+  <h2 style="font-family:'Playfair Display',serif; font-size:26px; margin:0 0 4px">패션 검색량 <span style="font-size:12px;color:var(--sub);font-family:'Noto Sans KR'">— 참고용</span></h2>
+  <p class="mini" style="max-width:70ch; margin:0 0 14px">전체 검색량(네이버 데이터랩) 옆에, <b>패션 맥락 검색량</b>(키워드+"코디")과 <b>네이버 쇼핑 검색 트렌드</b>(패션 카테고리)를 나란히 봅니다. 세 값은 각각 상대지수라 크기 직접 비교보다 <b>추세</b>를 보세요.</p>
+  <div id="fvBar" style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin:0 0 12px"></div>
+  <div style="overflow-x:auto">
+  <table class="kwTable" style="min-width:760px">
+    <thead><tr>
+      <th>한국어 검색어</th>
+      <th>대표(영문)</th>
+      <th style="text-align:center">전체 검색량</th>
+      <th style="text-align:center">패션 검색량</th>
+      <th style="text-align:center">쇼핑 검색량</th>
+    </tr></thead>
+    <tbody id="fvBody"></tbody>
+  </table></div>
+  <div class="note" style="margin-top:14px; font-size:13px; color:var(--sub)">비어 있으면 아직 수집 전이에요. <code>naver-fashion-volume</code> 함수를 실행하면 채워져요(전체 검색량은 기존 <code>naver-ko-volume</code>).</div>
+</div></div>
 
 
 <div id="brandView" class="view"><div id="brandMain">
@@ -1237,6 +1264,52 @@ function sparklineSVG(points){
   const rising = vals[vals.length-1] >= vals[0];
   return `<svg class="spark" viewBox="0 0 ${W} ${H}"><polyline points="${pts}" fill="none" stroke="${rising?'#1a7a4a':'#c8451f'}" stroke-width="1.6"/></svg>`;
 }
+
+/* ── 패션 검색량 화면 — 전체 / 패션 / 쇼핑 검색량 나란히 ── */
+let FV_CAT = '전체';
+async function buildFashionVol(){
+  const body = $('#fvBody'); if(!body) return;
+  body.innerHTML = '<tr><td colspan="5" class="mini" style="padding:16px">불러오는 중…</td></tr>';
+  if(!(window.KW_ROWS2 || []).length){ try{ await buildKwTable2(); }catch(_){} }
+  const rows = (window.KW_ROWS2 || []);
+  const koToHead = {}; const koList = [];
+  for(const r of rows){ for(const k of (r.ko || [])){ if(!koToHead[k]){ koToHead[k] = r.head || r.label; koList.push(k); } } }
+  if(!koList.length){ body.innerHTML = '<tr><td colspan="5" class="mini" style="padding:16px">한국어 검색어가 아직 없어요 — 트렌드 키워드에서 ✨AI 한국어 자동 채우기로 먼저 채워주세요</td></tr>'; return; }
+
+  const SRC = ['naver', 'naver_fashion', 'shopping'];
+  const store = { naver:{}, naver_fashion:{}, shopping:{} };
+  for(const src of SRC){
+    for(let i = 0; i < koList.length; i += 120){
+      const { data, error } = await sb.from('search_volume').select('keyword,week,volume,source')
+        .eq('source', src).in('keyword', koList.slice(i, i + 120)).eq('region', 'KR').order('week');
+      if(error){ console.warn('fv 로드 실패', src, error.message); continue; }
+      for(const v of (data || [])) (store[src][v.keyword] ||= []).push(v);
+    }
+  }
+
+  const cats = ['전체', ...[...new Set(rows.flatMap(r => r.cats || []))].sort()];
+  $('#fvBar').innerHTML = cats.map(c =>
+    `<button class="chip2${c === FV_CAT ? ' on' : ''}" data-fvcat="${esc(c)}">${esc(c)}</button>`).join('');
+
+  const cell = pts => pts && pts.length >= 2 ? sparklineSVG(pts) : '<span class="mini" style="color:#c8451f">준비중</span>';
+  const shown = koList.filter(k => {
+    if(FV_CAT === '전체') return true;
+    const r = rows.find(x => (x.ko || []).includes(k));
+    return r && (r.cats || []).includes(FV_CAT);
+  });
+  body.innerHTML = shown.map(k => `
+    <tr>
+      <td><b>${esc(k)}</b></td>
+      <td><span class="pillb2">#${esc(koToHead[k])}</span></td>
+      <td style="text-align:center">${cell(store.naver[k])}</td>
+      <td style="text-align:center">${cell(store.naver_fashion[k])}</td>
+      <td style="text-align:center">${cell(store.shopping[k])}</td>
+    </tr>`).join('') || '<tr><td colspan="5" class="mini" style="padding:16px">이 카테고리에 표시할 검색어가 없어요</td></tr>';
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-fvcat]'); if(!b) return;
+  FV_CAT = b.dataset.fvcat; buildFashionVol();
+});
 
 function changePct(points){
   if(!points || points.length < 2) return null;
@@ -2726,14 +2799,16 @@ document.addEventListener('drop', e => {
 const TABNOTE = { signal:'FEED 키워드의 검색량 — 네이버 · 구글 · 썸트렌드',
   keywords: '트렌드 키워드 검색량 추이 — 네이버 데이터랩 · 구글 트렌드',
   brand: '카드 클릭 = 검증 노트 · 대표사진',
-  report: '시즌별 리포트 자료 — PDF · 사이트 링크'
+  report: '시즌별 리포트 자료 — PDF · 사이트 링크',
+  fashionvol: '참고용 — 전체 vs 패션 vs 쇼핑 검색량 비교'
 };
 document.querySelector('.tabs').addEventListener('click', e => {
   const b = e.target.closest('button'); if(!b) return;
   document.querySelectorAll('.tabs button').forEach(x => x.classList.toggle('on', x === b));
-  ['signal','keywords','brand','report'].forEach(v => $('#' + v + 'View').classList.toggle('on', b.dataset.v === v));
+  ['signal','keywords','fashionvol','brand','report'].forEach(v => $('#' + v + 'View').classList.toggle('on', b.dataset.v === v));
   if(b.dataset.v === 'signal'){ const f = $('#signalFrame'); if(!f.src) f.src = f.dataset.src; }
   if(b.dataset.v === 'keywords'){ buildKwTable2(); ensureDigestData(); }
+  if(b.dataset.v === 'fashionvol'){ buildFashionVol(); }
   if(b.dataset.v === 'brand'){ buildBrandView(); ensureDigestData(); }
   if(b.dataset.v === 'report'){ buildReportView(); }
   $('#noteTxt').textContent = TABNOTE[b.dataset.v];
