@@ -35,6 +35,29 @@ header h1{font-family:'Playfair Display',serif; font-size:22px}
 .kwTable .spark{width:64px; height:22px}
 .chip2{border:1px solid var(--hair); background:#fff; color:var(--ink); border-radius:20px; padding:4px 13px; font-size:12.5px; font-weight:700; cursor:pointer; font-family:inherit}
 .chip2.on{background:var(--ink); color:#fff; border-color:var(--ink)}
+.socBar{display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin:0 0 4px}
+.socChips{display:flex; gap:6px}
+.socUp{border:1px solid var(--acc); color:var(--acc); background:#fff; border-radius:20px; padding:6px 14px; font-size:12.5px; font-weight:800; cursor:pointer}
+.socUp:hover{background:var(--acc); color:#fff}
+.socBar select,.socBar input[type=week]{border:1px solid var(--hair); border-radius:8px; padding:5px 9px; font:inherit; font-size:12.5px; background:#fff}
+#socTmpl{color:var(--acc); text-decoration:none} #socTmpl:hover{text-decoration:underline}
+.socGrid{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:6px}
+@media(max-width:820px){ .socGrid{grid-template-columns:1fr} }
+.socCard{display:flex; gap:12px; align-items:center; background:var(--card,#fffdfa); border:1px solid var(--hair); border-radius:12px; padding:10px 14px}
+.socCard .socRank{font-family:'Playfair Display',serif; font-size:20px; font-weight:700; color:var(--sub); width:26px; text-align:center; flex:none}
+.socThumb{width:64px; height:64px; border-radius:10px; overflow:hidden; background:#efeae1; flex:none; display:flex; align-items:center; justify-content:center}
+.socThumb img{width:100%; height:100%; object-fit:cover}
+.socPf{font-size:10px; font-weight:800; padding:3px 8px; border-radius:10px; color:#fff}
+.socPf.youtube{background:#c8451f} .socPf.instagram{background:#7a4fd0}
+.socBody{flex:1; min-width:0}
+.socTitle{font-size:13.5px; font-weight:800; line-height:1.35; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden}
+.socMeta{font-size:11px; color:var(--sub); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.socMeta .socAd{color:var(--acc); font-weight:700}
+.socStats{display:flex; gap:12px; margin-top:5px; font-size:12px; font-weight:700; color:var(--ink)}
+.socStats .mini{font-weight:500}
+.socLinks{display:flex; flex-direction:column; gap:4px; align-items:flex-end; flex:none}
+.socLinks a{font-size:11.5px; color:var(--acc); text-decoration:none; white-space:nowrap}
+.socLinks a:hover{text-decoration:underline}
 /* ── TREND KEYWORDS (signal.html과 통일된 카드 스타일) ── */
 .kwgrid2{display:grid; grid-template-columns:repeat(auto-fit,minmax(340px,1fr)); gap:16px; margin-top:14px}
 .tcard2{background:#fff; border:1px solid var(--hair); border-radius:10px; padding:16px 18px}
@@ -349,11 +372,11 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
 <body>
 
 <header>
-  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260808-21</span></h1>
+  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260808-23</span></h1>
   <div class="tabs">
     <button data-v="signal" class="on">TREND SIGNAL</button>
     <button data-v="keywords">TREND KEYWORDS</button>
-    <button data-v="fashionvol">패션 검색량</button>
+    <button data-v="social">소셜 트렌드</button>
     <button data-v="brand">KEY BRAND</button>
     <button data-v="report">시즌 리포트</button>
     <a href="admin.html">+ 수집</a>
@@ -410,24 +433,30 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
   </div>
 </div>
 
-<div id="fashionvolView" class="view"><div class="wrapPad">
-  <h2 style="font-family:'Playfair Display',serif; font-size:26px; margin:0 0 4px">패션 검색량 <span style="font-size:12px;color:var(--sub);font-family:'Noto Sans KR'">— 참고용</span></h2>
-  <p class="mini" style="max-width:70ch; margin:0 0 14px">전체 검색량(네이버 데이터랩) 옆에, <b>패션 맥락 검색량</b>(키워드+"코디")과 <b>네이버 쇼핑 검색 트렌드</b>(패션 카테고리)를 나란히 봅니다. 세 값은 각각 상대지수라 크기 직접 비교보다 <b>추세</b>를 보세요.</p>
-  <div id="fvBar" style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin:0 0 12px"></div>
-  <div style="overflow-x:auto">
-  <table class="kwTable" style="min-width:760px">
-    <thead><tr>
-      <th>한국어 검색어</th>
-      <th>대표(영문)</th>
-      <th style="text-align:center">전체 검색량</th>
-      <th style="text-align:center">패션 검색량</th>
-      <th style="text-align:center">쇼핑 검색량</th>
-    </tr></thead>
-    <tbody id="fvBody"></tbody>
-  </table></div>
-  <div class="note" style="margin-top:14px; font-size:13px; color:var(--sub)">비어 있으면 아직 수집 전이에요. <code>naver-fashion-volume</code> 함수를 실행하면 채워져요(전체 검색량은 기존 <code>naver-ko-volume</code>).</div>
-</div></div>
+<div id="socialView" class="view"><div class="wrapPad">
+  <h2 style="font-family:'Playfair Display',serif; font-size:26px; margin:0 0 4px">소셜 트렌드 <span style="font-size:12px;color:var(--sub);font-family:'Noto Sans KR'">— 유튜브 · 인스타 릴스 (수동 수집)</span></h2>
+  <p class="mini" style="max-width:74ch; margin:0 0 14px">피쳐링 등에서 뽑은 표를 엑셀(.xlsx)/CSV로 올리면 순위·조회수·좋아요가 카드로 나타나요. 같은 <b>플랫폼+주차</b>를 다시 올리면 그 주차가 교체돼요.</p>
 
+  <div class="socBar">
+    <div class="socChips">
+      <button class="chip2 on" data-socpf="all">전체</button>
+      <button class="chip2" data-socpf="youtube">유튜브</button>
+      <button class="chip2" data-socpf="instagram">인스타</button>
+    </div>
+    <label class="socUp">📤 엑셀/CSV 올리기
+      <input type="file" id="socFile" accept=".xlsx,.xls,.csv" style="display:none">
+    </label>
+    <select id="socUpPf" title="이 파일의 플랫폼(파일에 플랫폼 열이 있으면 그 값이 우선)">
+      <option value="youtube">유튜브</option>
+      <option value="instagram">인스타</option>
+    </select>
+    <input type="week" id="socUpWeek" title="수집 주차">
+    <a id="socTmpl" href="#" class="mini" style="margin-left:auto">양식 내려받기</a>
+  </div>
+  <div class="mini" id="socMsg" style="margin:6px 2px 10px; min-height:16px"></div>
+
+  <div id="socGrid" class="socGrid"></div>
+</div></div>
 
 <div id="brandView" class="view"><div id="brandMain">
   <h2>Key Brands <span style="font-size:12px;color:var(--sub);font-family:'Noto Sans KR'">— 수집 자료에서 언급된 브랜드 + Lyst Index 순위</span></h2>
@@ -1265,51 +1294,7 @@ function sparklineSVG(points){
   return `<svg class="spark" viewBox="0 0 ${W} ${H}"><polyline points="${pts}" fill="none" stroke="${rising?'#1a7a4a':'#c8451f'}" stroke-width="1.6"/></svg>`;
 }
 
-/* ── 패션 검색량 화면 — 전체 / 패션 / 쇼핑 검색량 나란히 ── */
-let FV_CAT = '전체';
-async function buildFashionVol(){
-  const body = $('#fvBody'); if(!body) return;
-  body.innerHTML = '<tr><td colspan="5" class="mini" style="padding:16px">불러오는 중…</td></tr>';
-  if(!(window.KW_ROWS2 || []).length){ try{ await buildKwTable2(); }catch(_){} }
-  const rows = (window.KW_ROWS2 || []);
-  const koToHead = {}; const koList = [];
-  for(const r of rows){ for(const k of (r.ko || [])){ if(!koToHead[k]){ koToHead[k] = r.head || r.label; koList.push(k); } } }
-  if(!koList.length){ body.innerHTML = '<tr><td colspan="5" class="mini" style="padding:16px">한국어 검색어가 아직 없어요 — 트렌드 키워드에서 ✨AI 한국어 자동 채우기로 먼저 채워주세요</td></tr>'; return; }
-
-  const SRC = ['naver', 'naver_fashion', 'shopping'];
-  const store = { naver:{}, naver_fashion:{}, shopping:{} };
-  for(const src of SRC){
-    for(let i = 0; i < koList.length; i += 120){
-      const { data, error } = await sb.from('search_volume').select('keyword,week,volume,source')
-        .eq('source', src).in('keyword', koList.slice(i, i + 120)).eq('region', 'KR').order('week');
-      if(error){ console.warn('fv 로드 실패', src, error.message); continue; }
-      for(const v of (data || [])) (store[src][v.keyword] ||= []).push(v);
-    }
-  }
-
-  const cats = ['전체', ...[...new Set(rows.flatMap(r => r.cats || []))].sort()];
-  $('#fvBar').innerHTML = cats.map(c =>
-    `<button class="chip2${c === FV_CAT ? ' on' : ''}" data-fvcat="${esc(c)}">${esc(c)}</button>`).join('');
-
-  const cell = pts => pts && pts.length >= 2 ? sparklineSVG(pts) : '<span class="mini" style="color:#c8451f">준비중</span>';
-  const shown = koList.filter(k => {
-    if(FV_CAT === '전체') return true;
-    const r = rows.find(x => (x.ko || []).includes(k));
-    return r && (r.cats || []).includes(FV_CAT);
-  });
-  body.innerHTML = shown.map(k => `
-    <tr>
-      <td><b>${esc(k)}</b></td>
-      <td><span class="pillb2">#${esc(koToHead[k])}</span></td>
-      <td style="text-align:center">${cell(store.naver[k])}</td>
-      <td style="text-align:center">${cell(store.naver_fashion[k])}</td>
-      <td style="text-align:center">${cell(store.shopping[k])}</td>
-    </tr>`).join('') || '<tr><td colspan="5" class="mini" style="padding:16px">이 카테고리에 표시할 검색어가 없어요</td></tr>';
-}
-document.addEventListener('click', e => {
-  const b = e.target.closest('[data-fvcat]'); if(!b) return;
-  FV_CAT = b.dataset.fvcat; buildFashionVol();
-});
+/* ── 패션 검색량 화면 (제거됨: 네이버 쇼핑인사이트 API 401 권한문제로 보류) ── */
 
 function changePct(points){
   if(!points || points.length < 2) return null;
@@ -2796,19 +2781,155 @@ document.addEventListener('drop', e => {
 });
 
 /* ═══ 탭 ═══ */
+/* ── 소셜 트렌드 (유튜브·인스타) — 엑셀/CSV 업로드 + 표시 ── */
+let SOC_PF = 'all';
+const SOC_COLS = ['순위','콘텐츠','중분류','세부분류','광고유형','브랜드','제품명','유통사','계정/채널','팔로워 수','스코어','조회수','좋아요 수','댓글 수','계정 링크','게시물 링크','썸네일','플랫폼'];
+const SOC_MAP = {
+  '순위':'rank','콘텐츠':'title','제목':'title','중분류':'category','세부분류':'sub_category','광고유형':'ad_type',
+  '브랜드':'brand','제품명':'product','유통사':'distributor','계정/채널':'account','계정':'account','채널':'account',
+  '팔로워 수':'followers','팔로워수':'followers','스코어':'score','조회수':'views','좋아요 수':'likes','좋아요수':'likes',
+  '댓글 수':'comments','댓글수':'comments','계정 링크':'account_url','계정링크':'account_url','게시물 링크':'post_url','게시물링크':'post_url',
+  '썸네일':'thumbnail','플랫폼':'platform'
+};
+const _num = v => { if(v==null||v==='') return null; const n = Number(String(v).replace(/[,\s]/g,'')); return isNaN(n) ? null : n; };
+const _fmt = n => n==null ? '-' : Number(n).toLocaleString('ko-KR');
+const PF_LABEL = { youtube:'유튜브', instagram:'인스타' };
+const mondayOf = d => { const x = new Date(d); x.setDate(x.getDate() - ((x.getDay()+6)%7)); return x.toISOString().slice(0,10); };
+
+async function buildSocial(){
+  const grid = $('#socGrid'); if(!grid) return;
+  if(!$('#socUpWeek').value){ const d = new Date(); $('#socUpWeek').value = `${d.getFullYear()}-W${String(Math.ceil((((d-new Date(d.getFullYear(),0,1))/86400000)+new Date(d.getFullYear(),0,1).getDay()+1)/7)).padStart(2,'0')}`; }
+  grid.innerHTML = '<div class="mini" style="padding:16px">불러오는 중…</div>';
+  let q = sb.from('social_posts').select('*');
+  if(SOC_PF !== 'all') q = q.eq('platform', SOC_PF);
+  const { data, error } = await q;
+  if(error){ grid.innerHTML = `<div class="mini" style="padding:16px">불러오기 실패 — social_posts 테이블이 있는지 확인하세요 (social_posts.sql 실행). ${esc(error.message)}</div>`; return; }
+  let rows = data || [];
+  if(!rows.length){ grid.innerHTML = '<div class="mini" style="padding:16px">아직 올린 자료가 없어요 — 위 <b>📤 엑셀/CSV 올리기</b>로 피쳐링 표를 올려보세요.</div>'; return; }
+  /* 가장 최근 주차만 (플랫폼별 최신) */
+  const latest = {};
+  for(const r of rows){ const p = r.platform; if(!latest[p] || (r.week||'') > latest[p]) latest[p] = r.week || ''; }
+  rows = rows.filter(r => (r.week||'') === latest[r.platform]);
+  rows.sort((a,b) => (b.views||0) - (a.views||0));
+
+  grid.innerHTML = rows.map((r,i) => `
+    <div class="socCard">
+      <div class="socRank">${r.rank || i+1}</div>
+      <div class="socThumb">${r.thumbnail ? `<img src="${esc(r.thumbnail)}" loading="lazy" referrerpolicy="no-referrer">` : `<span class="socPf ${r.platform}">${PF_LABEL[r.platform]||r.platform}</span>`}</div>
+      <div class="socBody">
+        <div class="socTitle">${esc(r.title||'(제목 없음)')}</div>
+        <div class="socMeta">${esc(r.account||'')}${r.brand?` · <b>${esc(r.brand)}</b>`:''}${r.category?` · ${esc(r.category)}${r.sub_category?'/'+esc(r.sub_category):''}`:''}${r.ad_type&&r.ad_type!=='-'?` · <span class="socAd">${esc(r.ad_type)}</span>`:''}</div>
+        <div class="socStats">
+          <span title="조회수">▶ ${_fmt(r.views)}</span>
+          <span title="좋아요">♥ ${_fmt(r.likes)}</span>
+          <span title="댓글">💬 ${_fmt(r.comments)}</span>
+          ${r.followers?`<span title="팔로워" class="mini">팔로워 ${_fmt(r.followers)}</span>`:''}
+        </div>
+      </div>
+      <div class="socLinks">
+        ${r.post_url?`<a href="${esc(r.post_url)}" target="_blank" rel="noopener">게시물 ↗</a>`:''}
+        ${r.account_url?`<a href="${esc(r.account_url)}" target="_blank" rel="noopener" class="mini">계정 ↗</a>`:''}
+      </div>
+    </div>`).join('');
+}
+
+/* SheetJS 필요할 때만 로드 */
+let _xlsxLib = null;
+function loadXlsx(){
+  if(window.XLSX) return Promise.resolve(window.XLSX);
+  if(_xlsxLib) return _xlsxLib;
+  _xlsxLib = new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload = () => res(window.XLSX); s.onerror = () => rej(new Error('xlsx 로드 실패'));
+    document.head.appendChild(s);
+  });
+  return _xlsxLib;
+}
+/* CSV 간단 파서 (따옴표 처리) */
+function parseCSV(text){
+  const rows = []; let row = [], cur = '', q = false;
+  for(let i=0;i<text.length;i++){ const c = text[i];
+    if(q){ if(c==='"'){ if(text[i+1]==='"'){ cur+='"'; i++; } else q=false; } else cur+=c; }
+    else { if(c==='"') q=true; else if(c===','){ row.push(cur); cur=''; } else if(c==='\n'){ row.push(cur); rows.push(row); row=[]; cur=''; } else if(c!=='\r') cur+=c; }
+  }
+  if(cur!==''||row.length){ row.push(cur); rows.push(row); }
+  return rows.filter(r => r.some(x => String(x).trim() !== ''));
+}
+function rowsToObjects(matrix){
+  if(!matrix.length) return [];
+  const head = matrix[0].map(h => String(h).trim());
+  return matrix.slice(1).map(r => { const o = {}; head.forEach((h,i) => o[h] = r[i]); return o; });
+}
+async function socImport(file){
+  const msg = $('#socMsg'); msg.textContent = '읽는 중…';
+  let objs = [];
+  try{
+    if(/\.csv$/i.test(file.name)){
+      const text = await file.text();
+      objs = rowsToObjects(parseCSV(text));
+    } else {
+      const XLSX = await loadXlsx();
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type:'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      objs = XLSX.utils.sheet_to_json(ws, { defval:'' });
+    }
+  }catch(e){ msg.textContent = '파일 읽기 실패: ' + (e.message||e); return; }
+  if(!objs.length){ msg.textContent = '빈 파일이에요.'; return; }
+
+  const pfSel = $('#socUpPf').value;
+  const wkVal = $('#socUpWeek').value;   /* 2026-W37 형태 */
+  let week = mondayOf(new Date());
+  if(wkVal && /^\d{4}-W\d{2}$/.test(wkVal)){ const [y,w] = wkVal.split('-W').map(Number); const jan4 = new Date(y,0,4); week = mondayOf(new Date(jan4.getTime() + (w-1)*7*86400000)); }
+
+  const NUMF = new Set(['rank','followers','score','views','likes','comments']);
+  const recs = objs.map(o => {
+    const rec = { platform: pfSel, week };
+    for(const [k,v] of Object.entries(o)){
+      const key = SOC_MAP[String(k).trim()]; if(!key) continue;
+      rec[key] = NUMF.has(key) ? _num(v) : (v===''?null:String(v).trim());
+    }
+    if(rec.platform){ const p = String(rec.platform).toLowerCase(); rec.platform = p.includes('you')||p.includes('유튜')?'youtube':(p.includes('insta')||p.includes('인스')?'instagram':pfSel); }
+    return rec;
+  }).filter(r => r.title || r.account || r.post_url);
+
+  if(!recs.length){ msg.textContent = '인식된 행이 없어요 — 헤더가 양식과 맞는지 확인하세요(양식 내려받기 참고).'; return; }
+
+  /* 같은 플랫폼+주차 교체: 먼저 삭제 후 삽입 */
+  const pfs = [...new Set(recs.map(r => r.platform))];
+  for(const pf of pfs){ await sb.from('social_posts').delete().eq('platform', pf).eq('week', week); }
+  for(let i=0;i<recs.length;i+=500){
+    const { error } = await sb.from('social_posts').insert(recs.slice(i,i+500));
+    if(error){ msg.textContent = '저장 실패: ' + error.message; return; }
+  }
+  msg.textContent = `완료 — ${recs.length}개 올렸어요 (${pfs.map(p=>PF_LABEL[p]||p).join('·')} · ${week})`;
+  buildSocial();
+}
+document.addEventListener('change', e => { if(e.target.id === 'socFile' && e.target.files[0]){ socImport(e.target.files[0]); e.target.value=''; } });
+document.addEventListener('click', e => {
+  const c = e.target.closest('[data-socpf]');
+  if(c){ SOC_PF = c.dataset.socpf; document.querySelectorAll('[data-socpf]').forEach(x => x.classList.toggle('on', x===c)); buildSocial(); return; }
+  if(e.target.id === 'socTmpl'){ e.preventDefault();
+    const csv = SOC_COLS.join(',') + '\n';
+    const blob = new Blob(['\uFEFF'+csv], { type:'text/csv;charset=utf-8' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'social_트렌드_양식.csv'; a.click();
+  }
+});
+
 const TABNOTE = { signal:'FEED 키워드의 검색량 — 네이버 · 구글 · 썸트렌드',
   keywords: '트렌드 키워드 검색량 추이 — 네이버 데이터랩 · 구글 트렌드',
   brand: '카드 클릭 = 검증 노트 · 대표사진',
   report: '시즌별 리포트 자료 — PDF · 사이트 링크',
-  fashionvol: '참고용 — 전체 vs 패션 vs 쇼핑 검색량 비교'
+  social: '유튜브·인스타 릴스 — 엑셀 올려서 순위·조회수 보기'
 };
 document.querySelector('.tabs').addEventListener('click', e => {
   const b = e.target.closest('button'); if(!b) return;
   document.querySelectorAll('.tabs button').forEach(x => x.classList.toggle('on', x === b));
-  ['signal','keywords','fashionvol','brand','report'].forEach(v => $('#' + v + 'View').classList.toggle('on', b.dataset.v === v));
+  ['signal','keywords','social','brand','report'].forEach(v => $('#' + v + 'View').classList.toggle('on', b.dataset.v === v));
   if(b.dataset.v === 'signal'){ const f = $('#signalFrame'); if(!f.src) f.src = f.dataset.src; }
   if(b.dataset.v === 'keywords'){ buildKwTable2(); ensureDigestData(); }
-  if(b.dataset.v === 'fashionvol'){ buildFashionVol(); }
+  if(b.dataset.v === 'social'){ buildSocial(); }
   if(b.dataset.v === 'brand'){ buildBrandView(); ensureDigestData(); }
   if(b.dataset.v === 'report'){ buildReportView(); }
   $('#noteTxt').textContent = TABNOTE[b.dataset.v];
