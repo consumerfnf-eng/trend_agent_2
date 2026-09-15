@@ -41,23 +41,22 @@ header h1{font-family:'Playfair Display',serif; font-size:22px}
 .socUp:hover{background:var(--acc); color:#fff}
 .socBar select,.socBar input[type=week]{border:1px solid var(--hair); border-radius:8px; padding:5px 9px; font:inherit; font-size:12.5px; background:#fff}
 #socTmpl{color:var(--acc); text-decoration:none} #socTmpl:hover{text-decoration:underline}
-.socGrid{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:6px}
-@media(max-width:820px){ .socGrid{grid-template-columns:1fr} }
-.socCard{display:flex; gap:12px; align-items:center; background:var(--card,#fffdfa); border:1px solid var(--hair); border-radius:12px; padding:10px 14px}
-.socCard .socRank{font-family:'Playfair Display',serif; font-size:20px; font-weight:700; color:var(--sub); width:26px; text-align:center; flex:none}
-.socThumb{width:64px; height:64px; border-radius:10px; overflow:hidden; background:#efeae1; flex:none; display:flex; align-items:center; justify-content:center}
-.socThumb img{width:100%; height:100%; object-fit:cover}
-.socPf{font-size:10px; font-weight:800; padding:3px 8px; border-radius:10px; color:#fff}
-.socPf.youtube{background:#c8451f} .socPf.instagram{background:#7a4fd0}
-.socBody{flex:1; min-width:0}
-.socTitle{font-size:13.5px; font-weight:800; line-height:1.35; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden}
-.socMeta{font-size:11px; color:var(--sub); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-.socMeta .socAd{color:var(--acc); font-weight:700}
-.socStats{display:flex; gap:12px; margin-top:5px; font-size:12px; font-weight:700; color:var(--ink)}
-.socStats .mini{font-weight:500}
-.socLinks{display:flex; flex-direction:column; gap:4px; align-items:flex-end; flex:none}
-.socLinks a{font-size:11.5px; color:var(--acc); text-decoration:none; white-space:nowrap}
-.socLinks a:hover{text-decoration:underline}
+.socGrid{display:grid; grid-template-columns:repeat(auto-fill, minmax(230px, 1fr)); gap:14px; margin-top:8px}
+.socCard{background:var(--card,#fffdfa); border:1px solid var(--hair); border-radius:12px; overflow:hidden; display:flex; flex-direction:column}
+.socCard .socThumb{position:relative; aspect-ratio:4/5; background:#efeae1; display:flex; align-items:center; justify-content:center; overflow:hidden}
+.socCard .socThumb img{width:100%; height:100%; object-fit:cover}
+.socCard .socRank{position:absolute; top:8px; left:8px; z-index:2; background:var(--ink); color:#fff; font-family:'Playfair Display',serif; font-weight:700; font-size:14px; min-width:26px; height:26px; padding:0 6px; border-radius:14px; display:flex; align-items:center; justify-content:center}
+.socCard .socPf{position:absolute; bottom:8px; left:8px; z-index:2; font-size:10px; font-weight:800; padding:3px 9px; border-radius:12px; color:#fff}
+.socCard .socPf.youtube{background:#c8451f} .socCard .socPf.instagram{background:#7a4fd0}
+.socBody{padding:10px 12px 11px; display:flex; flex-direction:column; gap:5px; flex:1}
+.socTitle{font-size:12.5px; font-weight:800; line-height:1.4; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden}
+.socMeta{font-size:11px; color:var(--sub); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.socTags{display:flex; flex-wrap:wrap; gap:4px}
+.socTags span{font-size:10px; font-weight:700; padding:2px 7px; border-radius:10px}
+.socTags .socBrand{background:#f1ece3; color:var(--ink)} .socTags .socCat{background:#eef2ee; color:#1a7a4a} .socTags .socAd{background:#fbeee8; color:var(--acc)}
+.socStats{display:flex; gap:12px; font-size:12px; font-weight:800; color:var(--ink); margin-top:2px}
+.socLinks{display:flex; justify-content:space-between; align-items:center; margin-top:auto; padding-top:4px; border-top:1px solid var(--hair)}
+.socLinks a{font-size:11px; color:var(--acc); text-decoration:none} .socLinks a:hover{text-decoration:underline}
 /* ── TREND KEYWORDS (signal.html과 통일된 카드 스타일) ── */
 .kwgrid2{display:grid; grid-template-columns:repeat(auto-fit,minmax(340px,1fr)); gap:16px; margin-top:14px}
 .tcard2{background:#fff; border:1px solid var(--hair); border-radius:10px; padding:16px 18px}
@@ -372,7 +371,7 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
 <body>
 
 <header>
-  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260808-25</span></h1>
+  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260808-26</span></h1>
   <div class="tabs">
     <button data-v="signal" class="on">TREND SIGNAL</button>
     <button data-v="keywords">TREND KEYWORDS</button>
@@ -435,7 +434,7 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
 
 <div id="socialView" class="view"><div class="wrapPad">
   <h2 style="font-family:'Playfair Display',serif; font-size:26px; margin:0 0 4px">소셜 트렌드 <span style="font-size:12px;color:var(--sub);font-family:'Noto Sans KR'">— 유튜브 · 인스타 릴스 (수동 수집)</span></h2>
-  <p class="mini" style="max-width:74ch; margin:0 0 14px">피쳐링 등에서 뽑은 표를 엑셀(.xlsx)/CSV로 올리면 순위·조회수·좋아요가 카드로 나타나요. 같은 <b>플랫폼+주차</b>를 다시 올리면 그 주차가 교체돼요.</p>
+  <p class="mini" style="max-width:74ch; margin:0 0 14px">피쳐링 등에서 뽑은 표를 엑셀(.xlsx)/CSV로 올리면 순위·조회수·좋아요가 카드로 나타나요. 플랫폼은 <b>게시물 링크로 자동 판별</b>(instagram/youtube), 월은 파일의 <b>날짜(월)</b> 열이 있으면 그 값, 없으면 아래에서 고른 월로 저장돼요. 같은 <b>플랫폼+월</b>을 다시 올리면 교체돼요.</p>
 
   <div class="socBar">
     <div class="socChips">
@@ -447,11 +446,12 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
     <label class="socUp">📤 엑셀/CSV 올리기
       <input type="file" id="socFile" accept=".xlsx,.xls,.csv" style="display:none">
     </label>
-    <select id="socUpPf" title="이 파일의 플랫폼(파일에 플랫폼 열이 있으면 그 값이 우선)">
-      <option value="youtube">유튜브</option>
-      <option value="instagram">인스타</option>
+    <select id="socUpPf" title="파일에 플랫폼·링크가 없을 때 쓸 기본 플랫폼">
+      <option value="instagram">인스타(기본)</option>
+      <option value="youtube">유튜브(기본)</option>
     </select>
-    <input type="month" id="socUpWeek" title="수집 월">
+    <input type="month" id="socUpWeek" title="파일에 날짜 열이 없을 때 쓸 월">
+    <button id="socClear" class="mini" style="border:1px solid var(--hair);background:#fff;border-radius:8px;padding:5px 10px;cursor:pointer;color:#c8451f">이 달 비우기</button>
     <a id="socTmpl" href="#" class="mini" style="margin-left:auto">양식 내려받기</a>
   </div>
   <div class="mini" id="socMsg" style="margin:6px 2px 10px; min-height:16px"></div>
@@ -2784,8 +2784,9 @@ document.addEventListener('drop', e => {
 /* ═══ 탭 ═══ */
 /* ── 소셜 트렌드 (유튜브·인스타) — 엑셀/CSV 업로드 + 표시 ── */
 let SOC_PF = 'all';
-const SOC_COLS = ['순위','콘텐츠','중분류','세부분류','광고유형','브랜드','제품명','유통사','계정/채널','팔로워 수','스코어','조회수','좋아요 수','댓글 수','계정 링크','게시물 링크','썸네일','플랫폼'];
+const SOC_COLS = ['날짜(월)','순위','콘텐츠','중분류','세부분류','광고유형','브랜드','제품명','유통사','계정/채널','팔로워 수','스코어','조회수','좋아요 수','댓글 수','계정 링크','게시물 링크','썸네일','플랫폼'];
 const SOC_MAP = {
+  '날짜(월)':'_month','날짜':'_month','월':'_month','수집월':'_month','수집일':'_month',
   '순위':'rank','콘텐츠':'title','제목':'title','중분류':'category','세부분류':'sub_category','광고유형':'ad_type',
   '브랜드':'brand','제품명':'product','유통사':'distributor','계정/채널':'account','계정':'account','채널':'account',
   '팔로워 수':'followers','팔로워수':'followers','스코어':'score','조회수':'views','좋아요 수':'likes','좋아요수':'likes',
@@ -2796,6 +2797,18 @@ const _num = v => { if(v==null||v==='') return null; const n = Number(String(v).
 const _fmt = n => n==null ? '-' : Number(n).toLocaleString('ko-KR');
 const PF_LABEL = { youtube:'유튜브', instagram:'인스타' };
 const mondayOf = d => { const x = new Date(d); x.setDate(x.getDate() - ((x.getDay()+6)%7)); return x.toISOString().slice(0,10); };
+/* 게시물 링크로 플랫폼 자동 판별 */
+const pfFromUrl = u => { u = String(u||'').toLowerCase(); if(u.includes('instagram.')) return 'instagram'; if(u.includes('youtube.')||u.includes('youtu.be')) return 'youtube'; return ''; };
+/* 여러 표기의 월 → 'YYYY-MM-01' (실패 시 null) */
+function parseMonth(v){
+  if(!v) return null; const s = String(v).trim();
+  let m = s.match(/(\d{4})\D+(\d{1,2})/);          // 2026-06, 2026년 6월, 2026.6
+  if(m) return `${m[1]}-${String(m[2]).padStart(2,'0')}-01`;
+  m = s.match(/^(\d{4})(\d{2})$/); if(m) return `${m[1]}-${m[2]}-01`;
+  const d = new Date(s); if(!isNaN(d)) return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`;
+  return null;
+}
+
 
 let SOC_MONTH = '';   /* '2026-09' 형태, 빈값=최신 */
 const _ym = w => (w || '').slice(0, 7);   /* 날짜 → YYYY-MM */
@@ -2820,21 +2833,24 @@ async function buildSocial(){
 
   grid.innerHTML = rows.map((r,i) => `
     <div class="socCard">
-      <div class="socRank">${r.rank || i+1}</div>
-      <div class="socThumb">${r.thumbnail ? `<img src="${esc(r.thumbnail)}" loading="lazy" referrerpolicy="no-referrer">` : `<span class="socPf ${r.platform}">${PF_LABEL[r.platform]||r.platform}</span>`}</div>
+      <div class="socThumb">
+        <span class="socRank">${r.rank || i+1}</span>
+        ${r.thumbnail ? `<img src="${esc(r.thumbnail)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ''}
+        <span class="socPf ${r.platform}">${PF_LABEL[r.platform]||r.platform}</span>
+      </div>
       <div class="socBody">
         <div class="socTitle">${esc(r.title||'(제목 없음)')}</div>
-        <div class="socMeta">${esc(r.account||'')}${r.brand?` · <b>${esc(r.brand)}</b>`:''}${r.category?` · ${esc(r.category)}${r.sub_category?'/'+esc(r.sub_category):''}`:''}${r.ad_type&&r.ad_type!=='-'?` · <span class="socAd">${esc(r.ad_type)}</span>`:''}</div>
+        <div class="socMeta">${esc(r.account||'')}</div>
+        ${((r.brand&&r.brand!=='-')||r.category||(r.ad_type&&r.ad_type!=='-'))?`<div class="socTags">${r.brand&&r.brand!=='-'?`<span class="socBrand">${esc(r.brand)}</span>`:''}${r.category?`<span class="socCat">${esc(r.category)}${r.sub_category?' · '+esc(r.sub_category):''}</span>`:''}${r.ad_type&&r.ad_type!=='-'?`<span class="socAd">${esc(r.ad_type)}</span>`:''}</div>`:''}
         <div class="socStats">
           <span title="조회수">▶ ${_fmt(r.views)}</span>
           <span title="좋아요">♥ ${_fmt(r.likes)}</span>
           <span title="댓글">💬 ${_fmt(r.comments)}</span>
-          ${r.followers?`<span title="팔로워" class="mini">팔로워 ${_fmt(r.followers)}</span>`:''}
         </div>
-      </div>
-      <div class="socLinks">
-        ${r.post_url?`<a href="${esc(r.post_url)}" target="_blank" rel="noopener">게시물 ↗</a>`:''}
-        ${r.account_url?`<a href="${esc(r.account_url)}" target="_blank" rel="noopener" class="mini">계정 ↗</a>`:''}
+        <div class="socLinks">
+          <span class="mini">${r.followers?`팔로워 ${_fmt(r.followers)}`:''}</span>
+          <span>${r.post_url?`<a href="${esc(r.post_url)}" target="_blank" rel="noopener">게시물 ↗</a>`:''}${r.account_url?` <a href="${esc(r.account_url)}" target="_blank" rel="noopener" class="mini">계정</a>`:''}</span>
+        </div>
       </div>
     </div>`).join('') || '<div class="mini" style="padding:16px">이 달에 표시할 자료가 없어요</div>';
 }
@@ -2885,35 +2901,39 @@ async function socImport(file){
   if(!objs.length){ msg.textContent = '빈 파일이에요.'; return; }
 
   const pfSel = $('#socUpPf').value;
-  const mVal = $('#socUpWeek').value;   /* 2026-09 형태 */
-  const week = /^\d{4}-\d{2}$/.test(mVal) ? (mVal + '-01') : (new Date().toISOString().slice(0,7) + '-01');
+  const mVal = $('#socUpWeek').value;   /* 2026-09 형태 (기본 월) */
+  const defWeek = /^\d{4}-\d{2}$/.test(mVal) ? (mVal + '-01') : (new Date().toISOString().slice(0,7) + '-01');
 
   const NUMF = new Set(['rank','followers','score','views','likes','comments']);
   const recs = objs.map(o => {
-    const rec = { week };
+    const rec = {};
     for(const [k,v] of Object.entries(o)){
       const key = SOC_MAP[String(k).trim()]; if(!key) continue;
       rec[key] = NUMF.has(key) ? _num(v) : (v===''?null:String(v).trim());
     }
-    /* 플랫폼: 파일 값이 있으면 정규화, 없으면 화면에서 고른 플랫폼(pfSel) */
-    const p = String(rec.platform || '').toLowerCase();
-    rec.platform = (p.includes('you')||p.includes('유튜')) ? 'youtube'
-                 : (p.includes('insta')||p.includes('인스')||p.includes('릴')) ? 'instagram'
-                 : pfSel;
+    /* 월: 파일의 날짜열 우선, 없으면 화면에서 고른 월 */
+    rec.week = parseMonth(rec._month) || defWeek; delete rec._month;
+    /* 플랫폼: 파일값 → 게시물 링크 자동판별 → 화면 선택값 */
+    const fp = String(rec.platform||'').toLowerCase();
+    rec.platform = (fp.includes('you')||fp.includes('유튜')) ? 'youtube'
+                 : (fp.includes('insta')||fp.includes('인스')||fp.includes('릴')) ? 'instagram'
+                 : (pfFromUrl(rec.post_url) || pfSel);
     return rec;
   }).filter(r => r.title || r.account || r.post_url);
 
   if(!recs.length){ msg.textContent = '인식된 행이 없어요 — 헤더가 양식과 맞는지 확인하세요(양식 내려받기 참고).'; return; }
 
-  /* 같은 플랫폼+주차 교체: 먼저 삭제 후 삽입 */
-  const pfs = [...new Set(recs.map(r => r.platform))];
-  for(const pf of pfs){ await sb.from('social_posts').delete().eq('platform', pf).eq('week', week); }
+  /* 파일에 들어있는 (플랫폼+월) 조합을 먼저 비우고 넣기(그 조합만 교체) */
+  const combos = [...new Set(recs.map(r => r.platform + '|' + r.week))].map(s => s.split('|'));
+  for(const [pf, wk] of combos){ await sb.from('social_posts').delete().eq('platform', pf).eq('week', wk); }
   for(let i=0;i<recs.length;i+=500){
     const { error } = await sb.from('social_posts').insert(recs.slice(i,i+500));
     if(error){ msg.textContent = '저장 실패: ' + error.message; return; }
   }
-  msg.textContent = `완료 — ${recs.length}개 올렸어요 (${pfs.map(p=>PF_LABEL[p]||p).join('·')} · ${week.slice(0,7).replace('-','년 ')}월)`;
-  SOC_MONTH = week.slice(0,7);
+  const pfs = [...new Set(recs.map(r=>PF_LABEL[r.platform]||r.platform))];
+  const wks = [...new Set(recs.map(r=>r.week.slice(0,7)))];
+  msg.textContent = `완료 — ${recs.length}개 (${pfs.join('·')} · ${wks.map(w=>w.replace('-','년 ')+'월').join(', ')})`;
+  SOC_MONTH = wks.sort().reverse()[0];
   buildSocial();
 }
 document.addEventListener('change', e => {
@@ -2927,6 +2947,20 @@ document.addEventListener('click', e => {
     const csv = SOC_COLS.join(',') + '\n';
     const blob = new Blob(['\uFEFF'+csv], { type:'text/csv;charset=utf-8' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'social_트렌드_양식.csv'; a.click();
+  }
+  if(e.target.id === 'socClear'){
+    const pf = SOC_PF === 'all' ? null : SOC_PF;
+    const mo = SOC_MONTH;
+    if(!mo){ $('#socMsg').textContent = '비울 월이 없어요.'; return; }
+    const what = (pf ? (PF_LABEL[pf]||pf) : '전체 플랫폼') + ' · ' + mo.replace('-','년 ') + '월';
+    if(!confirm(`${what} 데이터를 지울까요? (되돌릴 수 없어요)`)) return;
+    (async () => {
+      let q = sb.from('social_posts').delete().gte('week', mo+'-01').lte('week', mo+'-28');
+      if(pf) q = q.eq('platform', pf);
+      const { error } = await q;
+      $('#socMsg').textContent = error ? ('삭제 실패: '+error.message) : `${what} 삭제 완료`;
+      buildSocial();
+    })();
   }
 });
 
