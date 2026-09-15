@@ -371,7 +371,7 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
 <body>
 
 <header>
-  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260808-26</span></h1>
+  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260808-27</span></h1>
   <div class="tabs">
     <button data-v="signal" class="on">TREND SIGNAL</button>
     <button data-v="keywords">TREND KEYWORDS</button>
@@ -1185,6 +1185,7 @@ const KW_CATLABEL_FALLBACK = {
 let HIDDEN_HEADS = new Set();
 let ALL_CLUSTERS = [];   /* 대표 클러스터 목록 — 편집 UI의 선택지 */
 let KO_VOL = {};   /* 한국어 검색어 → 주간 검색량 (한국어 탭에서 행마다 따로 표시) */
+let FASHION_VOL = {};   /* 한국어 검색어 → '코디' 붙인 패션 검색량 (source=naver_fashion) */
 let kwLang2 = 'en';   /* 검색량 조회 언어 — 'en' 영문 해시태그 자체, 'ko' 대표 클러스터의 한국어 별칭들 합산 */
 let kwQuery2 = '';   /* 트렌드 키워드 탭 검색어 */
 
@@ -1272,13 +1273,16 @@ async function loadAllVolumeData(){
 
   /* 한국어 탭 — 한국어 검색어 하나하나를 따로 조회 (별칭이 수백 개일 수 있어 나눠서 조회) */
   const allKo = [...new Set(rows.flatMap(r => r.ko || []))];
-  KO_VOL = {};
+  KO_VOL = {}; FASHION_VOL = {};
   if(!allKo.length){ drawKwBody2(); return; }
   for(let i = 0; i < allKo.length; i += 120){
     const { data, error } = await sb.from('search_volume').select('*')
       .in('keyword', allKo.slice(i, i + 120)).eq('region', 'KR').order('week');
     if(error){ console.warn('search_volume(ko) 로드 실패:', error.message); continue; }
-    for(const r of (data || [])) (KO_VOL[r.keyword] ||= []).push(r);
+    for(const r of (data || [])){
+      if(r.source === 'naver_fashion') (FASHION_VOL[r.keyword] ||= []).push(r);
+      else if(r.source === 'naver' || !r.source) (KO_VOL[r.keyword] ||= []).push(r);
+    }
   }
   drawKwBody2();
 }
@@ -1318,7 +1322,7 @@ function drawKwCatBar2(CATS){
 function drawKwHead2(){
   const isKo = kwLang2 === 'ko';
   $('#kwHead2').innerHTML = isKo
-    ? '<tr><th>한국어 검색어</th><th>카테고리</th><th>트렌드 지수</th><th>검색량 추이</th><th>변화</th><th>관리</th></tr>'
+    ? '<tr><th>한국어 검색어</th><th>카테고리</th><th>트렌드 지수</th><th>검색량 추이</th><th>패션 검색량</th><th>변화</th><th>관리</th></tr>'
     : '<tr><th>해시태그</th><th>한국어</th><th>대표 클러스터</th><th>카테고리</th><th>트렌드 지수</th><th>검색량 추이</th><th>변화</th><th>관리</th></tr>';
 }
 
@@ -1597,15 +1601,18 @@ function drawKwBody2(){
       const cats = r.cats.map(c => esc(CAT_LABEL[c] || c)).join(', ');
       const cnt = r.count > 1
         ? `<span style="color:#c8451f;font-weight:800">🔥 ${r.count}</span>` : `${r.count}`;
+      const fpts = FASHION_VOL[r.label] || null;
+      const fspark = (fpts && fpts.length >= 2) ? sparklineSVG(fpts) : '';
       return `<tr class="${SELECTED_KW.includes(r.label) ? 'kwsel' : ''}" data-kw="${esc(r.label)}">
         <td><b>${esc(r.label)}</b></td>
         <td><span class="mini">${cats || '-'}</span></td>
         <td>${cnt}</td>
         <td>${spark || '<span class="mini">준비중</span>'}</td>
+        <td>${fspark || '<span class="mini">준비중</span>'}</td>
         <td>${pctHtml}</td>
         <td><button class="koDel" data-term="${esc(r.label)}" title="이 검색어를 목록에서 지웁니다">삭제</button></td>
       </tr>`;
-    }).join('') : '<tr><td colspan="6" style="text-align:center;color:var(--sub);padding:24px">해당 조건의 한국어 검색어가 없습니다</td></tr>';
+    }).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--sub);padding:24px">해당 조건의 한국어 검색어가 없습니다</td></tr>';
     return;
   }
 
