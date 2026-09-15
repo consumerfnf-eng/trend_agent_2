@@ -372,7 +372,7 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
 <body>
 
 <header>
-  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260808-23</span></h1>
+  <h1>TREND AGENT<span style="font-size:9px;letter-spacing:.06em;color:var(--sub);margin-left:8px;font-weight:600">v260808-25</span></h1>
   <div class="tabs">
     <button data-v="signal" class="on">TREND SIGNAL</button>
     <button data-v="keywords">TREND KEYWORDS</button>
@@ -443,6 +443,7 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
       <button class="chip2" data-socpf="youtube">유튜브</button>
       <button class="chip2" data-socpf="instagram">인스타</button>
     </div>
+    <select id="socMonth" title="볼 월"></select>
     <label class="socUp">📤 엑셀/CSV 올리기
       <input type="file" id="socFile" accept=".xlsx,.xls,.csv" style="display:none">
     </label>
@@ -450,7 +451,7 @@ footer{border-top:1px solid var(--ink); padding:10px 26px; font-size:9px; letter
       <option value="youtube">유튜브</option>
       <option value="instagram">인스타</option>
     </select>
-    <input type="week" id="socUpWeek" title="수집 주차">
+    <input type="month" id="socUpWeek" title="수집 월">
     <a id="socTmpl" href="#" class="mini" style="margin-left:auto">양식 내려받기</a>
   </div>
   <div class="mini" id="socMsg" style="margin:6px 2px 10px; min-height:16px"></div>
@@ -2796,20 +2797,25 @@ const _fmt = n => n==null ? '-' : Number(n).toLocaleString('ko-KR');
 const PF_LABEL = { youtube:'유튜브', instagram:'인스타' };
 const mondayOf = d => { const x = new Date(d); x.setDate(x.getDate() - ((x.getDay()+6)%7)); return x.toISOString().slice(0,10); };
 
+let SOC_MONTH = '';   /* '2026-09' 형태, 빈값=최신 */
+const _ym = w => (w || '').slice(0, 7);   /* 날짜 → YYYY-MM */
 async function buildSocial(){
   const grid = $('#socGrid'); if(!grid) return;
-  if(!$('#socUpWeek').value){ const d = new Date(); $('#socUpWeek').value = `${d.getFullYear()}-W${String(Math.ceil((((d-new Date(d.getFullYear(),0,1))/86400000)+new Date(d.getFullYear(),0,1).getDay()+1)/7)).padStart(2,'0')}`; }
+  if(!$('#socUpWeek').value){ $('#socUpWeek').value = new Date().toISOString().slice(0,7); }
   grid.innerHTML = '<div class="mini" style="padding:16px">불러오는 중…</div>';
   let q = sb.from('social_posts').select('*');
   if(SOC_PF !== 'all') q = q.eq('platform', SOC_PF);
   const { data, error } = await q;
   if(error){ grid.innerHTML = `<div class="mini" style="padding:16px">불러오기 실패 — social_posts 테이블이 있는지 확인하세요 (social_posts.sql 실행). ${esc(error.message)}</div>`; return; }
   let rows = data || [];
-  if(!rows.length){ grid.innerHTML = '<div class="mini" style="padding:16px">아직 올린 자료가 없어요 — 위 <b>📤 엑셀/CSV 올리기</b>로 피쳐링 표를 올려보세요.</div>'; return; }
-  /* 가장 최근 주차만 (플랫폼별 최신) */
-  const latest = {};
-  for(const r of rows){ const p = r.platform; if(!latest[p] || (r.week||'') > latest[p]) latest[p] = r.week || ''; }
-  rows = rows.filter(r => (r.week||'') === latest[r.platform]);
+  if(!rows.length){ grid.innerHTML = '<div class="mini" style="padding:16px">아직 올린 자료가 없어요 — 위 <b>📤 엑셀/CSV 올리기</b>로 표를 올려보세요.</div>'; if($('#socMonth')) $('#socMonth').innerHTML = ''; return; }
+
+  /* 월 목록 채우기 (최신 먼저) */
+  const months = [...new Set(rows.map(r => _ym(r.week)).filter(Boolean))].sort().reverse();
+  if(!SOC_MONTH || !months.includes(SOC_MONTH)) SOC_MONTH = months[0] || '';
+  if($('#socMonth')) $('#socMonth').innerHTML = months.map(m => `<option value="${m}"${m===SOC_MONTH?' selected':''}>${m.replace('-','년 ')}월</option>`).join('');
+
+  rows = rows.filter(r => _ym(r.week) === SOC_MONTH);
   rows.sort((a,b) => (b.views||0) - (a.views||0));
 
   grid.innerHTML = rows.map((r,i) => `
@@ -2830,7 +2836,7 @@ async function buildSocial(){
         ${r.post_url?`<a href="${esc(r.post_url)}" target="_blank" rel="noopener">게시물 ↗</a>`:''}
         ${r.account_url?`<a href="${esc(r.account_url)}" target="_blank" rel="noopener" class="mini">계정 ↗</a>`:''}
       </div>
-    </div>`).join('');
+    </div>`).join('') || '<div class="mini" style="padding:16px">이 달에 표시할 자료가 없어요</div>';
 }
 
 /* SheetJS 필요할 때만 로드 */
@@ -2879,18 +2885,21 @@ async function socImport(file){
   if(!objs.length){ msg.textContent = '빈 파일이에요.'; return; }
 
   const pfSel = $('#socUpPf').value;
-  const wkVal = $('#socUpWeek').value;   /* 2026-W37 형태 */
-  let week = mondayOf(new Date());
-  if(wkVal && /^\d{4}-W\d{2}$/.test(wkVal)){ const [y,w] = wkVal.split('-W').map(Number); const jan4 = new Date(y,0,4); week = mondayOf(new Date(jan4.getTime() + (w-1)*7*86400000)); }
+  const mVal = $('#socUpWeek').value;   /* 2026-09 형태 */
+  const week = /^\d{4}-\d{2}$/.test(mVal) ? (mVal + '-01') : (new Date().toISOString().slice(0,7) + '-01');
 
   const NUMF = new Set(['rank','followers','score','views','likes','comments']);
   const recs = objs.map(o => {
-    const rec = { platform: pfSel, week };
+    const rec = { week };
     for(const [k,v] of Object.entries(o)){
       const key = SOC_MAP[String(k).trim()]; if(!key) continue;
       rec[key] = NUMF.has(key) ? _num(v) : (v===''?null:String(v).trim());
     }
-    if(rec.platform){ const p = String(rec.platform).toLowerCase(); rec.platform = p.includes('you')||p.includes('유튜')?'youtube':(p.includes('insta')||p.includes('인스')?'instagram':pfSel); }
+    /* 플랫폼: 파일 값이 있으면 정규화, 없으면 화면에서 고른 플랫폼(pfSel) */
+    const p = String(rec.platform || '').toLowerCase();
+    rec.platform = (p.includes('you')||p.includes('유튜')) ? 'youtube'
+                 : (p.includes('insta')||p.includes('인스')||p.includes('릴')) ? 'instagram'
+                 : pfSel;
     return rec;
   }).filter(r => r.title || r.account || r.post_url);
 
@@ -2903,10 +2912,14 @@ async function socImport(file){
     const { error } = await sb.from('social_posts').insert(recs.slice(i,i+500));
     if(error){ msg.textContent = '저장 실패: ' + error.message; return; }
   }
-  msg.textContent = `완료 — ${recs.length}개 올렸어요 (${pfs.map(p=>PF_LABEL[p]||p).join('·')} · ${week})`;
+  msg.textContent = `완료 — ${recs.length}개 올렸어요 (${pfs.map(p=>PF_LABEL[p]||p).join('·')} · ${week.slice(0,7).replace('-','년 ')}월)`;
+  SOC_MONTH = week.slice(0,7);
   buildSocial();
 }
-document.addEventListener('change', e => { if(e.target.id === 'socFile' && e.target.files[0]){ socImport(e.target.files[0]); e.target.value=''; } });
+document.addEventListener('change', e => {
+  if(e.target.id === 'socFile' && e.target.files[0]){ socImport(e.target.files[0]); e.target.value=''; return; }
+  if(e.target.id === 'socMonth'){ SOC_MONTH = e.target.value; buildSocial(); }
+});
 document.addEventListener('click', e => {
   const c = e.target.closest('[data-socpf]');
   if(c){ SOC_PF = c.dataset.socpf; document.querySelectorAll('[data-socpf]').forEach(x => x.classList.toggle('on', x===c)); buildSocial(); return; }
